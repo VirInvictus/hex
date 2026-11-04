@@ -1,0 +1,80 @@
+-- hex_vitals.lua: the vitals model fed by Discworld's char.vitals GMCP
+-- message, plus the XP-rate model ported from tt_dw's status/status.tin
+-- (~610-680): once xp exceeds 100 a start point is recorded, and rate =
+-- (current xp + spent - start xp) / elapsed hours.
+local M = {}
+
+function M.new()
+  return {
+    cur = {},
+    max = {},
+    xp_start = nil, -- { xp = n, t = seconds }
+    xp_spent = 0,
+  }
+end
+
+local NUMERIC = { hp = true, maxhp = true, gp = true, maxgp = true, xp = true, burden = true }
+
+-- Merge a decoded char.vitals payload into state. Numeric fields are
+-- coerced (xp may arrive with commas); alignment passes through as text.
+function M.apply(st, vals)
+  if type(vals) ~= "table" then
+    return
+  end
+  for key, value in pairs(vals) do
+    if NUMERIC[key] then
+      local n = tonumber(value)
+      if n == nil then
+        n = tonumber((tostring(value):gsub(",", "")))
+      end
+      if key == "maxhp" then
+        st.max.hp = n
+      elseif key == "maxgp" then
+        st.max.gp = n
+      else
+        st.cur[key] = n
+      end
+    elseif key == "alignment" then
+      st.cur.alignment = value
+    end
+  end
+  if st.cur.xp and st.cur.xp > 100 and not st.xp_start then
+    st.xp_start = { xp = st.cur.xp, t = os.time() }
+  end
+end
+
+function M.add_spent(st, amount)
+  st.xp_spent = st.xp_spent + (tonumber(amount) or 0)
+end
+
+-- XP per hour, or nil before the first start point / elapsed second.
+function M.xp_rate(st, now)
+  if not st.xp_start then
+    return nil
+  end
+  local elapsed = (now or os.time()) - st.xp_start.t
+  if elapsed <= 0 then
+    return nil
+  end
+  local current = st.cur.xp or st.xp_start.xp
+  local gained = current + st.xp_spent - st.xp_start.xp
+  return math.floor(gained / elapsed * 3600)
+end
+
+-- XP-rate display color per tt_dw thresholds: good > 200k/h, ok > 100k/h,
+-- poor < 10k/h.
+function M.xp_rate_name(rate)
+  if not rate then
+    return nil
+  end
+  if rate > 200000 then
+    return "green"
+  elseif rate > 100000 then
+    return "yellow"
+  elseif rate < 10000 then
+    return "red"
+  end
+  return "cyan"
+end
+
+return M

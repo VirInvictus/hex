@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <!-- Placeholder logo: swap for real art before publishing. -->
+  <rect width="240" height="240" rx="28" fill="#181616"/>
+  <rect x="18" y="18" width="204" height="204" rx="20" fill="none" stroke="#8ea4a2" stroke-width="4"/>
+  <text x="120" y="118" font-family="monospace" font-size="56" fill="#c5c9c5" text-anchor="middle" font-weight="bold">HEX</text>
+  <text x="120" y="158" font-family="monospace" font-size="16" fill="#625e5a" text-anchor="middle">discworld for blightmud</text>
+</svg>
