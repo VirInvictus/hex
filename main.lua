@@ -32,7 +32,7 @@ local function refresh_status()
 end
 
 status.setup()
-gags.register(trigger.add, Regex)
+gags.register(trigger.add, regex)
 
 gmcp_wire.setup({
   on_vitals = function(data)

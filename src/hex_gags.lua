@@ -43,7 +43,7 @@ function M.register(trigger_add, Regex)
   for _, p in ipairs(M.patterns) do
     local re = p.re
     if p.i then
-      re = Regex.new(p.re, "i")
+      re = Regex.new(p.re, { case_insensitive = true })
     end
     if p.sub ~= nil then
       local to = p.sub
