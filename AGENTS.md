@@ -27,6 +27,8 @@ Run all commands from the repo root.
 - Status area: `blight.status_height(0-5)`, `blight.status_line(index, text)` 0-based; first/last rows render as bars.
 - Rust regex engine: no lookaround/lookbehind. Tintin-to-Hex regex conversion: `%1..%n` becomes capture groups, `%*` becomes `.*`, tintin's `~` raw-prefix becomes the `raw` trigger option, `%i` becomes the case-insensitive `Regex.new` option.
 - APIs newer than the v5.7.1 release (tabs, top rows, line tags) must be feature-detected.
+- Command aliases must match the leading slash themselves (`"^/item\\s+"`): blightmud passes unmatched lines (slash included) straight to the MUD.
+- `script.reset` does NOT clear `package.loaded`: after editing plugin files, `/load_plugin` re-executes main.lua but cached modules stay stale. Restart the client for a clean reload (learned live in the probe).
 
 ## Hard constraints (spec.md carries the details)
 
