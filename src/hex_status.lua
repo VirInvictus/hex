@@ -4,7 +4,8 @@
 --   row 0 (bar): HP bar + GP bar + XP
 --   row 1:       current room
 --   row 2 (bar): XP rate + burden + alignment
-local util = require("hex_util")
+local util = require("src.hex_util")
+local vitals_mod = require("src.hex_vitals")
 
 local M = {}
 
@@ -42,8 +43,7 @@ function M.render(st, room, width)
   local line3 = "XP/h "
   local rate = st.rate
   if rate then
-    local name = require("hex_vitals").xp_rate_name(rate)
-    line3 = line3 .. colored(name, util.comma(rate))
+    line3 = line3 .. colored(vitals_mod.xp_rate_name(rate), util.comma(rate))
   else
     line3 = line3 .. colored("gray", "-")
   end

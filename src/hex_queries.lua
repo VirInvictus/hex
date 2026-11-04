@@ -8,7 +8,7 @@
 --   * comma-separated terms each add an OR clause, empty terms are dropped
 --   * ORDER BY REPLACE(name, 'an ', 'a ') for article-insensitive ordering
 --   * single quotes doubled, '|' stripped (it is the result-field separator)
-local util = require("hex_util")
+local util = require("src.hex_util")
 
 local M = {}
 

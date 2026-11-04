@@ -19,7 +19,7 @@ Run all commands from the repo root.
 ## Architecture facts (verified against blightmud source, do not re-derive)
 
 - `main.lua` is the only entry point. **All `require` calls stay at its top level**: blightmud prepends `<plugindir>/?.lua` to `package.path` only while executing that chunk (`src/lua/lua_script.rs:459-475` in the reference clone at `~/.gitrepos/blightmud`).
-- Module files are named `hex_*` because `require` is global across plugins; same-named files silently collide (blightmud issue #1059).
+- The loader prepends `<plugindir>/?.lua` to `package.path` while `main.lua` executes (`lua_script.rs:459-475`), so modules live under `src/` and are required as `src.hex_*`. Basenames stay `hex_`-prefixed because `require` is global across plugins; same-named files silently collide (blightmud issue #1059).
 - `gmcp.receive` callbacks get the raw JSON body string; decode with the bundled `json`.
 - `gmcp.on_ready` supports multiple callbacks (the help doc claiming one is stale vs `resources/lua/gmcp.lua:110-115`).
 - `core.exec` is synchronous on the UI thread: queries must stay millisecond-scale; use the array form `{ "sqlite3", db, sql }`.

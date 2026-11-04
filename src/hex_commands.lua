@@ -2,8 +2,8 @@
 -- Spec invariant: every mud-bound action is behind a user alias; these
 -- commands only read local databases and blightmud state, and never send
 -- anything to the MUD.
-local util = require("hex_util")
-local queries = require("hex_queries")
+local util = require("src.hex_util")
+local queries = require("src.hex_queries")
 
 local M = {}
 

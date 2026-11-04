@@ -2,14 +2,14 @@
 -- Entry point. Every require MUST stay at this top level: blightmud resolves
 -- plugin-local modules only while this chunk itself is executing
 -- (lua_script.rs prepends <plugindir>/?.lua to package.path around the load).
-local util = require("hex_util")
-local vitals_mod = require("hex_vitals")
-local rooms_mod = require("hex_rooms")
-local gags = require("hex_gags")
-local gmcp_wire = require("hex_gmcp")
-local status = require("hex_status")
-local config = require("hex_config")
-local commands = require("hex_commands")
+local util = require("src.hex_util")
+local vitals_mod = require("src.hex_vitals")
+local rooms_mod = require("src.hex_rooms")
+local gags = require("src.hex_gags")
+local gmcp_wire = require("src.hex_gmcp")
+local status = require("src.hex_status")
+local config = require("src.hex_config")
+local commands = require("src.hex_commands")
 
 local vitals = vitals_mod.new()
 local room = rooms_mod.new()
