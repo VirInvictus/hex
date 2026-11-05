@@ -1,5 +1,7 @@
 # Hex roadmap
 
+Every phase below has an implementation-ready design document under [docs/](docs/README.md), produced by the 2026-11-04/05 exploration campaign (eight research agents; measured benchmarks, extracted formulas, wire-verification backlogs). The roadmap tracks boxes; the docs carry the designs.
+
 North star: Hex becomes the Discworld suite a Blightmud player reaches for first, the way Quow's Cow Bar is the suite a MUSHclient player reaches for first. That bar has three parts, and every phase below serves one of them: nothing essential is missing (map, vitals, data, missions, magic), nothing breaks quietly (the GMCP lesson: verify every protocol claim against the live wire), and nothing feels alien to a terminal user (one binary, text everywhere, zero dependencies).
 
 House invariants that out-rank every phase:
