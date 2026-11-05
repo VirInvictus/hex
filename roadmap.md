@@ -111,7 +111,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [x] Theme constants extracted so the whole suite re-skins from one table — shipped v0.8.0 as hex_theme: classic (byte-identical to today, golden-tested) + dragon (Kanagawa 24-bit); use() mutates the shared hex_util.ansi table in place so the whole suite re-skins with zero call-site migration (design's "delete hex_util.ansi" simplified away); guild packs remain unticked below
 - [ ] Theme raw material: the MUD documents ~250 colour names (xterm256-exact), hex codes, and `ansi*` overrides; MXP offers native 24-bit colour
 - [ ] `/hexoptions` records that auto-reconnect after quit/idle-out is banned by name (never grows one)
-- [ ] Per-alt profiles: config inheritance (global -> alt) like tt_dw's settings order
+- [ ] Per-alt profiles: config inheritance (global -> alt) like tt_dw's settings order (the session/alt/global/default LAYERS shipped v0.8.0 in /hexoptions; full per-key inheritance migration pending)
 
 ## Phase 8: ship as the premiere suite (M8)
 

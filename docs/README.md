@@ -10,7 +10,7 @@ One document per roadmap phase, produced by the 2026-11-04/05 exploration campai
 | [phase-4-magic.md](phase-4-magic.md) | 4 magic & faith | data lane shipped in v0.5.1; trackers wire-gated | spelldata ships committed (117 spells, ~130 KB) so installs work without tt_dw; the TM algorithm is tt_dw's exact relative-chance pipeline |
 | [phase-5-room.md](phase-5-room.md) | 5 the room | exploration core shipped in v0.7.0; MDT/maze/guess in slice 2 | Render ladder: top rows (dev) → tab → inline (stock); maze movement is an input-listener rewrite, legal because plugin sends bypass it |
 | [phase-6-social.md](phase-6-social.md) | 6 social | shipped in v0.5.0 | One mirror-mode `chat` tab routed by Rust-side filters (colors free, no double-routing); GMCP always beats the monitor fallback |
-| [phase-7-feel.md](phase-7-feel.md) | 7 feel & options | designed | Sound off by default (no bundled files; tt_dw's CC0 set via sound_dir); options = schema-validated layers (session > alt > global > default) |
+| [phase-7-feel.md](phase-7-feel.md) | 7 feel & options | comfort core shipped in v0.8.0 (sound/options/theme/tts); guild packs deferred | Sound off by default (no bundled files; tt_dw's CC0 set via sound_dir); options = schema-validated layers (session > alt > global > default) |
 | [phase-8-engineering.md](phase-8-engineering.md) | 8 ship | designed | CI from the house shape; three-layer goldens; a fake-GMCP shim that makes the M1 dead-vitals bug class a red CI run instead of a dead status bar |
 
 ## Cross-phase shared infrastructure (build once, consumed everywhere)
@@ -27,7 +27,7 @@ One document per roadmap phase, produced by the 2026-11-04/05 exploration campai
 
 1.x → 2 (walker) → 3 (skills store feeds 4's bonus math) → 4 (stat-item netting, chips) → 5 (uses 2's graph and 6's tabs) → 6 (notify feeds 7's sound) → 7 → 8 (CI/shim can land incrementally from Phase 3 onward; the harness is most valuable once handlers multiply).
 
-Phase 4 degrades gracefully without 3 (elapsed-only chips); Phase 5's guess needs 5's own maze modes; Phase 8's shim should be stood up early despite living in "Phase 8" — it is test infrastructure, not a feature.
+Phase 4 degrades gracefully without 3 (elapsed-only chips); Phase 5's guess needs 5's own maze modes; Phase 8's shim should be stood up early despite living in "Phase 8"; it is test infrastructure, not a feature.
 
 ## External materials
 
