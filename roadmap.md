@@ -29,7 +29,7 @@ House invariants that out-rank every phase:
 - [x] `/hexraw`, `/hexreload` with the handle registry (no double-registration on reload)
 - [x] Nil-guarded renderers; placeholder status bars at load and on connect
 - [x] Password-safe logging (sent lines are skip-logged while a password prompt is up)
-- [ ] Pin the real `char.vitals` JSON keys from a live payload and reduce the candidate map to the truth
+- [x] Pin the real `char.vitals` JSON keys (live 2026-11-05: hp, maxhp, gp, maxgp, xp, burden, alignment; room.info is {identifier, name, visibility, kind}, so `kind` feeds terrain)
 - [ ] `/hexsetup`: one alias that sets the game-side options tt_dw requires (prompt and monitor strings, `brief exits`, plain map output) so text-parsing fallbacks and room maps behave
 - [ ] `room.map` colour handling: strip or render the ANSI the MUD embeds; honor the plain-map option
 - [ ] `/gaglog` and a gag registry file so players add their own gags as data without touching code

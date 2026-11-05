@@ -7,8 +7,10 @@ function M.new()
   return { id = nil, name = nil, terrain = nil, previous = nil }
 end
 
--- Merge a decoded room.info payload. Discworld's field names are verified
--- live by /hexprobe; both 'identifier' and 'room_id' are accepted.
+-- Merge a decoded room.info payload. Wire format confirmed live (2026-11-05):
+-- {"identifier": "40-hex", "name": "...", "visibility": 1, "kind": "inside"}
+-- the MUD calls the terrain "kind"; 'terrain'/'room_id' stay accepted as
+-- fallbacks.
 function M.update(st, data)
   if type(data) ~= "table" then
     return
@@ -23,8 +25,8 @@ function M.update(st, data)
   if data.name then
     st.name = data.name
   end
-  if data.terrain then
-    st.terrain = data.terrain
+  if data.kind or data.terrain then
+    st.terrain = data.kind or data.terrain
   end
 end
 
