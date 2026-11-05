@@ -120,6 +120,19 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [ ] A dwwiki and r/MUD announcement post (drafted here, posted by Brandon)
 - [ ] v1.0.0: every phase above either shipped or consciously deferred in this file, tag with the full patchnotes entry per house release procedure
 
+## Week sprint (declared 2026-11-05: "we'll have this finished within the week")
+
+Aggressive, honest, gated: every LIVE item needs a capture session from Brandon (30-60 min/day with `/hexprobe` + `/hexraw` on). "Finished" definition for the sprint: the daily-play suite is transformed (1.x + Phases 2, 3, 4-core, 6 by Nov 12); Phase 8's full definition-of-done and Phase 5's wire-gated halves land week two on the way to v1.0.0.
+
+- [ ] **Thu 6**: 1.x completion — `strip_ansi` + `/dwmap` default, `/hexsetup` (documented strings, `term xterm256`, `options terminal rows=999`), gag registry file, Quow staleness + **"Hex owns its data"** (`/hexupdate`, quow_db moves to `~/.local/share/hex/`). Ship v0.2.0.
+- [ ] **Fri 7**: Phase 2 core — `hex_targets` resolver, `hex_paths` (Dijkstra + heap + render), `/path`, `/near`; bench + synthetic property tests.
+- [ ] **Sat 8**: Phase 2 walker — batch queue, walk gags, drift chip, `/stopwalk`; golden routes vs rooms.db. Ship v0.3.0. **Brandon: capture session #1** (seed, `options output`, quota/score transcripts, chat sweep).
+- [ ] **Sun 9**: Phase 3 — missions data + board triggers + timer engine + `/missions`; quota chip.
+- [ ] **Mon 10**: Phase 3 — skills parser + bonus/cost/goals + stats, verified against the capture. Ship v0.3.1.
+- [ ] **Tue 11**: Phase 6 — chat capture + tab, combat gag ladder, URLs, `hex_notify` bus; monitor fallback.
+- [ ] **Wed 12**: Phase 4 core — TPA state machine + prediction, charm chips, broom, stat-items. Ship v0.4.0 "premiere core". **Brandon: capture session #2** (maze rooms, journey, TPA expiry).
+- [ ] **Week 2**: Phase 4 TM + spelldata converter; Phase 5 minimap/MDT/maze/guess (wire-gated) + blorps/hex.db; Phase 7 sound/theme/options; Phase 8 CI + shim + goldens + announcement. v1.0.0 when the definition-of-done is true, not when the calendar says so.
+
 ## Deliberately out of scope
 
 A spatial automapper that draws its own rooms (the MUD's `room.map` and the tt_dw-derived graph cover the need), any kind of botting or idle-keeping (the rules and the spec both forbid it), and any dependency outside the two standard libraries.
