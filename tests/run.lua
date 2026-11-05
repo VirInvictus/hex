@@ -24,6 +24,8 @@ local walk = require("hex_walk")
 local missions = require("hex_missions")
 local quota = require("hex_quota")
 local missiondata = require("hex_missiondata")
+local skills = require("hex_skills")
+local skilldata = require("hex_skilldata")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -1064,6 +1066,181 @@ t("status: chips append to the vitals row and truncate", function()
   local lines_bare = status.render(st, {}, 80, nil)
   assert(not lines_bare[3]:find("%[Q:"), "no quota chip: " .. lines_bare[3])
   assert(not lines_bare[3]:find("%[M:"), "no mission chip: " .. lines_bare[3])
+end)
+
+-- hex_skills ----------------------------------------------------------------
+
+t("skilldata: tables coherent", function()
+  local n = 0
+  for _ in pairs(skilldata.skill_stats) do
+    n = n + 1
+  end
+  eq(n, 251)
+  eq(#skilldata.ROOT_SKILLS, 7)
+  eq(#skilldata.primaries.witches, 15)
+  eq(skilldata.skill_stats["covert.manipulation.sleight-of-hand"], "DDISS")
+  -- every root skill has a stats entry
+  for _, root in ipairs(skilldata.ROOT_SKILLS) do
+    assert(skilldata.skill_stats[root], "root missing stats: " .. root)
+  end
+end)
+
+t("skills: raw_level_bonus piecewise pins", function()
+  eq(skills.raw_level_bonus(0), 0)
+  eq(skills.raw_level_bonus(20), 100)
+  eq(skills.raw_level_bonus(40), 150)
+  eq(skills.raw_level_bonus(60), 170)
+  eq(skills.raw_level_bonus(300), 290) -- 0.5 * 240 + 170
+  eq(skills.raw_level_bonus(10), 50)
+end)
+
+t("skills: the all-13 golden constant (floor(290 x 1.05865) = 307 at level 300)", function()
+  local m = skills.multiplicator("CDISW", { con = 13, dex = 13, int = 13, wis = 13, str = 13 })
+  assert(m > 1.0585 and m < 1.0588, "multiplicator constant: " .. m)
+  eq(skills.bonus_for(300, "CDISW", { con = 13, dex = 13, int = 13, wis = 13, str = 13 }), 307)
+end)
+
+t("skills: multiplicator skips zero stats, divides negatives", function()
+  local hi = skills.multiplicator("DDISS", { con = 13, dex = 23, int = 13, wis = 13, str = 23 })
+  local lo = skills.multiplicator("DDISS", { con = 13, dex = 8, int = 13, wis = 13, str = 8 })
+  assert(hi > lo, "better stats must give a bigger multiplicator")
+  local zeroed = skills.multiplicator("DDISS", { con = 0, dex = 13, int = 0, wis = 13, str = 13 })
+  assert(zeroed > 0, "zero stats are skipped, not fatal: " .. zeroed)
+  local neg = skills.multiplicator("DDISS", { con = 13, dex = -3, int = 13, wis = 13, str = 13 })
+  assert(neg > 0, "negative stat divides by abs, still positive: " .. neg)
+end)
+
+t("skills: level_for_bonus round-trips through bonus_for", function()
+  local deps = "CCDDS"
+  local stats = { con = 16, dex = 15, int = 12, wis = 11, str = 14 }
+  for _, wanted in ipairs({ 50, 120, 200, 260 }) do
+    local level = skills.level_for_bonus(wanted, deps, stats)
+    assert(skills.bonus_for(level, deps, stats) >= wanted, "round-trip under: wanted " .. wanted)
+    assert(skills.bonus_for(level - 1, deps, stats) < wanted, "round-trip overshoots: wanted " .. wanted)
+  end
+  -- all-1 stats: prod = 1, m floors to 0, no level reaches the bonus
+  eq(skills.level_for_bonus(100000, "CDISW", { con = 1, dex = 1, int = 1, wis = 1, str = 1 }), -1)
+end)
+
+t("skills: target grammar covers the documented forms", function()
+  local cur = { level = 100, bonus = 300, raw_bonus = 200 }
+  local num, kind = skills.parse_target("120", cur)
+  eq(num, 120)
+  eq(kind, "level")
+  num, kind = skills.parse_target("l120", cur)
+  eq(num, 120)
+  eq(kind, "level")
+  num, kind = skills.parse_target("120l", cur)
+  eq(num, 120)
+  num, kind = skills.parse_target("+10", cur)
+  eq(num, 110)
+  num, kind = skills.parse_target("b200", cur)
+  eq(num, 200)
+  eq(kind, "bonus")
+  num, kind = skills.parse_target("200b", cur)
+  eq(num, 200)
+  num, kind = skills.parse_target("r180", cur)
+  eq(num, 180)
+  eq(kind, "raw")
+  num, kind = skills.parse_target("+b20", cur)
+  eq(num, 320)
+  eq(kind, "bonus")
+  num, kind = skills.parse_target("l+20", cur)
+  eq(num, 120)
+  num, kind = skills.parse_target("bogus", cur)
+  eq(num, nil)
+end)
+
+t("skills: cost is monotonic, zero on empty range, primary branch fires", function()
+  local stats = nil -- all-13
+  local c10 = skills.skill_cost("fighting.melee.sword", 0, 10, nil, false, stats)
+  local c11 = skills.skill_cost("fighting.melee.sword", 0, 11, nil, false, stats)
+  assert(c10 > 0 and c11 > c10, "monotonic: " .. c10 .. " vs " .. c11)
+  eq(skills.skill_cost("fighting.melee.sword", 10, 10, nil, false, stats), 0)
+  -- primary cost to 300 is far cheaper than the teach formula for the same span
+  local primary = skills.skill_cost("fighting.melee.sword", 0, 300, nil, true, stats)
+  local taught = skills.skill_cost("fighting.melee.sword", 0, 300, nil, false, stats)
+  assert(primary < taught, "primary branch must be cheaper: " .. primary .. " vs " .. taught)
+  -- teach bonus lowers cost
+  local with_etb = skills.skill_cost("fighting.melee.sword", 0, 20, 1000, false, stats)
+  local without = skills.skill_cost("fighting.melee.sword", 0, 20, nil, false, stats)
+  assert(with_etb <= without, "an ETB cannot raise the cost")
+end)
+
+t("skills: primaries lookup with wizard order translation", function()
+  eq(#skills.primaries_for("witches"), 15)
+  assert(skills.is_primary("magic.items.held.broom", "witches"), "broom is a witch primary")
+  assert(not skills.is_primary("fighting.melee.sword", "witches"), "sword is not")
+  local white = skills.primaries_for("wizards", "circle")
+  assert(white, "wizard order translates to colour branch")
+  assert(skills.is_primary("magic.methods.elemental.water", "wizards", "circle"), "white branch has water")
+  eq(skills.primaries_for("wizards", nil), nil) -- spec required
+  eq(skills.is_primary("anything", nil), false)
+end)
+
+t("skills: resolve_skill exact, unique, ambiguous, unknown", function()
+  eq(skills.resolve_skill("adventuring.health"), "adventuring.health")
+  eq(skills.resolve_skill("health"), "adventuring.health")
+  -- "fighting.melee" is itself a stored parent skill (exact hit); a
+  -- trailing-dot prefix hits only the children, which are ambiguous
+  local r, err = skills.resolve_skill("fighting.melee.")
+  eq(r, nil)
+  assert(err:find("ambiguous"), "ambiguous message: " .. tostring(err))
+  r, err = skills.resolve_skill("no.such.thing")
+  eq(r, nil)
+  assert(err:find("unknown"), "unknown message: " .. tostring(err))
+end)
+
+t("skills: listing line parser matches depths, hyphens, X bonus", function()
+  local s, l, b = skills.parse_line("adventuring.health                20     105")
+  eq(s, "adventuring.health")
+  eq(l, 20)
+  eq(b, "105")
+  s, l = skills.parse_line("covert.manipulation.sleight-of-hand  10      50")
+  eq(s, "covert.manipulation.sleight-of-hand")
+  eq(l, 10)
+  s, l, b = skills.parse_line("adventuring.movement.following.pursuit  5      30")
+  eq(s, "adventuring.movement.following.pursuit")
+  s, l, b = skills.parse_line("magic.items.sword                  12       X")
+  eq(s, "magic.items.sword")
+  eq(b, "X")
+  eq(skills.parse_line("You advance your skill in x from 1 to 2"), nil)
+  eq(skills.parse_line("SKILL    Level Bonus"), nil)
+end)
+
+t("skills: level_of parent fallback", function()
+  local st = { adventuring = { [0] = nil }, ["adventuring.health"] = 20 }
+  eq(skills.level_of("adventuring.health", st), 20)
+  -- a child absent from the store falls back to the parent level
+  local st2 = { adventuring = 12 }
+  eq(skills.level_of("adventuring.health", st2), 12)
+  eq(skills.level_of("totally.unknown", st2), nil)
+end)
+
+t("skills: advance updates store, goals spend, alert fires once", function()
+  skills.state = {}
+  skills.goals = { { skill = "fighting.melee.sword", target = 20, start_level = 10, spent = 0 } }
+  skills.advance("fighting.melee.sword", 15, 5000)
+  eq(skills.state["fighting.melee.sword"], 15)
+  eq(skills.goals[1].spent, 5000)
+  -- reaching the target alerts (output side is a print; state tracks it)
+  skills.advance("fighting.melee.sword", 20, 100)
+  eq(skills.state["fighting.melee.sword"], 20)
+  -- goal ops
+  eq(skills.goal_add("fighting.melee.sword", 30), "updated")
+  eq(skills.goal_add("adventuring.health", 100), "added")
+  eq(#skills.goals, 2)
+  assert(skills.goal_remove("adventuring.health"))
+  eq(#skills.goals, 1)
+end)
+
+t("skills: goal bar fills by spend fraction", function()
+  local full = skills.goal_bar(0, 1000)
+  local empty = skills.goal_bar(1000, 1000)
+  local half = skills.goal_bar(500, 1000)
+  assert(full ~= empty and half ~= empty, "bars differ by spend")
+  assert(full:find("/"), "bar carries the divider: " .. full)
+  eq(skills.goal_bar(100, 0), "-")
 end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))

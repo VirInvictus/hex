@@ -7,6 +7,7 @@ local queries = require("src.hex_queries")
 local targets = require("src.hex_targets")
 local paths = require("src.hex_paths")
 local missiondata = require("src.hex_missiondata")
+local skilldata = require("src.hex_skilldata")
 
 local M = {}
 
@@ -612,6 +613,187 @@ local function cmd_quota(args)
   end
 end
 
+-- skills surface (design: docs/phase-3-character.md §3, §5): /skills
+-- refresh is the sanctioned listing round-trip; the rest never send.
+
+local function cmd_skills(args)
+  local sk = M.deps.skills
+  args = util.trim(args)
+  if args == "refresh" then
+    sk.refresh()
+    return
+  end
+  local stats = sk.stats()
+  if args == "" then
+    local n = 0
+    for _ in pairs(sk.state) do
+      n = n + 1
+    end
+    print(
+      a("bold", "Skills")
+        .. a("gray", "  stored: " .. n .. "  /skills refresh to re-read (all-13 stats until the stats batch)")
+    )
+    local guild = M.deps.config.get("guild")
+    local spec = M.deps.config.get("guildspec")
+    if guild then
+      local points = skilldata.GUILD_POINTS[guild] or "?.points"
+      print(a("gray", "guild " .. guild .. (spec and ("/" .. spec) or "") .. "  points skill: " .. points .. " level " .. tostring(sk.level_of(points) or "?")))
+    else
+      print(a("gray", "guild unset: /hexset guild <wizards|witches|priests|thieves|assassins|warriors|fools|adventurers> enables primary-cost accuracy"))
+    end
+    return
+  end
+  -- search: prefix matches with level + bonus
+  local found = {}
+  for skill in pairs(skilldata.skill_stats) do
+    if skill:find(args:lower(), 1, true) then
+      found[#found + 1] = skill
+    end
+  end
+  table.sort(found)
+  if #found == 0 then
+    print(a("gray", "[hex] no skills match: " .. args))
+    return
+  end
+  for _, skill in ipairs(found) do
+    local level = sk.level_of(skill)
+    local deps = sk.deps_for(skill)
+    local bonus = level and sk.bonus_for(level, deps, stats) or nil
+    print(("  %-44s %s"):format(skill, a("gray", "level " .. tostring(level or "?") .. (bonus and ("  bonus " .. bonus) or ""))))
+  end
+end
+
+local function cmd_bonus(args)
+  local sk = M.deps.skills
+  local skill_spec, target_spec = args:match("^(%S+)%s*(%S*)$")
+  if not skill_spec then
+    print(a("gray", "usage: /bonus <skill> [target]   targets: 120, l120, +10, b200, r180"))
+    return
+  end
+  local skill, err = sk.resolve_skill(skill_spec)
+  if not skill then
+    print(a("gray", "[hex] " .. err))
+    return
+  end
+  local stats = sk.stats()
+  local level = sk.level_of(skill) or 0
+  local deps = sk.deps_for(skill)
+  local bonus = sk.bonus_for(level, deps, stats)
+  print(a("bold", skill) .. a("gray", "  level " .. level .. "  bonus " .. bonus .. "  (deps " .. deps .. ", raw " .. sk.raw_level_bonus(level) .. ")"))
+  if target_spec ~= "" then
+    local num, kind = sk.parse_target(target_spec, { level = level, bonus = bonus, raw_bonus = sk.raw_level_bonus(level) })
+    if not num then
+      print(a("gray", "[hex] " .. kind))
+      return
+    end
+    if kind ~= "level" then
+      num = sk.level_for_bonus(num, deps, stats, kind == "raw")
+      if num < 0 then
+        print(a("gray", "[hex] that bonus is unreachable with your current stats"))
+        return
+      end
+    end
+    print(a("gray", "target level " .. num .. "  bonus " .. sk.bonus_for(num, deps, stats)))
+  end
+end
+
+local function cmd_skillcost(args)
+  local sk = M.deps.skills
+  local etb = tonumber(args:match("etb%s+(%d+)"))
+  args = args:gsub("etb%s+%d+", ""):gsub("%s+", " ")
+  local skill_spec, target_spec = args:match("^(%S+)%s*(%S*)$")
+  if not skill_spec then
+    print(a("gray", "usage: /skillcost <skill|prefix> [target] [etb N]   targets like /bonus; * = primary"))
+    return
+  end
+  local target_num, kind = 300, "level"
+  if target_spec ~= "" then
+    local level = 0
+    target_num, kind = sk.parse_target(target_spec, { level = level, bonus = 0, raw_bonus = 0 })
+    if not target_num then
+      print(a("gray", "[hex] " .. kind))
+      return
+    end
+  end
+  -- prefix scope: exact one skill, or every known skill sharing the prefix
+  local matches = {}
+  for skill in pairs(skilldata.skill_stats) do
+    if skill:find(skill_spec:lower(), 1, true) then
+      matches[#matches + 1] = skill
+    end
+  end
+  table.sort(matches)
+  if #matches == 0 then
+    print(a("gray", "[hex] unknown skill: " .. skill_spec))
+    return
+  end
+  if #matches > 8 then
+    print(a("gray", "[hex] " .. #matches .. " skills match '" .. skill_spec .. "'; narrow it (e.g. fighting.melee)"))
+    return
+  end
+  local guild = M.deps.config.get("guild")
+  local spec = M.deps.config.get("guildspec")
+  local stats = sk.stats()
+  print(a("bold", "Skill costs") .. a("gray", "  target " .. target_num .. " (" .. kind .. ")" .. (etb and ("  etb " .. etb) or "")))
+  for _, skill in ipairs(matches) do
+    local from = sk.level_of(skill) or 0
+    local primary = sk.is_primary(skill, guild, spec)
+    local to = kind == "level" and target_num or sk.level_for_bonus(target_num, sk.deps_for(skill), stats, kind == "raw")
+    local cost = sk.skill_cost(skill, from, to, etb, primary, stats)
+    local flag = primary and a("cyan", "*") or " "
+    print((" %s %-43s %12s xp"):format(flag, skill, util.comma(cost)))
+  end
+  print(a("gray", "caveat: teach-cost numbers are tt_dw's approximation; the official ETB formula differs (documented in docs/phase-3-character.md)"))
+  print(a("gray", "costs cap primary levels at 300 (the skillcap)" .. (guild == nil and "; set /hexset guild <name> for primary accuracy" or "")))
+end
+
+local function cmd_goals_list()
+  local sk = M.deps.skills
+  if #sk.goals == 0 then
+    print(a("gray", "no goals; /goal add <skill> <target>"))
+    return
+  end
+  print(a("bold", "Goals"))
+  for _, goal in ipairs(sk.goals) do
+    local left, total = sk.goal_xp_left(goal, M.deps.config.get("guild"), M.deps.config.get("guildspec"), sk.stats())
+    print(("  %-40s %s  %s"):format(goal.skill .. " -> " .. goal.target, sk.goal_bar(left, total), a("gray", util.comma(left) .. " xp left")))
+  end
+end
+
+local function cmd_goal(args)
+  local sk = M.deps.skills
+  local action, rest = args:match("^(%S+)%s*(.*)$")
+  if action == "add" or action == "update" then
+    local skill_spec, target_spec = rest:match("^(%S+)%s+(%S+)$")
+    if not skill_spec then
+      print(a("gray", "usage: /goal add <skill> <target>   target like 120, +10, b200"))
+      return
+    end
+    local skill, err = sk.resolve_skill(skill_spec)
+    if not skill then
+      print(a("gray", "[hex] " .. err))
+      return
+    end
+    local num, kind = sk.parse_target(target_spec, { level = sk.level_of(skill) or 0, bonus = 0, raw_bonus = 0 })
+    if not num then
+      print(a("gray", "[hex] " .. kind))
+      return
+    end
+    if kind ~= "level" then
+      num = sk.level_for_bonus(num, sk.deps_for(skill), sk.stats(), kind == "raw")
+    end
+    print(a("gray", "[hex] goal " .. sk.goal_add(skill, num) .. ": " .. skill .. " -> level " .. num))
+  elseif action == "remove" then
+    if sk.goal_remove(util.trim(rest)) then
+      print(a("gray", "[hex] goal removed: " .. util.trim(rest)))
+    else
+      print(a("gray", "[hex] no goal for " .. util.trim(rest)))
+    end
+  else
+    cmd_goals_list()
+  end
+end
+
 local function cmd_gag_list()
   local gf = M.deps.gagfile
   print(
@@ -751,6 +933,24 @@ function M.setup(deps)
   alias_add("^/quota%s+(%S+)$", function(matches)
     cmd_quota(matches[2])
   end)
+  alias_add("^/skills$", function()
+    cmd_skills("")
+  end)
+  alias_add("^/skills%s+(.+)$", function(matches)
+    cmd_skills(matches[2])
+  end)
+  alias_add("^/bonus%s+(.+)$", function(matches)
+    cmd_bonus(matches[2])
+  end)
+  alias_add("^/skillcost%s+(.+)$", function(matches)
+    cmd_skillcost(matches[2])
+  end)
+  alias_add("^/goal%s*(.*)$", function(matches)
+    cmd_goal(matches[2])
+  end)
+  alias_add("^/goals$", function()
+    cmd_goals_list()
+  end)
   alias_add("^/wmap$", function()
     cmd_show_map("wmap")
   end)
@@ -810,6 +1010,8 @@ function M.setup(deps)
     print("  /goto <target>           one-batch speedwalk; /stopwalk aborts")
     print("  /missions [name]         mission table, resets, rates; /missions pending <id>")
     print("  /apply <id>              /dl <A-H>       /quota [refresh]")
+    print("  /skills [refresh|search] /bonus <skill> [target]")
+    print("  /skillcost <skill> [target] [etb N]      /goal add|remove, /goals")
     print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
     print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
     print("  /hexgag, /gaglog         user gags as data; /hexungag <n|text> removes")

@@ -13,6 +13,7 @@ local data = require("src.hex_data")
 local walk = require("src.hex_walk")
 local missions = require("src.hex_missions")
 local quota = require("src.hex_quota")
+local skills = require("src.hex_skills")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -80,6 +81,11 @@ quota.setup({ config = config, timer_add = timer_add, timer_remove = timer_remov
 missions.register(trigger_add, regex)
 quota.register(trigger_add, regex)
 
+-- skills: the listing round-trip arms its own window triggers inside the
+-- /skills refresh alias; the passive hskills feed registers here
+skills.setup({ config = config, timer_add = timer_add, timer_remove = timer_remove, trigger_add = trigger_add })
+skills.register(trigger_add, regex)
+
 -- user gags as data: loaded additively after the built-ins (a bad entry
 -- skips only itself; the file degrades to built-in gags only if unloadable)
 gagfile.activate(trigger_add, regex, function(id)
@@ -124,11 +130,13 @@ gmcp_wire.setup({
   end,
 })
 
--- XP spent on skill advances feeds the xp-rate model (tt_dw counts the same
--- line: "You advance your skill in X from A to B for N xp").
-trigger_add("^You advance your skill in .+ from .+ to .+ for ([\\d,]+) xp", {}, function(matches)
-  local amount = tonumber((matches[2]:gsub(",", ""))) or 0
+-- XP spent on skill advances feeds the xp-rate model and the skill-goal
+-- alerts (tt_dw counts the same line: "You advance your skill in X from A
+-- to B for N xp and ..."; the level capture strips any trailing "levels").
+trigger_add("^You advance your skill in (.+) from .+ to (.+) for ([\\d,]+) xp", {}, function(matches)
+  local amount = tonumber((matches[4]:gsub(",", ""))) or 0
   vitals_mod.add_spent(vitals, amount)
+  skills.advance(matches[2], tonumber(matches[3]:match("%d+")) or 0, amount)
   refresh_status()
 end)
 
@@ -171,6 +179,7 @@ commands.setup({
   walk = walk,
   missions = missions,
   quota = quota,
+  skills = skills,
   paths_cache = paths_cache,
 })
 
