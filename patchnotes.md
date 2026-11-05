@@ -1,5 +1,15 @@
 # Hex patchnotes
 
+## v0.8.0 (2026-11-05)
+
+Phase 7's comfort core: theme, a real options engine, and sound — all defaults-preserving, all notify-driven (sound triggers are explicitly legal per concepts/automation).
+
+- `/hexoptions`: a validated options engine over the new layered store (session > alt > global > default, tt_dw's load order). Bool/enum/number/path validation with proper errors, aliases (`speech` = tts), `brief`, `defaults`, `clear <key>`, and alt/session layer overrides. Selection is by key name, never numbers (typing "3" into a MUD client sends it). `/hexset` remains the raw unvalidated escape hatch. Schema keys: sound, sound_dir, sound_volume, tts, theme, chat_tab, map_ansi, map_panel, allow_swim, avoid_gates, mission_travel_time (missions now reads it), quow_stale_days, guild, plus hidden db paths.
+- Theme: `hex_theme` re-skins the whole suite from one place — classic (byte-identical to today's ANSI, golden-tested) and dragon (Kanagawa 24-bit) — `/hexoptions theme dragon` flips it live. Mechanism: use() mutates the shared hex_util.ansi table in place, the single table every module already reads, so re-skinning needs zero call-site migration (the design's delete-and-migrate simplified away).
+- Sound: `hex_sound_events` maps notify-bus events to the CC0 mp3 stems (`/hexupdate` already copied them) — connect/disconnect, tells, mission-ready, damage. Defaults OFF (a terminal client is frequently SSH'd or at work); `/hexoptions sound on` runs a preflight (Hex's own copy of the set is detected first, tt_dw fallback). Damage words are verbatim tt_dw thresholds (-200/-400/-500) and debounced 2s so fight bursts don't stack.
+- TTS: `/hexsay <text>` speaks whenever a TTS-enabled blightmud build is available; option-gated event speech shares the sound event table. Every tts call except is_available() is availability-gated (ungated calls spam errors on non-TTS builds).
+- Tests grow to 140 (145 with the opt-in goldens): classic palette byte-golden, 24-bit shape, role paint/unknown-role, schema well-formedness, alias canonicalization, validation errors with choices/ranges, damage-word thresholds, template rendering.
+
 ## v0.7.0 (2026-11-05)
 
 Phase 5's exploration core: the pieces that make leaving pumpkin village navigable.

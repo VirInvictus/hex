@@ -33,6 +33,13 @@ local urls = require("hex_urls")
 local chat = require("hex_chat")
 local combat = require("hex_combat")
 local stats_mod = require("hex_stats")
+local theme = require("hex_theme")
+-- hex_theme mutates the module graph's hex_util ("src.hex_util"); the bare
+-- "hex_util" require would be a second instance of the same file
+local util_src = require("src.hex_util")
+local options = require("hex_options")
+local defs = require("hex_options_def")
+local sound_events = require("hex_sound_events")
 local blorps = require("hex_blorps")
 local minimap = require("hex_minimap")
 
@@ -1777,6 +1784,97 @@ t("paths: exclude_swim keeps water out of goto routes", function()
   local dry = paths.find_route(g, { 1 }, 3, { exclude_swim = true })
   eq(dry.steps, 2) -- the walk around
   eq(dry.path[1].cmd, "north")
+end)
+
+-- hex_theme / hex_options / hex_sound_events -------------------------------
+
+t("theme: classic palette is byte-identical to the original hex_util.ansi", function()
+  -- the original values, captured before any use() could mutate them
+  local original = { reset = "\27[0m", bold = "\27[1m", red = "\27[31m", green = "\27[32m", yellow = "\27[33m", magenta = "\27[35m", cyan = "\27[36m", gray = "\27[90m", white = "\27[37m" }
+  theme.use("classic")
+  for key, value in pairs(original) do
+    eq(util_src.ansi[key], value)
+  end
+end)
+
+t("theme: dragon palette is 24-bit and use() re-skins in place", function()
+  theme.use("dragon")
+  assert(util_src.ansi.red:find("^\27%[38;2;%d+;%d+;%d+m$"), "dragon red is 24-bit: " .. util_src.ansi.red)
+  assert(util_src.ansi.gray ~= "\27[90m", "gray re-skinned")
+  theme.use("classic")
+  eq(util_src.ansi.gray, "\27[90m")
+end)
+
+t("theme: roles resolve and paint wraps; unknown role is empty", function()
+  theme.use("classic")
+  eq(util_src.ansi.gray, "\27[90m")
+  assert(theme.paint("muted", "x"):find("\27%[90mx"), "paint wraps")
+  eq(theme.get("no_such_role"), "")
+  eq(theme.paint("no_such_role", "x"), "x")
+end)
+
+t("options_def: schema is well-formed", function()
+  local seen = {}
+  for _, entry in ipairs(defs.schema) do
+    assert(not seen[entry.key], "duplicate key " .. entry.key)
+    seen[entry.key] = true
+    if entry.type == "enum" then
+      assert(entry.choices and #entry.choices > 0, "enum without choices: " .. entry.key)
+      local found = false
+      for _, c in ipairs(entry.choices) do
+        if c == entry.default then
+          found = true
+        end
+      end
+      assert(found, "enum default not in choices: " .. entry.key)
+    end
+    if entry.type == "number" and entry.min then
+      assert(not entry.default or entry.default >= entry.min, "default under min: " .. entry.key)
+    end
+  end
+end)
+
+t("options: canonical resolves aliases and rejects unknowns", function()
+  eq(options.canonical("speech"), "tts")
+  eq(options.canonical("sound"), "sound")
+  local key, err = options.canonical("nope")
+  eq(key, nil)
+  assert(err:find("unknown option"), "unknown message")
+end)
+
+t("options: validate enforces types, choices, ranges", function()
+  local sound_entry = defs.find("sound")
+  eq(options.validate(sound_entry, "on"), true)
+  eq(options.validate(sound_entry, "no"), false)
+  local _, err = options.validate(sound_entry, "maybe")
+  assert(err:find("bool expected"), "bool error: " .. tostring(err))
+  local theme_entry = defs.find("theme")
+  eq(options.validate(theme_entry, "dragon"), "dragon")
+  local _, err2 = options.validate(theme_entry, "neon")
+  assert(err2:find("must be one of"), "enum error: " .. tostring(err2))
+  local vol = defs.find("sound_volume")
+  eq(options.validate(vol, "2.0"), 2.0)
+  local _, err3 = options.validate(vol, "9")
+  assert(err3:find("maximum"), "max error: " .. tostring(err3))
+end)
+
+t("sound_events: damage words at the tt_dw thresholds", function()
+  eq(sound_events.damage_words(-199), nil)
+  eq(sound_events.damage_words(-200), "Ouch!")
+  eq(sound_events.damage_words(-400), "Eeep!")
+  eq(sound_events.damage_words(-500), "Youch! That hurt!")
+  eq(sound_events.damage_words(-50), nil)
+end)
+
+t("sound_events: template render substitutes payload fields", function()
+  eq(sound_events.render_words("Tell from {from}", { from = "Froggy" }), "Tell from Froggy")
+  eq(sound_events.render_words("plain", {}), "plain")
+end)
+
+t("sound_events: every stem is a plausible mp3 stem", function()
+  for _, mapping in ipairs(sound_events.events) do
+    assert(mapping.sound:match("^%w+$"), "odd stem: " .. mapping.sound)
+  end
 end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))

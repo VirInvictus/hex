@@ -20,6 +20,10 @@ local combat = require("src.hex_combat")
 local urls = require("src.hex_urls")
 local notify = require("src.hex_notify")
 local stats = require("src.hex_stats")
+local theme = require("src.hex_theme")
+local options = require("src.hex_options")
+local sound = require("src.hex_sound")
+local tts_mod = require("src.hex_tts")
 local blorps = require("src.hex_blorps")
 local minimap = require("src.hex_minimap")
 local gmcp_wire = require("src.hex_gmcp")
@@ -99,6 +103,41 @@ skills.register(trigger_add, regex)
 stats.setup({ config = config })
 stats.register(trigger_add, regex)
 
+-- Phase 7 feel: theme re-skins hex_util.ansi in place (all modules read
+-- the shared table at call time); options engine with the layered store;
+-- sound + tts subscribe the notify bus (announce-only, defaults off)
+theme.use(config.get("theme", "classic"))
+
+-- options engine (hooks dispatch to the owning modules)
+options.setup({ config = config })
+options.hooks = {
+  theme = function(value) theme.use(value) end,
+  sound = function() sound.preflight() end,
+  chat_tab = function() end, -- applies at next start
+}
+sound.setup({
+  config = config,
+  notify = notify,
+  file_exists = function(path)
+    local f = io.open(path, "r")
+    if f then f:close() return true end
+    return false
+  end,
+  play = function(path, opts) audio.play_sfx(path, opts) end,
+  tts_speak = function(text)
+    if tts_mod.available() and config.get("tts", false) then
+      tts.speak(text)
+    end
+  end,
+})
+sound.register(notify.subscribe)
+tts_mod.setup({ config = config })
+tts_mod.register(notify.subscribe)
+
+-- damage emitter: hp deltas emit the debounced damage event so fight
+-- bursts don't stack in the sfx FIFO (words at tt_dw's thresholds)
+local prev_hp = nil
+
 -- Phase 5 exploration core: blorps/bookmarks in hex.db and the minimap
 -- render ladder (toprows -> tab -> inline, feature-detected). hex.db is
 -- Hex's OWN sqlite file; user data never touches rooms.db or tt_dw.
@@ -139,6 +178,11 @@ end, config)
 gmcp_wire.setup({
   on_vitals = function(data)
     vitals_mod.apply(vitals, data)
+    local hp = vitals.cur.hp
+    if prev_hp and hp and hp < prev_hp then
+      notify.emit_debounced("damage", { delta = hp - prev_hp }, 2, "damage")
+    end
+    prev_hp = hp
     refresh_status()
   end,
   on_char_info = function(data)
@@ -231,6 +275,10 @@ commands.setup({
   urls = urls,
   notify = notify,
   stats = stats,
+  theme = theme,
+  options = options,
+  sound = sound,
+  tts_mod = tts_mod,
   blorps = blorps,
   minimap = minimap,
   paths_cache = paths_cache,

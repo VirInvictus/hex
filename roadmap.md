@@ -105,10 +105,10 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 
 ## Phase 7: feel & options (M7)
 
-- [ ] Sound effects through blightmud's audio module (mission reset, TPA plink, damage), gated by an options flag
-- [ ] `/hexoptions`: an options menu over config with persisted toggles (gag levels, sound, chat tab, walker confirmations)
+- [x] Sound effects through blightmud's audio module (mission reset, TPA plink, damage), gated by an options flag — shipped v0.8.0: notify-bus subscribers over the hex_sound_events table, defaults OFF (terminal clients travel; tt_dw defaults on), damage words verbatim at the -200/-400/-500 thresholds, debounced 2s; ambient line sounds remain a deferred v2 pack
+- [x] `/hexoptions`: an options menu over config with persisted toggles — shipped v0.8.0: schema-validated keys (bool/enum/number/path), the session > alt > global > default layer chain (tt_dw's load order), selection by key name not numbers (typing "3" into a MUD client sends it), /hexset remains the raw escape hatch
 - [ ] Guild packs: witch/warrior/thief/priest/assassin modules as opt-in data files, ported from tt_dw's guild trees
-- [ ] Theme constants extracted so the whole suite re-skins from one table
+- [x] Theme constants extracted so the whole suite re-skins from one table — shipped v0.8.0 as hex_theme: classic (byte-identical to today, golden-tested) + dragon (Kanagawa 24-bit); use() mutates the shared hex_util.ansi table in place so the whole suite re-skins with zero call-site migration (design's "delete hex_util.ansi" simplified away); guild packs remain unticked below
 - [ ] Theme raw material: the MUD documents ~250 colour names (xterm256-exact), hex codes, and `ansi*` overrides; MXP offers native 24-bit colour
 - [ ] `/hexoptions` records that auto-reconnect after quit/idle-out is banned by name (never grows one)
 - [ ] Per-alt profiles: config inheritance (global -> alt) like tt_dw's settings order

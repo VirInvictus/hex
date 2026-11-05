@@ -53,6 +53,8 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/blorp add|delete|rename|list|all|goto` | Named places, per-alt, distance-sorted; `goto` shows the route |
 | `/bookmark add <label>: comment`, `/bookmark find|goto|list` | Shared bookmarks with comments, attributed per alt |
 | `/stats [refresh]` | Read your stats into the bonus math (from `score verbose stats`) |
+| `/hexoptions [key] [value]` | Validated options with alt/session layers; `brief`, `defaults`, `clear <key>` |
+| `/hexsay <text>` | Speak text when a TTS-enabled blightmud build is available |
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
 | `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
 | `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |

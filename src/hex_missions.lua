@@ -91,7 +91,7 @@ function M.rate_for(short, missions, learned, travel)
   if not st or not st.est_time or st.est_time <= 0 then
     return 0
   end
-  travel = travel or TRAVEL_DEFAULT
+  travel = travel or (M.deps.config and M.deps.config.get("mission_travel_time", TRAVEL_DEFAULT)) or TRAVEL_DEFAULT
   local xp = M.xp_for(short, M.count(short, missions), learned)
   return math.floor(xp / (st.est_time + travel) * 3600 + 0.5)
 end
