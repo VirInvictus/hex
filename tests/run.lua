@@ -20,6 +20,7 @@ local data = require("hex_data")
 local version = require("hex_version")
 local paths = require("hex_paths")
 local targets = require("hex_targets")
+local walk = require("hex_walk")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -440,11 +441,14 @@ t("data: download command builders quote and chain mv", function()
   local ua = data.user_agent()
   assert(ua:find("^hex/" .. version .. " update script"), "UA shape: " .. ua)
   local curl = data.download_inner("curl", ua, "/h/quow.db.part", "/h/quow.db")
-  assert(curl:find("^curl %-fsSL %-A 'hex/0%.2%.0 update script %(https://github%.com/VirInvictus/hex%)' %-o '/h/quow%.db%.part'"), "curl form: " .. curl)
+  assert(curl:find("^curl %-fsSL %-A 'hex/"), "curl form prefix: " .. curl)
+  assert(curl:find(ua, 1, true), "UA missing from curl line: " .. curl)
+  assert(curl:find("%)' %-o '/h/quow%.db%.part'"), "curl form middle: " .. curl)
   assert(curl:find("quow%.co%.uk/maps/_quowmap_database%.db"), "quow URL missing")
   assert(curl:find(" && mv %-f '/h/quow%.db%.part' '/h/quow%.db'$"), "atomic mv missing: " .. curl)
   local wget = data.download_inner("wget", ua, "/h/quow.db.part", "/h/quow.db")
-  assert(wget:find("^wget %-q %-U 'hex/0%.2%.0"), "wget form: " .. wget)
+  assert(wget:find("^wget %-q %-U 'hex/"), "wget form prefix: " .. wget)
+  assert(wget:find(ua, 1, true), "UA missing from wget line: " .. wget)
   local outer = data.download_outer(curl, "/h/quow-update.log")
   -- the inner's single quotes come back POSIX-escaped ('\''') inside the
   -- sh -c wrapper; assert shape, not a full equality
@@ -790,6 +794,85 @@ if os.getenv("HEX_GOLDEN") == "1" then
     eq(r, nil)
   end)
 end
+
+-- hex_walk ----------------------------------------------------------------
+
+-- an n-node chain route: every step is "north" onto the next identified room
+local function chain_route(n)
+  local nodes = {}
+  for v = 1, n do
+    nodes[#nodes + 1] = node_row(v)
+  end
+  local edge_rows = {}
+  for v = 1, n - 1 do
+    edge_rows[#edge_rows + 1] = edge_row(v, { edge(v + 1, "north") })
+  end
+  edge_rows[#edge_rows + 1] = edge_row(n, {})
+  local g = paths.load(nodes, edge_rows)
+  return paths.find_route(g, { 1 }, n)
+end
+
+t("walk: build_queue packs the sanctioned batch", function()
+  local route = chain_route(3)
+  local q = walk.build_queue(route, "walk")
+  eq(#q, 2)
+  assert(
+    q[1] == "alias hex_goto_walk noalias options personal travel = walk;north;north;frimble hex: walk done",
+    "alias line: " .. q[1]
+  )
+  eq(q[2], "hex_goto_walk")
+end)
+
+t("walk: journey default restores the option inside the batch", function()
+  local q = walk.build_queue(chain_route(2), "journey")
+  assert(q[1]:find(";noalias options personal travel = journey;frimble "), "restore missing: " .. q[1])
+  local plain = walk.build_queue(chain_route(2), "walk")
+  assert(not plain[1]:find("travel = journey", 1, true), "unexpected restore in walk default")
+end)
+
+t("walk: transition advances, milestones, completes", function()
+  local route = chain_route(30)
+  local state = walk.new_state(route, "somewhere far")
+  local kinds = {}
+  for i = 1, state.total do
+    local ev = walk.transition(state, route.path[i].room_id)
+    kinds[#kinds + 1] = ev.kind .. tostring(ev.index or "")
+  end
+  eq(kinds[1], "advance1")
+  eq(kinds[2], "advance2")
+  eq(kinds[25], "milestone25")
+  eq(kinds[state.total], "complete" .. state.total)
+  eq(state.complete, true)
+end)
+
+t("walk: mismatch reports once then counts silently", function()
+  local route = chain_route(6) -- 6 nodes = 5 steps
+  local state = walk.new_state(route, "target")
+  eq(walk.transition(state, route.path[1].room_id).kind, "advance")
+  local ev = walk.transition(state, string.rep("f", 40))
+  eq(ev.kind, "mismatch")
+  eq(ev.index, 2)
+  eq(ev.expected, route.path[2].room_id)
+  eq(walk.transition(state, string.rep("f", 40)).kind, "drifted") -- step 3
+  eq(walk.transition(state, string.rep("f", 40)).kind, "drifted") -- step 4
+  local done = walk.transition(state, route.path[5].room_id) -- step 5 = total
+  eq(done.kind, "complete")
+  eq(done.drifted_at, 2)
+end)
+
+t("walk: completion via the frimble marker", function()
+  local state = walk.new_state(chain_route(3), "x")
+  assert(walk.is_done_marker("hex: walk done"), "marker must match")
+  assert(not walk.is_done_marker("hex: walk done."), "stray period must not match")
+  assert(not walk.is_done_marker("You are standing in the hall"), "ordinary lines must not match")
+  eq(walk.on_done_line(state).kind, "complete")
+  eq(walk.transition(state, string.rep("f", 40)).kind, "idle")
+end)
+
+t("walk: long routes warn before the MUD's 5-minute abort", function()
+  eq(walk.should_warn({ steps = walk.WARN_STEPS }), false)
+  eq(walk.should_warn({ steps = walk.WARN_STEPS + 1 }), true)
+end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))
 if failed > 0 then

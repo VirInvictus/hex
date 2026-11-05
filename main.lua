@@ -10,6 +10,7 @@ local gags = require("src.hex_gags")
 local gagfile = require("src.hex_gagfile")
 local setup_cmd = require("src.hex_setup")
 local data = require("src.hex_data")
+local walk = require("src.hex_walk")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -59,6 +60,11 @@ end, config.get("gags_file", data.hex_dir() .. "/gags.lua"))
 -- Hex-owned data paths (quow_db ladder, /hexupdate, staleness)
 data.setup(config)
 
+-- the /goto walker: registry-wrapped triggers + raw remover + config
+walk.init(trigger_add, function(id)
+  trigger.remove(id)
+end, config)
+
 gmcp_wire.setup({
   on_vitals = function(data)
     vitals_mod.apply(vitals, data)
@@ -77,6 +83,7 @@ gmcp_wire.setup({
   end,
   on_room = function(data)
     rooms_mod.update(room, data)
+    walk.on_room(type(data) == "table" and data.identifier or nil)
     refresh_status()
   end,
   on_map = function(data)
@@ -131,6 +138,7 @@ commands.setup({
   gagfile = gagfile,
   setup = setup_cmd,
   data = data,
+  walk = walk,
   paths_cache = paths_cache,
 })
 

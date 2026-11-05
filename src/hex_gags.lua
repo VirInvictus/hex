@@ -35,6 +35,19 @@ M.patterns = {
   { re = '^There are discussion items you have not voted for, use "rtfm list all" for a list\\.$' },
   { re = "^Rows changed from \\d+ to \\d+\\.$" },
   { re = "^Queued command: rows \\d+$" },
+  -- /goto walk noise (tt_dw paths.tin:203-212 port): travel-option
+  -- confirmations and compact queued-command echoes. The walk itself adds a
+  -- catch-all "Queued command" gag for its duration; these cover the
+  -- residual shapes seen outside walks. The alias-definition echo shape
+  -- (Added/Changed alias) is wire-unverified: tonight's capture confirms.
+  { re = "^Set option personal travel to walk\\.$" },
+  { re = "^Set option personal travel to journey\\.$" },
+  { re = "^Queued command: options personal travel = (walk|journey)$" },
+  { re = "^Queued command: frimble hex: walk done$" },
+  { re = "^Queued command: alias hex_goto_walk" },
+  { re = [[^(Added|Changed) alias "hex_goto_walk"$]] },
+  { re = "^Queued command: hex_goto_walk$" },
+  { re = "^Queued command: (journey )?((n|s)?(e|w)|n|s|u|d)$" },
 }
 
 -- Register everything with blightmud's trigger system (called from main.lua,

@@ -287,8 +287,59 @@ local function route_refusal(c)
   return nil
 end
 
+-- Shared by /path and /goto: resolve a SINGLE routable target, printing the
+-- outcome itself (multi-match candidate list, refusals, no-match). Returns
+-- the candidate or nil. allow = /path any (route through avoid/water rooms).
+local function resolve_single(args, g, start, allow)
+  local cands, err = resolve_targets(args, g)
+  if not cands then
+    print(a("gray", "[hex] " .. err))
+    return nil
+  end
+  if #cands == 0 then
+    print(a("gray", "[hex] no rooms match: " .. args))
+    return nil
+  end
+  if #cands > 1 then
+    M.deps.paths_cache.candidates = cands
+    local vnums = {}
+    for _, c in ipairs(cands) do
+      vnums[#vnums + 1] = c.vnum
+    end
+    local dists = paths.distances(g, start, vnums, { allow_avoid = allow })
+    print(a("bold", #cands .. " matches") .. a("gray", "  (/path #<n> or /goto #<n> routes one)"))
+    for i, c in ipairs(cands) do
+      local d = dists[c.vnum]
+      print((" %2d. %s (%s)%s"):format(i, c.name, c.area, d and a("gray", "  " .. d .. " steps") or a("gray", "  unreachable")))
+    end
+    return nil
+  end
+  local c = cands[1]
+  local refusal = route_refusal(c)
+  if refusal then
+    print(a("gray", "[hex] " .. refusal))
+    return nil
+  end
+  return c
+end
+
+local function route_or_message(g, start, c, allow)
+  local route, rerr = paths.find_route(g, { start }, c.vnum, { allow_avoid = allow })
+  if not route then
+    if rerr:find("avoid", 1, true) then
+      print(a("gray", "[hex] " .. c.name .. ": " .. rerr))
+    else
+      local where = c.area ~= "" and c.area or "unknown area"
+      print(a("gray", "[hex] no route to " .. c.name .. " (" .. where .. "): not connected in the identified map graph"))
+    end
+    return nil
+  end
+  return route
+end
+
 local function cmd_path(args)
   local full = false
+  local allow = false
   local rest = args
   local f1 = rest:match("^%-%-full%s+(.+)$")
   local f2 = rest:match("^(.+)%s+%-%-full$")
@@ -297,8 +348,12 @@ local function cmd_path(args)
   elseif f2 then
     full, rest = true, f2
   end
+  local any = rest:match("^any%s+(.+)$")
+  if any then
+    allow, rest = true, any
+  end
   if util.trim(rest) == "" then
-    print(a("gray", "usage: /path [--full] <target>   target: name, id, @area, #n, vnum"))
+    print(a("gray", "usage: /path [--full] [any] <target>   target: name, id, @area, #n, vnum"))
     return
   end
   local start = need_start()
@@ -309,48 +364,60 @@ local function cmd_path(args)
   if not g then
     return
   end
-  local cands, err = resolve_targets(rest, g)
-  if not cands then
-    print(a("gray", "[hex] " .. err))
+  local c = resolve_single(rest, g, start, allow)
+  if not c then
     return
   end
-  if #cands == 0 then
-    print(a("gray", "[hex] no rooms match: " .. rest))
-    return
-  end
-  if #cands > 1 then
-    M.deps.paths_cache.candidates = cands
-    local vnums = {}
-    for _, c in ipairs(cands) do
-      vnums[#vnums + 1] = c.vnum
-    end
-    local dists = paths.distances(g, start, vnums)
-    print(a("bold", #cands .. " matches") .. a("gray", "  (/path #<n> routes one)"))
-    for i, c in ipairs(cands) do
-      local d = dists[c.vnum]
-      print((" %2d. %s (%s)%s"):format(i, c.name, c.area, d and a("gray", "  " .. d .. " steps") or a("gray", "  unreachable")))
-    end
-    return
-  end
-  local c = cands[1]
-  local refusal = route_refusal(c)
-  if refusal then
-    print(a("gray", "[hex] " .. refusal))
-    return
-  end
-  local route, rerr = paths.find_route(g, { start }, c.vnum)
+  local route = route_or_message(g, start, c, allow)
   if not route then
-    if rerr:find("avoid", 1, true) then
-      print(a("gray", "[hex] " .. c.name .. ": " .. rerr))
-    else
-      local where = c.area ~= "" and c.area or "unknown area"
-      print(a("gray", "[hex] no route to " .. c.name .. " (" .. where .. "): not connected in the identified map graph"))
-    end
     return
   end
   for _, l in ipairs(paths.render(route, g, full)) do
     print(l)
   end
+end
+
+-- /goto: the ONE-SHOT batch speedwalk (docs/phase-2-mapper.md §4). One user
+-- invocation sends the packed alias and its invocation; the MUD's own queue
+-- runs the walk and `stop` (or /stopwalk) is the only abort. Hex never
+-- sends anything again and never re-routes; room.info drives drift display.
+local function cmd_goto(args)
+  if util.trim(args) == "" then
+    print(a("gray", "usage: /goto <target>   one-batch speedwalk; `stop` or /stopwalk aborts"))
+    return
+  end
+  local start = need_start()
+  if not start then
+    return
+  end
+  local g = get_graph()
+  if not g then
+    return
+  end
+  if M.deps.walk.active() then
+    print(a("gray", "[hex] a walk is already running; `stop` in-game or /stopwalk first"))
+    return
+  end
+  local c = resolve_single(args, g, start)
+  if not c then
+    return
+  end
+  local route = route_or_message(g, start, c)
+  if not route then
+    return
+  end
+  if route.steps == 0 then
+    print(a("gray", "[hex] you are already at " .. c.name))
+    return
+  end
+  for _, l in ipairs(paths.render(route, g, false)) do
+    print(l)
+  end
+  print(a("gray", "sending as one batch (" .. route.steps .. " commands); `stop` or /stopwalk aborts once queued"))
+  if M.deps.walk.should_warn(route) then
+    print(a("yellow", "[hex] warning: this route is long; the MUD aborts queues that run past 5 minutes"))
+  end
+  M.deps.walk.launch(route, c.name)
 end
 
 local function cmd_near(args)
@@ -519,6 +586,15 @@ function M.setup(deps)
   alias_add("^/near$", function()
     cmd_near("")
   end)
+  alias_add("^/goto%s+(.+)$", function(matches)
+    cmd_goto(matches[2])
+  end)
+  alias_add("^/goto$", function()
+    cmd_goto("")
+  end)
+  alias_add("^/stopwalk$", function()
+    M.deps.walk.stop()
+  end)
   alias_add("^/wmap$", function()
     cmd_show_map("wmap")
   end)
@@ -575,6 +651,7 @@ function M.setup(deps)
     print("  /npc <search>            /shop [room id]")
     print("  /where                   /wmap, /dwmap")
     print("  /path [--full] <target>  /near <search>  (route graph, identified rooms)")
+    print("  /goto <target>           one-batch speedwalk; /stopwalk aborts")
     print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
     print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
     print("  /hexgag, /gaglog         user gags as data; /hexungag <n|text> removes")
