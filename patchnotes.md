@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.7.0 (2026-11-05)
+
+Phase 5's exploration core: the pieces that make leaving pumpkin village navigable.
+
+- Blorps and bookmarks in Hex's OWN SQLite database (`~/.local/share/hex/hex.db`, real tables that survive rooms.db rebuilds). `/blorp add <label>` names the room you stand in; `/blorp list` sorts by walking distance (one multi-target Dijkstra); `/blorp goto <label>` shows the route; `/blorp all` spans alts. `/bookmark add <label>: comment` shares bookmarks across alts with attribution, plus comment/rename/delete/find/goto. Writes happen only inside these user aliases; tt_dw's hub-room blorp semantics are deliberately dropped (deviation noted in the module header).
+- The minimap render ladder: on every room.map push (deduped per payload + room, since the MUD pushes on look AND enter), Hex renders to top rows when the client has them (dev trees), else to a dedicated `map` tab (stock 5.7.1's tabs are proven live by the chat tab), else nothing automatic (mirror mode; `/dwmap` stays the on-demand view). Empty payloads print a can't-see note; maps without the `@` player marker carry a limited-vision hint; `hex.map_panel` overrides the ladder. The tab path renders stripped (output_to drops MUD colors by design).
+- Journey and water navigation: journey steps render as `[journey: N miles e]` (the map's edge distance IS the mile count); `/goto` excludes swim edges unless `/hexset allow_swim on` or you are already underwater (swim steps wear a `~` marker); `/goto avoid_gates on` routes around the city-gate table (gates lock at night). `/path` stays all-edges informational.
+- Tests grow to 131 (136 with the opt-in goldens): SQL builder escaping and PK shapes, the minimap live-payload fixtures (real ESC bytes, empty and whitespace payloads, the no-@ case), dedupe keys, journey/swim/gate routing, and find-SQL single-wrapping.
+
 ## v0.6.0 (2026-11-05)
 
 The wire-verification release: everything here is grounded in the capture transcript from `~/.local/share/hex/captures/` (v0.5.2-dbg's debug lane did its job and is gone, as planned).
