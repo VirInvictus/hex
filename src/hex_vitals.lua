@@ -13,29 +13,48 @@ function M.new()
   }
 end
 
-local NUMERIC = { hp = true, maxhp = true, gp = true, maxgp = true, xp = true, burden = true }
+-- Discworld's GMCP doc describes the vitals fields in prose only (hitpoints,
+-- guildpoints, experience points, alignment, burden), never as JSON keys, so
+-- apply() resolves each target from candidate spellings until the wire
+-- format is pinned down live (/hexraw shows the raw payload).
+local KEYS = {
+  hp = { "hp", "hitpoints", "current_hp" },
+  maxhp = { "maxhp", "max_hp", "maximum_hp", "hitpoints_max" },
+  gp = { "gp", "guildpoints", "guild_points" },
+  maxgp = { "maxgp", "max_gp", "maximum_gp", "guildpoints_max" },
+  xp = { "xp", "experience", "experience_points" },
+  burden = { "burden" },
+  alignment = { "alignment" },
+}
 
--- Merge a decoded char.vitals payload into state. Numeric fields are
--- coerced (xp may arrive with commas); alignment passes through as text.
+local function to_number(value)
+  local n = tonumber(value)
+  if n == nil then
+    n = tonumber((tostring(value):gsub(",", "")))
+  end
+  return n
+end
+
+-- Merge a decoded char.vitals payload into state.
 function M.apply(st, vals)
   if type(vals) ~= "table" then
     return
   end
-  for key, value in pairs(vals) do
-    if NUMERIC[key] then
-      local n = tonumber(value)
-      if n == nil then
-        n = tonumber((tostring(value):gsub(",", "")))
+  for target, candidates in pairs(KEYS) do
+    for _, key in ipairs(candidates) do
+      local value = vals[key]
+      if value ~= nil then
+        if target == "alignment" then
+          st.cur.alignment = value
+        elseif target == "maxhp" then
+          st.max.hp = to_number(value)
+        elseif target == "maxgp" then
+          st.max.gp = to_number(value)
+        else
+          st.cur[target] = to_number(value)
+        end
+        break
       end
-      if key == "maxhp" then
-        st.max.hp = n
-      elseif key == "maxgp" then
-        st.max.gp = n
-      else
-        st.cur[key] = n
-      end
-    elseif key == "alignment" then
-      st.cur.alignment = value
     end
   end
   if st.cur.xp and st.cur.xp > 100 and not st.xp_start then

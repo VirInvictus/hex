@@ -79,6 +79,23 @@ function M.comma(n)
   return formatted
 end
 
+-- Split on literal pipes, keeping empty fields (a trailing "|" means the
+-- last column is present-but-empty, and callers nil-guard anyway).
+function M.split_pipe(line)
+  local fields = {}
+  local start = 1
+  while true do
+    local sep = line:find("|", start, true)
+    if not sep then
+      fields[#fields + 1] = line:sub(start)
+      break
+    end
+    fields[#fields + 1] = line:sub(start, sep - 1)
+    start = sep + 1
+  end
+  return fields
+end
+
 -- Parse sqlite3 CLI output: rows separated by newlines, fields by '|'.
 function M.parse_rows(text)
   local rows = {}
@@ -87,11 +104,7 @@ function M.parse_rows(text)
   end
   for line in (text .. "\n"):gmatch("([^\n]*)\n") do
     if line ~= "" then
-      local row = {}
-      for field in line:gmatch("([^|]*)") do
-        row[#row + 1] = field
-      end
-      rows[#rows + 1] = row
+      rows[#rows + 1] = M.split_pipe(line)
     end
   end
   return rows

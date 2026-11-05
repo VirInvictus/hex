@@ -33,6 +33,8 @@ Both paths are overridable with `/hexset quow_db <path>` and `/hexset rooms_db <
 | `/where` | Current room identifier plus map-database details |
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map |
 | `/hexprobe` | Toggle raw GMCP echo (debugging) |
+| `/hexraw` | Show the last raw GMCP payloads (debugging) |
+| `/hexreload` | Reload Hex without restarting the client |
 | `/hexset <key> <value>` | Persist a config override |
 | `/hexhelp` | Command summary |
 

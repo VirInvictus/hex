@@ -1,18 +1,28 @@
 -- hex_gmcp.lua: Discworld GMCP wiring.
 --
--- Discworld documents six lowercase commands (char.login, char.info,
--- char.vitals, room.info, room.map, room.writtenmap) while GMCP convention
--- capitalizes; blightmud dispatches gmcp.receive by exact module name, so
--- Hex registers and listens on both casings until the wire format is
--- confirmed live (/hexprobe echoes raw GMCP).
+-- Discworld's GMCP is documented at
+-- https://discworld.starturtle.net/lpc/playing/documentation.c?path=/concepts/gmcp
+-- and it is NOT standard GMCP naming: registration is one
+--   core.supports.set ["char.login", "char.info", "char.vitals",
+--                      "room.info", "room.map", "room.writtenmap"]
+-- (lowercase, full message names, individually, no version suffix), and the
+-- hello is `core.hello {"client": ..., "version": ...}`. blightmud's
+-- gmcp.register() wrapper sends "Core.Supports.Add ["Mod 1"]", which
+-- Discworld ignores, so the handshake goes out raw via gmcp.send().
+--
+-- Server push timing: char.login/char.info at login; char.vitals whenever a
+-- command is sent (like the prompt); room.* on look/glance/enter.
 --
 -- blightmud's gmcp.receive hands us the raw JSON body string; decode here.
--- Registration waits for gmcp.on_ready per the documented pattern
--- (gmcp.send/register push bytes unconditionally, on_ready is the safe gate).
+-- Listeners are registered for the documented lowercase names plus the
+-- conventional capitalized spellings as a fallback.
 local M = {}
 
--- message suffix -> handler key. Char.Info carries identity, Room.Info the
--- room; both end in "info", so routing uses the family prefix too.
+local SUPPORTS = 'core.supports.set ["char.login", "char.info", "char.vitals", "room.info", "room.map", "room.writtenmap"]'
+local HELLO = 'core.hello {"client": "hex", "version": "0.1.0"}'
+
+-- message family -> suffix -> handler key. Char.Info and Room.Info both end
+-- in "info", so routing uses the family prefix too.
 local ROUTES = {
   char = {
     vitals = "on_vitals",
@@ -27,6 +37,7 @@ local ROUTES = {
 }
 
 local probe_on = false
+local recent = {} -- last raw incoming GMCP subnegs, newest last
 
 function M.probe()
   probe_on = not probe_on
@@ -34,12 +45,26 @@ function M.probe()
   return probe_on
 end
 
+-- /hexraw: the last raw GMCP payloads, for pinning down real JSON keys.
+function M.recent()
+  return recent
+end
+
 function M.setup(handlers)
   gmcp.on_ready(function()
-    gmcp.register("Char")
-    gmcp.register("char")
-    gmcp.register("Room")
-    gmcp.register("room")
+    gmcp.send(HELLO)
+    gmcp.send(SUPPORTS)
+  end)
+
+  -- raw tap on telnet option 201 (GMCP) for /hexraw
+  core.subneg_recv(function(proto, bytes)
+    if proto == 201 then
+      local text = bytes_to_string(bytes)
+      recent[#recent + 1] = text
+      if #recent > 12 then
+        table.remove(recent, 1)
+      end
+    end
   end)
 
   local function route(name, raw)
@@ -58,15 +83,12 @@ function M.setup(handlers)
 
   for family, kinds in pairs(ROUTES) do
     local prefix = family:sub(1, 1):upper() .. family:sub(2)
-    local lower = family
     for kind in pairs(kinds) do
-      local upper = prefix .. "." .. kind:sub(1, 1):upper() .. kind:sub(2)
-      gmcp.receive(upper, function(raw)
-        route(upper, raw)
-      end)
-      gmcp.receive(lower .. "." .. kind, function(raw)
-        route(lower .. "." .. kind, raw)
-      end)
+      for _, name in ipairs({ prefix .. "." .. kind:sub(1, 1):upper() .. kind:sub(2), family .. "." .. kind }) do
+        gmcp.receive(name, function(raw)
+          route(name, raw)
+        end)
+      end
     end
   end
 end

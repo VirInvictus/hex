@@ -34,12 +34,18 @@ local function rows(db, query)
 end
 
 local function show_item_line(fields)
-  local name, value, description, appraise, weight = fields[1], fields[2], fields[3], fields[4], fields[5]
+  -- every column is nil-guarded: Quow rows carry empty fields (cabbage has
+  -- no weight), and a missing trailing field must not crash the command
+  local name = fields[1] or "?"
+  local value = fields[2] or "?"
+  local description = fields[3] or ""
+  local appraise = fields[4] or ""
+  local weight = fields[5] or ""
   print(a("bold", util.trim(name)) .. a("gray", "  A$" .. value .. "  " .. weight))
-  for _, line in ipairs(util.wrap(util.trim(description or ""), width() - 2)) do
+  for _, line in ipairs(util.wrap(util.trim(description), width() - 2)) do
     print("  " .. a("gray", line))
   end
-  if appraise and appraise ~= "" then
+  if appraise ~= "" then
     for _, line in ipairs(util.wrap("appraise: " .. util.trim(appraise), width() - 2)) do
       print("  " .. a("gray", line))
     end
@@ -84,7 +90,10 @@ local function cmd_item_sources(args)
     return
   end
   for _, fields in ipairs(result) do
-    local kind, seller, price, room_short = fields[1], fields[2], fields[3], fields[4]
+    local kind = fields[1] or "?"
+    local seller = fields[2] or ""
+    local price = fields[3] or ""
+    local room_short = fields[4] or ""
     local line = a("cyan", string.format("%-5s", kind)) .. a("bold", util.trim(seller ~= "" and seller or room_short))
     if price and price ~= "" then
       line = line .. a("gray", "  " .. price)
@@ -103,7 +112,9 @@ local function cmd_npc(args)
     return
   end
   for _, fields in ipairs(result) do
-    local name, room_id, room_short = fields[1], fields[2], fields[3]
+    local name = fields[1] or "?"
+    local room_id = fields[2] or ""
+    local room_short = fields[3] or ""
     print(a("bold", util.trim(name)) .. a("gray", "  " .. (room_short ~= "" and room_short or room_id)))
   end
 end
@@ -126,7 +137,7 @@ local function cmd_shop(args)
     return
   end
   for _, fields in ipairs(result) do
-    print(a("bold", util.trim(fields[1])) .. a("gray", "  " .. fields[2]))
+    print(a("bold", util.trim(fields[1] or "?")) .. a("gray", "  " .. (fields[2] or "")))
   end
 end
 
@@ -139,7 +150,10 @@ local function cmd_where()
   print(a("bold", "room: ") .. (room.name or "?") .. a("gray", "  id " .. room.id))
   local detail = rows(M.deps.config.get("rooms_db"), queries.build_where_query(room.id))
   if detail and detail[1] then
-    local name, area, terrain, note = detail[1][1], detail[1][2], detail[1][3], detail[1][4]
+    local name = detail[1][1] or "?"
+    local area = detail[1][2] or ""
+    local terrain = detail[1][3] or ""
+    local note = detail[1][4] or ""
     print(a("gray", "map:  ") .. name .. (area ~= "" and a("cyan", "  " .. area) or "") .. (terrain ~= "" and a("gray", "  " .. terrain) or ""))
     if note and note ~= "" then
       print(a("gray", "note: ") .. note)
@@ -166,42 +180,68 @@ end
 
 function M.setup(deps)
   M.deps = deps
+  -- every alias goes through the registry so /hexreload can reap exactly
+  -- what this load created
+  local alias_add = function(re, cb)
+    return deps.registry.record("alias", alias.add(re, cb))
+  end
 
-  alias.add("^/item\\s+(.+)$", function(matches)
+  alias_add("^/item\\s+(.+)$", function(matches)
     cmd_item(matches[2])
   end)
-  alias.add("^/items\\s+(.+)$", function(matches)
+  alias_add("^/items\\s+(.+)$", function(matches)
     cmd_item_sources(matches[2])
   end)
-  alias.add("^/npc\\s+(.+)$", function(matches)
+  alias_add("^/npc\\s+(.+)$", function(matches)
     cmd_npc(matches[2])
   end)
-  alias.add("^/shop\\s*(.*)$", function(matches)
+  alias_add("^/shop\\s*(.*)$", function(matches)
     cmd_shop(matches[2])
   end)
-  alias.add("^/where$", function()
+  alias_add("^/where$", function()
     cmd_where()
   end)
-  alias.add("^/wmap$", function()
+  alias_add("^/wmap$", function()
     cmd_show_map("wmap")
   end)
-  alias.add("^/dwmap$", function()
+  alias_add("^/dwmap$", function()
     cmd_show_map("dwmap")
   end)
-  alias.add("^/hexprobe$", function()
+  alias_add("^/hexprobe$", function()
     local on = deps.gmcp.probe()
     print(a("gray", "[hex] gmcp echo " .. (on and "ON" or "OFF")))
   end)
-  alias.add("^/hexset\\s+(\\S+)\\s+(.+)$", function(matches)
+  alias_add("^/hexraw$", function()
+    local recent = deps.gmcp.recent()
+    if #recent == 0 then
+      print(a("gray", "[hex] no raw GMCP received yet"))
+      return
+    end
+    for _, line in ipairs(recent) do
+      print(a("gray", line))
+    end
+  end)
+  alias_add("^/hexreload$", function()
+    deps.registry.reap()
+    for key in pairs(package.loaded) do
+      if key:find("hex_") then
+        package.loaded[key] = nil
+      end
+    end
+    script.load(blight.data_dir() .. "/plugins/hex/main.lua")
+    print(a("gray", "[hex] reloaded"))
+  end)
+  alias_add("^/hexset\\s+(\\S+)\\s+(.+)$", function(matches)
     local value = deps.config.set(matches[2], matches[3])
     print(a("gray", "[hex] " .. matches[2] .. " = " .. tostring(value)))
   end)
-  alias.add("^/hexhelp$", function()
+  alias_add("^/hexhelp$", function()
     print(a("bold", "Hex commands") .. a("gray", "  (data: Quow db + Hex rooms.db)"))
     print("  /item [exact] <search>   /items [sold|free|loot] <search>")
     print("  /npc <search>            /shop [room id]")
     print("  /where                   /wmap, /dwmap")
-    print("  /hexprobe (gmcp echo)    /hexset <key> <value>")
+    print("  /hexprobe (gmcp echo)    /hexraw (last raw gmcp)")
+    print("  /hexreload               /hexset <key> <value>")
   end)
 end
 

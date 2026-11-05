@@ -5,11 +5,21 @@
 local util = require("src.hex_util")
 local vitals_mod = require("src.hex_vitals")
 local rooms_mod = require("src.hex_rooms")
+local registry = require("src.hex_registry")
 local gags = require("src.hex_gags")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
 local commands = require("src.hex_commands")
+
+-- remove exactly the triggers/aliases the previous load registered (the
+-- handle list lives in the session store and survives /script reset)
+registry.reap()
+
+-- all registrations go through the registry so /hexreload can reap them
+local trigger_add = function(re, opts, cb)
+  return registry.record("trigger", trigger.add(re, opts, cb))
+end
 
 local vitals = vitals_mod.new()
 local room = rooms_mod.new()
@@ -32,7 +42,8 @@ local function refresh_status()
 end
 
 status.setup()
-gags.register(trigger.add, regex)
+refresh_status() -- draw the placeholder bars immediately, not on first data
+gags.register(trigger_add, regex)
 
 gmcp_wire.setup({
   on_vitals = function(data)
@@ -64,15 +75,30 @@ gmcp_wire.setup({
 
 -- XP spent on skill advances feeds the xp-rate model (tt_dw counts the same
 -- line: "You advance your skill in X from A to B for N xp").
-trigger.add("^You advance your skill in .+ from .+ to .+ for ([\\d,]+) xp", {}, function(matches)
+trigger_add("^You advance your skill in .+ from .+ to .+ for ([\\d,]+) xp", {}, function(matches)
   local amount = tonumber((matches[2]:gsub(",", ""))) or 0
   vitals_mod.add_spent(vitals, amount)
   refresh_status()
 end)
 
+-- never log a password: while a password prompt is on screen, the next sent
+-- line is marked skip_log so it stays out of the session log file
+local password_armed = false
+registry.record("trigger", trigger.add("^Enter password:", { gag = false }, function()
+  password_armed = true
+end))
+mud.add_input_listener(function(line)
+  if password_armed then
+    password_armed = false
+    line:skip_log(true)
+  end
+  return line
+end)
+
 mud.on_connect(function()
   -- Client-side logging only; nothing is ever sent to the MUD on connect.
   log.start("discworld")
+  refresh_status()
 end)
 
 blight.on_dimensions_change(function()
@@ -85,6 +111,7 @@ commands.setup({
   maps = maps,
   config = config,
   gmcp = gmcp_wire,
+  registry = registry,
 })
 
 print(util.ansi.gray .. "[hex] loaded: /hexhelp for commands" .. util.ansi.reset)
