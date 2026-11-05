@@ -127,10 +127,10 @@ Aggressive, honest, gated: every LIVE item needs a capture session from Brandon 
 - [x] **Thu 6**: 1.x completion — `strip_ansi` + `/dwmap` default, `/hexsetup` (documented strings, `term xterm256`, `options terminal rows=999`), gag registry file, Quow staleness + **"Hex owns its data"** (`/hexupdate`, quow_db moves to `~/.local/share/hex/`). Ship v0.2.0.
 - [x] **Fri 7**: Phase 2 core — `hex_targets` resolver, `hex_paths` (Dijkstra + heap + render), `/path`, `/near`; bench + synthetic property tests. (shipped 2026-11-05, a day ahead of its label)
 - [ ] **Sat 8 (FULL DAY - the open weekend)**: 1.x completion + Phase 2 core + Phase 2 walker in one run - `/hexsetup`, `/hexupdate`, gag registry, resolver, Dijkstra, `/path` `/near`, batch `/goto`, drift chip, goldens. Ship v0.3.0 by night. **Brandon: capture session #1 in the evening** (seed, `options output`, quota/score transcripts, chat sweep - this feeds everything after).
-- [ ] **Sun 9 (FULL DAY)**: Phase 3 verified against Saturday's captures - missions data + board triggers + timer engine + `/missions`, quota chip, then skills parser + bonus/cost/goals + stats. Ship v0.4.0-pre by night. Phase 6 chat starts in the background.
-- [ ] **Mon 10**: Phase 3 — skills parser + bonus/cost/goals + stats, verified against the capture. Ship v0.3.1.
+- [ ] **Sun 9 (FULL DAY)**: Phase 3 verified against Saturday's captures - missions data + board triggers + timer engine + `/missions`, quota chip, then skills parser + bonus/cost/goals + stats. (missions + quota shipped 2026-11-05 as v0.4.0, ahead of the label; the skills parser lands after the captures, as v0.4.1). Phase 6 chat starts in the background.
+- [ ] **Mon 10**: Phase 3 — skills parser + bonus/cost/goals + stats, verified against the capture. Ship v0.4.1.
 - [ ] **Tue 11**: Phase 6 — chat capture + tab, combat gag ladder, URLs, `hex_notify` bus; monitor fallback.
-- [ ] **Wed 12**: Phase 4 core — TPA state machine + prediction, charm chips, broom, stat-items. Ship v0.4.0 "premiere core". **Brandon: capture session #2** (maze rooms, journey, TPA expiry).
+- [ ] **Wed 12**: Phase 4 core — TPA state machine + prediction, charm chips, broom, stat-items. Ship v0.5.0 "premiere core". **Brandon: capture session #2** (maze rooms, journey, TPA expiry).
 - [ ] **Week 2**: Phase 4 TM + spelldata converter; Phase 5 minimap/MDT/maze/guess (wire-gated) + blorps/hex.db; Phase 7 sound/theme/options; Phase 8 CI + shim + goldens + announcement. v1.0.0 when the definition-of-done is true, not when the calendar says so.
 
 ## Deliberately out of scope
