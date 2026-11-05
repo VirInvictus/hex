@@ -6,7 +6,7 @@ One document per roadmap phase, produced by the 2026-11-04/05 exploration campai
 |---|---|---|---|
 | [phase-1x-setup.md](phase-1x-setup.md) | 1.x hotfix lane | shipped in v0.2.0 | `/hexsetup` sends tt_dw's exact eight game-side strings (documented rows form + `term xterm256`); user gags live in a data file; `/hexupdate` owns the Quow database |
 | [phase-2-mapper.md](phase-2-mapper.md) | 2 find your way | shipped in v0.3.0 | Dijkstra over the identified subgraph in Lua, built lazily; BP and Genua are disconnected in the identified subgraph (measured), so the /goto walker is batch-only and never re-routes blind |
-| [phase-3-character.md](phase-3-character.md) | 3 working character | v0.4.0 + v0.4.1; stats wire-gated | Missions mirror tt_dw's SQL schema as per-alt JSON; the bonus formula (0.1020408·ln(prod) − 0.25) is extracted and cross-checked |
+| [phase-3-character.md](phase-3-character.md) | 3 working character | complete as of v0.6.0 | Missions mirror tt_dw's SQL schema as per-alt JSON; the bonus formula (0.1020408·ln(prod) − 0.25) is extracted and cross-checked |
 | [phase-4-magic.md](phase-4-magic.md) | 4 magic & faith | data lane shipped in v0.5.1; trackers wire-gated | spelldata ships committed (117 spells, ~130 KB) so installs work without tt_dw; the TM algorithm is tt_dw's exact relative-chance pipeline |
 | [phase-5-room.md](phase-5-room.md) | 5 the room | designed | Render ladder: top rows (dev) → tab → inline (stock); maze movement is an input-listener rewrite, legal because plugin sends bypass it |
 | [phase-6-social.md](phase-6-social.md) | 6 social | shipped in v0.5.0 | One mirror-mode `chat` tab routed by Rust-side filters (colors free, no double-routing); GMCP always beats the monitor fallback |
