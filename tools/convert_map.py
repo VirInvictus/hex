@@ -12,7 +12,9 @@ Defaults: ~/.gitrepos/tt_dw/map/{discworld.map,gates.tin,origins.tin}, out ~/.lo
 Room record fields (tintin #map write, empirical field map):
   R {vnum}{flags}{color}{name}{symbol}{note}{area}{data}{terrain}{extra}{weight}{room_id}
   E {dest}{name}{command}{dir_bitmask}{flag}{?}{distance}{?}{weight}   (belongs to the last R)
-  (the 10th room field holds tintin list data such as {{shape}{3}}; stored raw)
+  (the 10th room field holds tintin list data such as {{shape}{3}}: stored raw in the
+   `extra` column alongside field 8's `data`, since upstream rows differ in which of the
+   two carries structured lists vs free notes; maze guessing reads shapes from extra)
 """
 
 import argparse
@@ -82,9 +84,18 @@ def parse_map(path):
             fields = parse_fields(line)
             if head == "R" and len(fields) >= 12:
                 vnum, flags = int(fields[0]), int(fields[1] or 0)
-                color, name, symbol, note, area, data, terrain, _, weight, room_id = (
-                    fields[2:12]
-                )
+                (
+                    color,
+                    name,
+                    symbol,
+                    note,
+                    area,
+                    data,
+                    terrain,
+                    extra,
+                    weight,
+                    room_id,
+                ) = fields[2:12]
                 current = {
                     "vnum": vnum,
                     "flags": flags,
@@ -94,6 +105,7 @@ def parse_map(path):
                     "note": note,
                     "area": area,
                     "data": data,
+                    "extra": extra,
                     "terrain": terrain,
                     "weight": float(weight or 1.0),
                     "room_id": room_id or None,
@@ -138,7 +150,7 @@ def build_db(out_path, rooms, exits, gates, origins):
             vnum INTEGER PRIMARY KEY,
             flags INTEGER,
             color TEXT, name TEXT, symbol TEXT, note TEXT,
-            area TEXT, data TEXT, terrain TEXT,
+            area TEXT, data TEXT, terrain TEXT, extra TEXT,
             weight REAL,
             room_id TEXT
         );
@@ -155,7 +167,7 @@ def build_db(out_path, rooms, exits, gates, origins):
         """
     )
     conn.executemany(
-        "INSERT INTO rooms VALUES (:vnum, :flags, :color, :name, :symbol, :note, :area, :data, :terrain, :weight, :room_id)",
+        "INSERT INTO rooms VALUES (:vnum, :flags, :color, :name, :symbol, :note, :area, :data, :terrain, :extra, :weight, :room_id)",
         rooms,
     )
     conn.executemany(

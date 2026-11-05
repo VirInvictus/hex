@@ -29,6 +29,10 @@ One document per roadmap phase, produced by the 2026-11-04/05 exploration campai
 
 Phase 4 degrades gracefully without 3 (elapsed-only chips); Phase 5's guess needs 5's own maze modes; Phase 8's shim should be stood up early despite living in "Phase 8" — it is test infrastructure, not a feature.
 
+## External materials
+
+Everything the designs consume or verify against is staged under `testing_facility/` (gitignored): symlinks to the tt_dw/blightmud clones and both databases, the CC0 sound set, a downloaded stock blightmud v5.7.1 binary for the degraded-path ladder, a pinned GMCP doc snapshot, and live-capture scaffolding. See [testing-facility.md](testing-facility.md) for the requirements table, toolchain status, and capture procedures.
+
 ## Live-verification backlog (the wire-verification lists, merged)
 
 Wire claims are verified with `/hexprobe`, `/hexraw`, and session logs before the feature that depends on them ships (spec invariant 4). The merged backlog lives in each doc's final section; the two highest-priority items: maze `room.info` behavior (blocks Phase 5's guess/modes) and whether `char.info` carries guild/guildspec (blocks pack autoload + TM gating).

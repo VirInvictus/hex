@@ -112,7 +112,7 @@ tt_dw has no staleness warning of its own (`bash/update.sh` has only `-q`); this
 
 ## A4. `room.map` ANSI handling
 
-`hex_util.strip_ansi(s)`: `return (tostring(s):gsub("\27%[[%d;]*%a", ""))` — covers `\x1b[39;49m`, `\x1b[0m`, `\x1b[31m`, and other CSI final letters. Config `hex.map_ansi` = `ansi | strip`, **default `strip`** (a stray unclosed color fragment is what makes raw output look broken). Strip at **render** time in `/dwmap`, not at store time (`maps.ascii` stays raw so Phase 5's panel keeps colors). Phase 5 owns the full `ansi` rendering path.
+`hex_util.strip_ansi(s)`: `return (tostring(s):gsub("\27%[[%d;]*%a", ""))` — covers `\x1b[39;49m`, `\x1b[0m`, `\x1b[31m`, and other CSI final letters. Config `hex.map_ansi` = `ansi | strip`. Scope note: this doc's `strip` default governs the 1.x `/dwmap` inline print; Phase 5's panel owns the full ANSI path and defaults `ansi` there (`hex.map_ansi` is one key read by both surfaces — Phase 5 resolves the per-surface default when it lands) (a stray unclosed color fragment is what makes raw output look broken). Strip at **render** time in `/dwmap`, not at store time (`maps.ascii` stays raw so Phase 5's panel keeps colors). Phase 5 owns the full `ansi` rendering path.
 
 ## Part B. Guild-pack inventory
 

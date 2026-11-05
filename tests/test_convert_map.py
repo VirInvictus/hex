@@ -68,6 +68,9 @@ class TestParseMap(unittest.TestCase):
     def test_shared_instance_id_is_kept(self):
         self.assertEqual(self.rooms[2]["room_id"], "UULibrary")
 
+    def test_extra_field_keeps_tintin_list(self):
+        self.assertEqual(self.rooms[2]["extra"], "{shape}{3}")
+
 
 class TestTinPairs(unittest.TestCase):
     def test_pairs(self):
@@ -96,6 +99,7 @@ class TestBuildDb(unittest.TestCase):
                     "area": "AM",
                     "data": "",
                     "terrain": "street",
+                    "extra": "",
                     "weight": 1.0,
                     "room_id": "a" * 40,
                 }

@@ -1,5 +1,7 @@
 # Hex roadmap
 
+External materials for every phase are staged under `testing_facility/` (gitignored; symlinks to the tt_dw and blightmud clones, both databases, the CC0 sounds; a downloaded stock blightmud v5.7.1 binary for degraded-path testing; a pinned GMCP doc snapshot; live-capture scaffolding) — see [docs/testing-facility.md](docs/testing-facility.md). The converter now carries the maze `extra`/shape column (1,246 shape rows verified), unblocking Phase 5's guess design.
+
 Every phase below has an implementation-ready design document under [docs/](docs/README.md), produced by the 2026-11-04/05 exploration campaign (eight research agents; measured benchmarks, extracted formulas, wire-verification backlogs). The roadmap tracks boxes; the docs carry the designs.
 
 North star: Hex becomes the Discworld suite a Blightmud player reaches for first, the way Quow's Cow Bar is the suite a MUSHclient player reaches for first. That bar has three parts, and every phase below serves one of them: nothing essential is missing (map, vitals, data, missions, magic), nothing breaks quietly (the GMCP lesson: verify every protocol claim against the live wire), and nothing feels alien to a terminal user (one binary, text everywhere, zero dependencies).
