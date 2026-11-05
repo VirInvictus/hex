@@ -259,25 +259,37 @@ function M.tab_excludes()
 end
 
 -- Idempotent tab setup: create_tab raises on an existing name, so check
--- blight.tabs() first; binds overwrite, so set them unconditionally.
+-- blight.tabs() first. bind(key, callback) binds FUNCTIONS (blight.bind
+-- "chat", "F2" was the v0.5.2-dbg first-run crash); switch_tab(name) is
+-- the tab switcher. The whole body is pcall-wrapped: any tab-API mismatch
+-- degrades to mirror mode instead of killing the plugin load.
 function M.setup_tab()
   if not M.has_tabs or not M.deps.config.get("chat_tab", true) then
     return
   end
-  local existing = blight.tabs and blight.tabs() or {}
-  for _, name in ipairs(existing) do
-    if name == "chat" then
-      return -- already there (e.g. after a reload); filters are append-only
+  local ok, err = pcall(function()
+    local existing = blight.tabs and blight.tabs() or {}
+    for _, name in ipairs(existing) do
+      if name == "chat" then
+        return -- already there (e.g. after a reload); filters are append-only
+      end
     end
-  end
-  blight.create_tab("chat")
-  for _, include in ipairs(M.tab_includes()) do
-    blight.add_tab_filter("chat", include)
-  end
-  blight.add_tab_filter("chat", M.tab_excludes())
-  if blight.bind then
-    blight.bind("chat", "F2")
-    blight.bind("main", "F1")
+    blight.create_tab("chat")
+    for _, include in ipairs(M.tab_includes()) do
+      blight.add_tab_filter("chat", include)
+    end
+    blight.add_tab_filter("chat", M.tab_excludes())
+    if blight.bind and blight.switch_tab then
+      blight.bind("F2", function()
+        blight.switch_tab("chat")
+      end)
+      blight.bind("F1", function()
+        blight.switch_tab("main")
+      end)
+    end
+  end)
+  if not ok then
+    print(util.ansi.gray .. "[hex] chat tab unavailable (" .. tostring(err) .. "); staying in mirror mode" .. util.ansi.reset)
   end
 end
 

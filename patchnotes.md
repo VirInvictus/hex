@@ -11,6 +11,7 @@ DEBUG RELEASE. This lane ships one purpose-built debug command and is slated for
 First-run hotfix (same dbg milestone, found live at startup):
 
 - Fixed a load-killing regex: the own-tell chat pattern carried a `(?!in )` look-ahead, which the Rust regex engine rejects at `Regex.new` — the error aborted `main.lua` mid-load, leaving the status area drawn but every later registration dead. The look-ahead was redundant (the pure classifier already rejects the language broadcast), and a new suite invariant now scans every `src/` module for look-around constructs so this bug class dies in CI-style tests instead of at login.
+- Second start found the next load-killer one line further: `blight.bind` takes a key plus a FUNCTION, and the tab setup was passing a tab name (`blight.bind("chat", "F2")`). Fixed to `bind("F2", function() blight.switch_tab("chat") end)` — `switch_tab` is the actual tab switcher — and the whole tab setup is now `pcall`-wrapped so any remaining tabs-API mismatch degrades to mirror mode with a note instead of aborting the load. (The tab itself had been created and filtered successfully; only the binds were broken.)
 
 ## v0.5.1 (2026-11-05)
 
