@@ -162,6 +162,8 @@ def build_db(out_path, rooms, exits, gates, origins):
         CREATE TABLE origins (area TEXT, room_name TEXT);
         CREATE INDEX idx_rooms_roomid ON rooms(room_id);
         CREATE INDEX idx_rooms_name ON rooms(name);
+        CREATE INDEX idx_rooms_area ON rooms(area);
+        CREATE INDEX idx_rooms_area_name ON rooms(area, name);
         CREATE INDEX idx_exits_from ON exits(from_vnum);
         CREATE INDEX idx_exits_dest ON exits(dest);
         """

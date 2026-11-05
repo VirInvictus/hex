@@ -1,6 +1,8 @@
 # Phase 2: "find your way" — the graph pathfinding mapper
 
-Design doc. Status: designed, not implemented. Every number in §0 was measured on this machine (lua 5.4.8, the real `rooms.db`) during the exploration; re-verify with the benchmark harness (§6.6) before trusting them for release claims.
+Design doc. Status: §1-3 and §5-6 implemented 2026-11-05 (Phase 2 core: `hex_targets`, `hex_paths`, `/path`, `/near`, synthetic property tests, opt-in goldens, bench); §4's walker is the next batch. Every number in §0 was measured on this machine; **2026-11-05 correction: the implementation's loader (this doc's §1 SQL verbatim) measured the graph smaller than the exploration's numbers, and two BP/Genua golden claims from the campaign proved wrong — see the correction block at the end of §0.**
+
+## 0. Measured facts the design rests on
 
 ## 0. Measured facts the design rests on
 
@@ -23,6 +25,12 @@ Performance (stock lua 5.4.8, full runs):
 - The sqlite3 subprocess (the only thing `core.exec` waits on) is single-digit ms. The ~130 ms one-time build cost lives in Lua, inside a user-invoked alias, once per session.
 - Reference routes: AM Job Market (3424) → BP Imperial Palace Gates (5898) = 118 steps; Mended Drum bar (4659) → 5898 = 123 steps.
 - blightmud creates the plugin state with `Lua::unsafe_new()` (`src/lua/lua_script.rs:149`): full stdlib including io/os, so a file-based precomputed artifact remains possible (§1 fallback).
+
+### Correction block (2026-11-05, first implementation)
+
+The loader above, run verbatim against today's `rooms.db`, measures: **31,157 nodes, 78,979 directed edges** (the campaign's 31,562/82,307 came from a leakier exploration loader; `sqlite3` count of both-endpoints-identified edges equals 78,979 exactly, so the shipped graph loses nothing the filter admits). sqlite3 dump fetch 4-5 ms; Lua parse+build ~280-305 ms (above the campaign's 87 ms; the bucket parser trades speed for simplicity, still a one-time cost inside the first routing command); Dijkstra ~21 ms warm; heap after `collectgarbage("collect")` 21.7 MB (above the campaign's 12.5 MB: names and areas are embedded in the graph so render needs no second query).
+
+**The campaign's BP goldens were wrong.** AM→Bes Pelargic (5898) is NOT 118 steps on the identified subgraph: BP's water component is 65 rooms and its westward continuation crosses an unidentified sea room, so BP is unreachable from AM with and without `allow_avoid` (the AM-side ocean chain itself IS reachable: 3424 → the Circle Sea room, 178 steps). Genua was already known directed-unreachable. tt_dw never hits this because its mapper routes unidentified rooms by vnum; Hex's v1 identified-only policy (§5) is deliberately stricter and pays BP and Genua until Phase 5's journey/ferry tables model the boats. The goldens in §6 test the disconnection as a documented negative.
 
 ## 1. Graph storage decision
 
@@ -117,8 +125,8 @@ This is the documented "fast" kind, verbatim in design: all route commands are s
 New files: `src/hex_paths.lua` (pure: load/find_route/distances/render, binary-heap Dijkstra), `src/hex_targets.lua` (pure: search grammar + SQL builders), `src/hex_walk.lua` (pure: transition/chip), wiring in `hex_commands`/`main.lua`; `convert_map.py` gains `idx_rooms_area` + `idx_rooms_area_name`.
 
 Tests:
-1. Golden routes against the real rooms.db (opt-in `HEX_GOLDEN=1`): 3424→5898 = 118; 4659→5898 = 123; 4659→12472 = 129; negative: 4659→11279 (Genua) unreachable; maze-id refusal.
-2. Synthetic property tests: Dijkstra == BFS on unit graphs; one-way edges never reversed; tie determinism; multi-target consistency.
+1. Golden routes against the real rooms.db (opt-in `HEX_GOLDEN=1`): 4659→12472 = 129; negatives: 3424/4659→5898 (BP) unreachable, sea-chain gap (see §0's correction block); 4659→11279 (Genua) unreachable; maze-id refusal. Measured 2026-11-05, superseding the campaign's 118/123 claims.
+2. Synthetic property tests: Dijkstra == BFS on unit graphs; one-way edges never reversed; tie determinism; multi-target consistency; avoid reroute/refuse; blocked-start escape; distance weights.
 3. Walker state machine: table-driven sequences (happy path, mismatch abort with no post-mismatch sends, stall, pause, duplicate-id ambiguity, travel-mode effects).
 4. Resolver: anchors, globs, @area, #n, 40-hex, T-shop refusal.
 5. Benchmark harness `tests/bench_paths.lua` keeping §0 honest.

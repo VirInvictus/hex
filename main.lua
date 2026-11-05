@@ -27,6 +27,8 @@ end
 local vitals = vitals_mod.new()
 local room = rooms_mod.new()
 local maps = { written = nil, ascii = nil }
+-- the route graph and the last /path candidate list live for the session
+local paths_cache = {}
 
 -- Pull a displayable string out of room.map / room.writtenmap payloads,
 -- which may be JSON objects ({map: ...} / {text: ...}) or plain strings.
@@ -129,6 +131,7 @@ commands.setup({
   gagfile = gagfile,
   setup = setup_cmd,
   data = data,
+  paths_cache = paths_cache,
 })
 
 print(util.ansi.gray .. "[hex] loaded: /hexhelp for commands" .. util.ansi.reset)

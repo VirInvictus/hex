@@ -4,6 +4,8 @@
 -- anything to the MUD.
 local util = require("src.hex_util")
 local queries = require("src.hex_queries")
+local targets = require("src.hex_targets")
+local paths = require("src.hex_paths")
 
 local M = {}
 
@@ -182,6 +184,229 @@ local function cmd_show_map(which)
   end
 end
 
+-- pathfinding: /path and /near (design: docs/phase-2-mapper.md §2-3). The
+-- graph builds lazily on first use inside a user-invoked command (the spec's
+-- millisecond rule constrains line-triggered work, not commands) and caches
+-- in the session via deps.paths_cache.
+
+local function row_to_cand(f)
+  return { vnum = tonumber(f[1]), name = f[2] or "?", area = f[3] or "", room_id = f[4] or "" }
+end
+
+local function get_graph()
+  local cache = M.deps.paths_cache
+  if cache.graph then
+    return cache.graph
+  end
+  local db = M.deps.config.get("rooms_db")
+  local node_out = db and sql(db, paths.NODE_QUERY)
+  local edge_out = node_out and sql(db, paths.EDGE_QUERY)
+  if not edge_out then
+    return nil
+  end
+  local t0 = os.clock()
+  local g, err = paths.load(util.parse_rows(node_out), util.parse_rows(edge_out))
+  if not g then
+    print(a("red", "[hex] graph build failed: ") .. tostring(err))
+    return nil
+  end
+  g.build_ms = (os.clock() - t0) * 1000
+  cache.graph = g
+  print(a("gray", ("[hex] route graph built: %d rooms, %d edges (%.0f ms)"):format(#g.vnum, g.edges, g.build_ms)))
+  return g
+end
+
+local function need_start()
+  local start = M.deps.room.id
+  if not start or not targets.is_room_id(start) then
+    print(a("gray", "[hex] current room not identified (GMCP room.info gave no identifier here); routing needs a known start"))
+    return nil
+  end
+  return start
+end
+
+-- Run the resolution plan from hex_targets; returns a candidate list
+-- (possibly empty) or nil + reason.
+local function resolve_targets(input, g)
+  local cache = M.deps.paths_cache
+  local plan = targets.parse(input)
+  if not plan then
+    return nil, "nothing to search"
+  end
+  local db = M.deps.config.get("rooms_db")
+  for _, step in ipairs(plan.steps) do
+    if step.kind == "ref" then
+      local c = cache.candidates and cache.candidates[step.n]
+      if c then
+        return { c }
+      end
+      return nil, "no candidate list yet (search first), or #" .. step.n .. " is out of range"
+    elseif step.kind == "id" then
+      local r = rows(db, targets.build_id_query(step.term))
+      if r and r[1] then
+        return { row_to_cand(r[1]) }
+      end
+    elseif step.kind == "origin" then
+      local o = rows(db, targets.build_origin_query(step.area))
+      if o and o[1] then
+        local r = rows(db, targets.build_origin_room_query(o[1][2], o[1][1]))
+        if r and r[1] then
+          return { row_to_cand(r[1]) }
+        end
+      end
+    elseif step.kind == "name" then
+      local r = rows(db, targets.build_name_query(step.term, step.area))
+      if r and #r > 0 then
+        local cands = {}
+        for _, f in ipairs(r) do
+          cands[#cands + 1] = row_to_cand(f)
+        end
+        return cands
+      end
+    elseif step.kind == "vnum" then
+      local r = rows(db, targets.build_vnum_query(step.n))
+      if r and r[1] then
+        local c = row_to_cand(r[1])
+        if g.idx[c.vnum] then
+          return { c }
+        end
+      end
+    end
+  end
+  return {}
+end
+
+-- Reasons a resolved single target must not be routed (docs §5).
+local function route_refusal(c)
+  if c.room_id == targets.TSHOP_ID then
+    return "the travelling shop moves around; there is no route to it"
+  end
+  if not targets.is_room_id(c.room_id) then
+    return c.name .. " is a shared-instance room (" .. c.room_id .. "); Hex routes only 40-hex identified rooms"
+  end
+  return nil
+end
+
+local function cmd_path(args)
+  local full = false
+  local rest = args
+  local f1 = rest:match("^%-%-full%s+(.+)$")
+  local f2 = rest:match("^(.+)%s+%-%-full$")
+  if f1 then
+    full, rest = true, f1
+  elseif f2 then
+    full, rest = true, f2
+  end
+  if util.trim(rest) == "" then
+    print(a("gray", "usage: /path [--full] <target>   target: name, id, @area, #n, vnum"))
+    return
+  end
+  local start = need_start()
+  if not start then
+    return
+  end
+  local g = get_graph()
+  if not g then
+    return
+  end
+  local cands, err = resolve_targets(rest, g)
+  if not cands then
+    print(a("gray", "[hex] " .. err))
+    return
+  end
+  if #cands == 0 then
+    print(a("gray", "[hex] no rooms match: " .. rest))
+    return
+  end
+  if #cands > 1 then
+    M.deps.paths_cache.candidates = cands
+    local vnums = {}
+    for _, c in ipairs(cands) do
+      vnums[#vnums + 1] = c.vnum
+    end
+    local dists = paths.distances(g, start, vnums)
+    print(a("bold", #cands .. " matches") .. a("gray", "  (/path #<n> routes one)"))
+    for i, c in ipairs(cands) do
+      local d = dists[c.vnum]
+      print((" %2d. %s (%s)%s"):format(i, c.name, c.area, d and a("gray", "  " .. d .. " steps") or a("gray", "  unreachable")))
+    end
+    return
+  end
+  local c = cands[1]
+  local refusal = route_refusal(c)
+  if refusal then
+    print(a("gray", "[hex] " .. refusal))
+    return
+  end
+  local route, rerr = paths.find_route(g, { start }, c.vnum)
+  if not route then
+    if rerr:find("avoid", 1, true) then
+      print(a("gray", "[hex] " .. c.name .. ": " .. rerr))
+    else
+      local where = c.area ~= "" and c.area or "unknown area"
+      print(a("gray", "[hex] no route to " .. c.name .. " (" .. where .. "): not connected in the identified map graph"))
+    end
+    return
+  end
+  for _, l in ipairs(paths.render(route, g, full)) do
+    print(l)
+  end
+end
+
+local function cmd_near(args)
+  if util.trim(args) == "" then
+    print(a("gray", "usage: /near <search>   nearest matches to your room by path length"))
+    return
+  end
+  local start = need_start()
+  if not start then
+    return
+  end
+  local g = get_graph()
+  if not g then
+    return
+  end
+  local cands, err = resolve_targets(args, g)
+  if not cands then
+    print(a("gray", "[hex] " .. err))
+    return
+  end
+  if #cands == 0 then
+    print(a("gray", "[hex] no rooms match: " .. args))
+    return
+  end
+  local filtered = {}
+  for _, c in ipairs(cands) do
+    if c.room_id ~= start then
+      filtered[#filtered + 1] = c
+    end
+  end
+  if #filtered == 0 then
+    print(a("gray", "[hex] the only match is the room you are standing in"))
+    return
+  end
+  local vnums = {}
+  for _, c in ipairs(filtered) do
+    vnums[#vnums + 1] = c.vnum
+  end
+  local dists = paths.distances(g, start, vnums)
+  local ranked = {}
+  for _, c in ipairs(filtered) do
+    ranked[#ranked + 1] = { c = c, d = dists[c.vnum] }
+  end
+  table.sort(ranked, function(x, y)
+    if x.d and y.d then
+      return x.d < y.d
+    end
+    return x.d ~= nil
+  end)
+  print(a("bold", "nearest to " .. (M.deps.room.name or "you")))
+  for i = 1, math.min(5, #ranked) do
+    local r = ranked[i]
+    print((" %2d. %s (%s)%s"):format(i, r.c.name, r.c.area, r.d and a("gray", "  " .. r.d .. " steps") or a("gray", "  unreachable")))
+  end
+end
+
 local function cmd_gag_list()
   local gf = M.deps.gagfile
   print(
@@ -282,6 +507,18 @@ function M.setup(deps)
   alias_add("^/where$", function()
     cmd_where()
   end)
+  alias_add("^/path%s+(.+)$", function(matches)
+    cmd_path(matches[2])
+  end)
+  alias_add("^/path$", function()
+    cmd_path("")
+  end)
+  alias_add("^/near%s+(.+)$", function(matches)
+    cmd_near(matches[2])
+  end)
+  alias_add("^/near$", function()
+    cmd_near("")
+  end)
   alias_add("^/wmap$", function()
     cmd_show_map("wmap")
   end)
@@ -337,6 +574,7 @@ function M.setup(deps)
     print("  /item [exact] <search>   /items [sold|free|loot] <search>")
     print("  /npc <search>            /shop [room id]")
     print("  /where                   /wmap, /dwmap")
+    print("  /path [--full] <target>  /near <search>  (route graph, identified rooms)")
     print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
     print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
     print("  /hexgag, /gaglog         user gags as data; /hexungag <n|text> removes")

@@ -48,15 +48,15 @@ House invariants that out-rank every phase:
 
 The enabling fact from the M1 research: the MUD's 40-hex room identifier is the same key in tt_dw's map file, Quow's database, and GMCP `room.info`. Pathfinding therefore needs no spatial layout engine, only a graph.
 
-- [ ] `tools/convert_map.py` v2: exits gain the dir bitmask and one-way flags as queryable columns (already captured, now exercised)
-- [ ] `hex_paths`: Dijkstra over the identified-room subgraph (32,499 rooms) in pure Lua, weights from exit distance
-- [ ] `/path <search>`: resolve a target by room name, identifier prefix, or Quow room id; print the route as a readable step list (street-by-street, not just "7n 2e")
+- [x] `tools/convert_map.py` v2: exits gain the dir bitmask and one-way flags as queryable columns (already captured, now exercised) — area/area-name indexes added too; the graph build consumes command/dir/flag/distance
+- [x] `hex_paths`: Dijkstra over the identified-room subgraph (32,499 rooms) in pure Lua, weights from exit distance — shipped at 31,157 nodes / 78,979 edges; BP and Genua are disconnected in this subgraph (measured 2026-11-05, docs/phase-2-mapper.md §0 correction; boats are Phase 5)
+- [x] `/path <search>`: resolve a target by room name, identifier prefix, or Quow room id; print the route as a readable step list (street-by-street, not just "7n 2e") — grouped segments with counts, `--full` for every room, candidate list with per-candidate step counts
 - [ ] `/goto <target>`: user-invoked ONE-SHOT batch speedwalk — every route command queued in a single burst on one user invocation (the officially sanctioned "fast" style per concepts/automation), cancellable with `stop`/`/stopwalk`; room.info drives post-hoc drift reporting only (never re-sends, never re-routes)
-- [ ] `/near <search>`: nearest match to the current room by path length
+- [x] `/near <search>`: nearest match to the current room by path length — top five, one multi-target Dijkstra
 - [ ] Quow `/item` and `/npc` results gain walk-distance and "nearest source" ordering
 - [ ] Research deltas applied: `options personal travel = walk|journey` handling is officially documented; journey arrival lines and maze identifiers remain wire-only (official docs silent)
 - [ ] Walk drift reporting as a status chip (post-hoc: the batch queue sends once; room.info drives the step counter and drift warnings only)
-- [ ] Tests: golden routes against hand-picked city pairs; Dijkstra property tests on synthetic graphs
+- [x] Tests: golden routes against hand-picked city pairs; Dijkstra property tests on synthetic graphs — goldens are opt-in (`HEX_GOLDEN=1 lua tests/run.lua`, needs rooms.db): Djel 129 positive; BP and Genua documented-negative; BFS-equivalence, tie determinism, one-way, avoid, multi-target synthetic properties in the default suite
 
 ## Phase 3: the working character (M3)
 
@@ -85,7 +85,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [ ] Written-map people tracker (MDT) parsing `room.writtenmap`
 - [ ] Lost-room matching by name/area when the identifier is unknown (tt_dw's guess logic, identifier-keyed)
 - [ ] Library (UU/Shades/AoA) and maze movement modes; shared-instance identifiers disambiguated by room name
-- [ ] Journey/boat routing on top of the room graph (ferry tables as data)
+- [ ] Journey/boat routing on top of the room graph (ferry tables as data) — now load-bearing: the identified-subgraph sea gap makes BP boat-only (measured 2026-11-05, docs/phase-2-mapper.md §0)
 - [ ] Room-kind vocabulary: `outside` officially documented alongside inside/underwater (road/water stay live-verified)
 - [ ] Travel annotations for `/path`: carriages (documented arrival message set) and arcane transport NPCs (`list / travel to / cancel`, fixed price, language-gated)
 - [ ] Blorps and bookmarks: label -> room id in Hex's own SQLite, walk-to via Phase 2

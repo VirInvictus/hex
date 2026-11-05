@@ -18,6 +18,8 @@ local setup_mod = require("hex_setup")
 local gagfile = require("hex_gagfile")
 local data = require("hex_data")
 local version = require("hex_version")
+local paths = require("hex_paths")
+local targets = require("hex_targets")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -449,6 +451,345 @@ t("data: download command builders quote and chain mv", function()
   assert(outer:find("^nohup sh %-c '.+' > '/h/quow%-update%.log' 2>&1 &$"), "outer form: " .. outer)
   assert(outer:find("mv -f", 1, true), "inner missing from outer: " .. outer)
 end)
+
+-- hex_targets ---------------------------------------------------------------
+
+t("targets: is_room_id accepts 40-hex only", function()
+  eq(targets.is_room_id(string.rep("a", 40)), true)
+  eq(targets.is_room_id(string.rep("a", 39)), false)
+  eq(targets.is_room_id(string.rep("A", 40)), false) -- uppercase is not the MUD's id form
+  eq(targets.is_room_id("UULibrary"), false)
+  eq(targets.is_room_id(string.rep("a", 39) .. "f"), true)
+  eq(targets.is_room_id(string.rep("a", 39) .. "g"), false) -- g is not a hex digit
+  eq(targets.is_room_id(string.rep("a", 39) .. "z"), false)
+  eq(targets.is_room_id(nil), false)
+end)
+
+t("targets: parse grammar", function()
+  local p = targets.parse("#2")
+  eq(p.steps[1].kind, "ref")
+  eq(p.steps[1].n, 2)
+  p = targets.parse("@am")
+  eq(p.steps[1].kind, "origin")
+  eq(p.steps[1].area, "am")
+  p = targets.parse("@ankh drum")
+  eq(p.steps[1].kind, "origin")
+  eq(p.steps[2].kind, "name")
+  eq(p.steps[2].area, "ankh")
+  eq(p.steps[2].term, "drum")
+  p = targets.parse("drum")
+  eq(p.steps[1].kind, "id")
+  eq(p.steps[2].kind, "name")
+  p = targets.parse("*drum*")
+  eq(p.steps[1].kind, "name") -- wildcard term never probes ids
+  p = targets.parse("4659")
+  eq(p.steps[3].kind, "vnum")
+  eq(targets.parse("  "), nil)
+end)
+
+t("targets: builders escape and shape SQL", function()
+  assert(targets.build_id_query("it's"):find("'it''s'", 1, true), "id query not escaped")
+  assert(targets.build_origin_query("am"):find("area LIKE 'am%%'"), "origin query shape: " .. targets.build_origin_query("am"))
+  local name_q = targets.build_name_query("^drum$", "ankh")
+  assert(name_q:find("name LIKE 'drum'", 1, true), "anchors not handled: " .. name_q)
+  assert(name_q:find("AND area LIKE '%%ankh%%'"), "area not scoped: " .. name_q)
+  assert(name_q:find("LIMIT 15", 1, true), "limit missing: " .. name_q)
+  local wild = targets.build_name_query("sw?rd*", nil)
+  assert(wild:find("name LIKE '%%sw_rd%%%%'"), "wildcards not converted: " .. wild)
+  assert(targets.build_vnum_query(4659):find("vnum = 4659", 1, true), "vnum query malformed")
+  assert(not targets.build_name_query("drum", nil):find("AND area", 1, true), "unexpected area scope")
+end)
+
+-- hex_paths -----------------------------------------------------------------
+
+-- synthetic dump rows in the parse_rows shape (arrays of field arrays)
+local function hexid(n)
+  return string.rep(("%x"):format(n % 16), 40)
+end
+
+local function node_row(vnum, flags, name, area)
+  return { tostring(vnum), tostring(flags or 0), hexid(vnum), name or ("room " .. vnum), area or "Test Area" }
+end
+
+local function edge(dest, cmd, flag, dir, dist)
+  return dest .. ":" .. (flag or 0) .. ":" .. (dir or 0) .. ":" .. (dist or 1) .. ":" .. cmd
+end
+
+local function edge_row(from, edges)
+  return { tostring(from), table.concat(edges, ",") }
+end
+
+local function tiny_graph(node_flags)
+  node_flags = node_flags or {}
+  local nodes = {}
+  for v = 1, 4 do
+    nodes[#nodes + 1] = node_row(v, node_flags[v])
+  end
+  local edges = {
+    edge_row(1, { edge(2, "north", 0, 1), edge(3, "east", 0, 2) }),
+    edge_row(2, { edge(4, "north", 0, 1) }),
+    edge_row(3, { edge(4, "northeast", 0, 3) }),
+    edge_row(4, { edge(2, "south", 0, 4) }),
+  }
+  return paths.load(nodes, edges)
+end
+
+t("paths: load builds CSR and lookups", function()
+  local g = tiny_graph()
+  eq(#g.vnum, 4)
+  eq(g.edges, 5)
+  eq(g.idx[3], 3)
+  eq(g.by_id[hexid(4)], 4)
+  eq(g.name[2], "room 2")
+  eq(g.offs[5], g.edges)
+end)
+
+t("paths: routes carry verbatim commands and steps", function()
+  local g = tiny_graph()
+  local r = paths.find_route(g, { 1 }, 4)
+  eq(r.steps, 2)
+  -- both hops are 2 steps; the tie-break takes the lower dense index (2 before 3)
+  eq(r.path[1].cmd, "north")
+  eq(r.path[2].cmd, "north")
+  eq(r.dist, 2)
+  eq(r.from, 1)
+  eq(r.to, 4)
+end)
+
+t("paths: one-way edges are never reversed", function()
+  local g = tiny_graph()
+  local r = paths.find_route(g, { 3 }, 1)
+  eq(r, nil) -- 3 has only the outbound edge to 4; 4->2 only; no way to 1
+end)
+
+t("paths: tie-break is deterministic", function()
+  local g = tiny_graph()
+  local first = paths.find_route(g, { 1 }, 4)
+  for _ = 1, 10 do
+    local r = paths.find_route(g, { 1 }, 4)
+    eq(r.path[1].to, first.path[1].to)
+    eq(r.path[2].to, first.path[2].to)
+  end
+end)
+
+t("paths: multi-target distances match single routes", function()
+  local g = tiny_graph()
+  local ds = paths.distances(g, 1, { 2, 3, 4 })
+  eq(ds[2], 1)
+  eq(ds[3], 1)
+  eq(ds[4], 2)
+  for v = 2, 4 do
+    local r = paths.find_route(g, { 1 }, v)
+    eq(r.dist, ds[v])
+  end
+  eq(ds[99], nil) -- absent = unreachable
+end)
+
+t("paths: avoid rooms reroute or refuse until allowed", function()
+  -- diamond with the middle node AVOID: the route reroutes around it
+  local g = tiny_graph({ [2] = 1 })
+  local r = paths.find_route(g, { 1 }, 4)
+  assert(r, "alternative path exists")
+  eq(r.path[1].cmd, "east") -- not the north route through node 2
+  -- a chain with a blocked middle has no alternative: refused
+  local chain = paths.load({ node_row(1), node_row(2, 1), node_row(3) }, {
+    edge_row(1, { edge(2, "north") }),
+    edge_row(2, { edge(3, "north") }),
+    edge_row(3, {}),
+  })
+  eq(paths.find_route(chain, { 1 }, 3, { ["allow_avoid"] = false }), nil)
+  eq(paths.find_route(chain, { 1 }, 3, { allow_avoid = true }).steps, 2)
+end)
+
+t("paths: water target refuses with a clear reason", function()
+  local g = tiny_graph({ [4] = 513 }) -- AVOID|AVOID_TMP
+  local r, reason = paths.find_route(g, { 1 }, 4)
+  eq(r, nil)
+  assert(reason:find("avoid", 1, true), "reason: " .. tostring(reason))
+  -- allowed: routable again
+  eq(paths.find_route(g, { 1 }, 4, { allow_avoid = true }).steps, 2)
+end)
+
+t("paths: routing OUT of a blocked start works", function()
+  local g = tiny_graph({ [1] = 513 }) -- you are in water
+  local r = paths.find_route(g, { 1 }, 4)
+  assert(r, "blocked start must still expand")
+  eq(r.steps, 2)
+end)
+
+t("paths: unreachable target reports cleanly", function()
+  local nodes = { node_row(1), node_row(2), node_row(3) }
+  local edges = { edge_row(1, { edge(2, "north") }), edge_row(3, { edge(2, "south") }) }
+  local g = paths.load(nodes, edges)
+  local r, reason = paths.find_route(g, { 1 }, 3)
+  eq(r, nil)
+  eq(reason, "unreachable")
+end)
+
+t("paths: weights come from exit distance", function()
+  local nodes = { node_row(1), node_row(2), node_row(3) }
+  local edges = {
+    edge_row(1, { edge(2, "north", 0, 1, 1), edge(3, "journey e", 0, 0, 7) }),
+    edge_row(2, { edge(3, "north", 0, 1, 8) }),
+    edge_row(3, {}),
+  }
+  local g = paths.load(nodes, edges)
+  -- 1 -> 3: journey edge costs 7, two-step walk costs 9
+  local r = paths.find_route(g, { 1 }, 3)
+  eq(r.dist, 7)
+  eq(r.path[1].cmd, "journey e")
+end)
+
+t("paths: render groups consecutive commands", function()
+  local nodes = { node_row(1), node_row(2), node_row(3), node_row(4) }
+  local edges = {
+    edge_row(1, { edge(2, "north", 0, 1) }),
+    edge_row(2, { edge(3, "north", 0, 1) }),
+    edge_row(3, { edge(4, "east", 0, 2) }),
+    edge_row(4, {}),
+  }
+  local g = paths.load(nodes, edges)
+  local r = paths.find_route(g, { 1 }, 4)
+  local lines = paths.render(r, g)
+  eq(#lines, 2)
+  assert(lines[1]:find("route: room 1 %-> room 4   3 steps"), "header: " .. lines[1])
+  assert(lines[2]:find("%[2 north%] %[1 east%]"), "segments: " .. lines[2])
+  local full = paths.render(r, g, true)
+  eq(#full, 4)
+  assert(full[2]:find("  1%. north"), "full lines: " .. full[2])
+end)
+
+t("paths: lone special exits render as bare commands", function()
+  local nodes = { node_row(1), node_row(2) }
+  local edges = {
+    edge_row(1, { edge(2, "enter crate", 0, 0) }),
+    edge_row(2, {}),
+  }
+  local g = paths.load(nodes, edges)
+  local r = paths.find_route(g, { 1 }, 2)
+  local lines = paths.render(r, g)
+  assert(lines[2]:find("%[enter crate%]"), "special render: " .. lines[2])
+  assert(not lines[2]:find("1 enter"), "no count on specials: " .. lines[2])
+end)
+
+t("paths: BFS equivalence on a random unit graph", function()
+  -- deterministic LCG graph, 40 nodes, undirected unit edges; Dijkstra
+  -- distances must equal a plain BFS
+  local N = 40
+  local nodes = {}
+  for v = 1, N do
+    nodes[#nodes + 1] = node_row(v)
+  end
+  local seed = 42
+  local function rand(m)
+    seed = (seed * 1103515245 + 12345) % 2147483648
+    return seed % m
+  end
+  local adjacency = {}
+  for _ = 1, 120 do
+    local a, b = rand(N) + 1, rand(N) + 1
+    if a ~= b then
+      adjacency[a] = adjacency[a] or {}
+      adjacency[b] = adjacency[b] or {}
+      if not adjacency[a][b] then
+        adjacency[a][b] = true
+        adjacency[b][a] = true
+      end
+    end
+  end
+  local edge_rows = {}
+  for v = 1, N do
+    local list = {}
+    for w in pairs(adjacency[v] or {}) do
+      list[#list + 1] = edge(w, "north")
+    end
+    edge_rows[#edge_rows + 1] = edge_row(v, list)
+  end
+  local g = paths.load(nodes, edge_rows)
+  -- reference BFS from node 1
+  local bfs = { [1] = 0 }
+  local queue = { 1 }
+  local qi = 1
+  while qi <= #queue do
+    local cur = queue[qi]
+    qi = qi + 1
+    for w in pairs(adjacency[cur] or {}) do
+      if bfs[w] == nil then
+        bfs[w] = bfs[cur] + 1
+        queue[#queue + 1] = w
+      end
+    end
+  end
+  local ds = paths.distances(g, 1, g.vnum)
+  for v = 1, N do
+    eq(ds[v], bfs[v])
+  end
+end)
+
+-- golden routes (opt-in: HEX_GOLDEN=1, needs the real rooms.db + sqlite3) --
+
+if os.getenv("HEX_GOLDEN") == "1" then
+  local gold_db = os.getenv("HEX_ROOMS_DB") or (os.getenv("HOME") or "") .. "/.local/share/hex/rooms.db"
+
+  local function gold_sql(sql_text)
+    local sq = "'" .. sql_text:gsub("'", "'\\''") .. "'"
+    local f = io.popen("sqlite3 " .. gold_db .. " " .. sq)
+    local out = f:read("*a") or ""
+    f:close()
+    return out
+  end
+
+  local gold_loaded = false
+  local gold_graph
+
+  local function gold_graph_lazy()
+    if gold_loaded then
+      return gold_graph
+    end
+    gold_loaded = true
+    gold_graph = paths.load(util.parse_rows(gold_sql(paths.NODE_QUERY)), util.parse_rows(gold_sql(paths.EDGE_QUERY)))
+    return gold_graph
+  end
+
+  t("golden: graph covers the identified subgraph", function()
+    local g = gold_graph_lazy()
+    assert(g, "gold graph failed to load")
+    assert(#g.vnum > 30000, "graph too small: " .. #g.vnum)
+    assert(g.edges > 60000, "edges too few: " .. g.edges)
+  end)
+
+  t("golden: the Drum bar to the Djel institute library is 129 steps", function()
+    local r = paths.find_route(gold_graph_lazy(), { 4659 }, 12472)
+    assert(r, "no route")
+    eq(r.steps, 129)
+  end)
+
+  t("golden: BP palace gates are unreachable from AM (sea-chain gap)", function()
+    -- The identified-only subgraph does not connect the two coasts: the
+    -- open-sea swim chain between the Terrains and Tuna Bay passes through
+    -- UNIDENTIFIED sea rooms (measured 2026-11-05; the design doc's original
+    -- 118/123-step BP routes came from a leakier loader). tt_dw does not
+    -- hit this because its mapper routes unidentified rooms by vnum. Boats
+    -- are Phase 5's journey/ferry box.
+    local r = paths.find_route(gold_graph_lazy(), { 3424 }, 5898)
+    eq(r, nil)
+    r = paths.find_route(gold_graph_lazy(), { 4659 }, 5898, { allow_avoid = true })
+    eq(r, nil)
+  end)
+
+  t("golden: Genua is unreachable from AM (Bois has no inbound edges)", function()
+    local r = paths.find_route(gold_graph_lazy(), { 4659 }, 11279)
+    eq(r, nil)
+  end)
+
+  t("golden: a shared-instance room is not in the graph", function()
+    local out = gold_sql("SELECT vnum FROM rooms WHERE room_id = 'UULibrary' LIMIT 1")
+    local vnum = tonumber(util.trim(out))
+    assert(vnum, "no UULibrary room found")
+    local r = paths.find_route(gold_graph_lazy(), { 4659 }, vnum)
+    eq(r, nil)
+  end)
+end
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))
 if failed > 0 then
