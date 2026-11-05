@@ -8,6 +8,10 @@ DEBUG RELEASE. This lane ships one purpose-built debug command and is slated for
 - Safety: every send lives inside the `/hexcapture` alias handler; the probe batch is read-only options/query commands plus two deliberate negative controls, asserted by test to contain no game-state-changing commands.
 - Tests grow to 120 (125 with the opt-in goldens): the probe-group contents and the flattened frimble structure, and the capture-file path.
 
+First-run hotfix (same dbg milestone, found live at startup):
+
+- Fixed a load-killing regex: the own-tell chat pattern carried a `(?!in )` look-ahead, which the Rust regex engine rejects at `Regex.new` — the error aborted `main.lua` mid-load, leaving the status area drawn but every later registration dead. The look-ahead was redundant (the pure classifier already rejects the language broadcast), and a new suite invariant now scans every `src/` module for look-around constructs so this bug class dies in CI-style tests instead of at login.
+
 ## v0.5.1 (2026-11-05)
 
 Phase 4's data lane: the spell dataset and the TM tooling. The trackers (TPA, charm, broom, stat items) stay wire-gated on capture session #2.

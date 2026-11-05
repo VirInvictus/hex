@@ -1629,6 +1629,25 @@ t("capture: path lands in the hex captures dir", function()
   assert(p:find("%.local/share/hex/captures/hex%-capture%-20261105%-120000%.log$"), "path: " .. p)
 end)
 
+t("spec invariant: no look-around constructs anywhere in src/", function()
+  -- the Rust regex engine rejects (?!( (?= and (?< at Regex.new time, and
+  -- a pattern that fails there kills the whole plugin load (found live in
+  -- v0.5.2-dbg's first run); Lua patterns never contain these either, so
+  -- ANY occurrence in src/ is a bug
+  local bad = { "%(%?!", "%(%?=", "%(%?<" }
+  for _, f in ipairs({ "hex_capture", "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
+    local path = root .. "src/" .. f .. ".lua"
+    local fh = io.open(path, "r")
+    if fh then
+      local body = fh:read("*a")
+      fh:close()
+      for _, pat in ipairs(bad) do
+        assert(not body:find(pat), f .. ".lua contains a look-around construct (" .. pat .. ")")
+      end
+    end
+  end
+end)
+
 io.write(("\n%d/%d passed\n"):format(count - failed, count))
 if failed > 0 then
   os.exit(1)

@@ -68,7 +68,9 @@ M.rings = { tell = {}, club = {}, group = {}, talker = {}, system = {}, all = {}
 -- talker shapes folded in). classify() mirrors these in Lua patterns.
 M.PATTERNS = {
   tell = "^([\\w'][\\w' ]*) (?:says to|asks|tells|exclaims to|whispers to) .*?you(?: in \\w+)?: (.+)$",
-  own = "^You (?:tell|ask|exclaim to|whisper to) (?!in )([\\w'][\\w' ]*): (.+)$",
+  -- no look-ahead (Rust regex bans it): the language broadcast is rejected
+  -- in classify's own-tell branch instead
+  own = "^You (?:tell|ask|exclaim to|whisper to) ([\\w'][\\w' ]*): (.+)$",
   club = "^\\(([\\w' -]+)\\) ([\\w' ]+):? (.+)$",
   group = "^\\[([\\w'. -]+)\\] ([\\w' ]+):? (.+)$",
   talker = "^-? ?(?:\\(([^)]+)\\) )?([\\w' ]+)(?:'s wispy voice comes from .*,? saying ?| wisps):? ?(.+)$",
