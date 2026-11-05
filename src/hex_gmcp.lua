@@ -40,6 +40,7 @@ local ROUTES = {
 
 local probe_on = false
 local recent = {} -- last raw incoming GMCP subnegs, newest last
+M.sink = nil -- debug lane: set by hex_capture to mirror payloads to a file
 
 function M.probe()
   probe_on = not probe_on
@@ -65,6 +66,9 @@ function M.setup(handlers)
       recent[#recent + 1] = text
       if #recent > 12 then
         table.remove(recent, 1)
+      end
+      if M.sink then
+        pcall(M.sink, text)
       end
     end
   end)

@@ -32,6 +32,7 @@ local notify = require("hex_notify")
 local urls = require("hex_urls")
 local chat = require("hex_chat")
 local combat = require("hex_combat")
+local capture = require("hex_capture")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -450,7 +451,8 @@ end)
 
 t("data: download command builders quote and chain mv", function()
   local ua = data.user_agent()
-  assert(ua:find("^hex/" .. version .. " update script"), "UA shape: " .. ua)
+  -- escaped so a prerelease suffix in the version ("0.5.2-dbg") stays a literal
+  assert(ua:find("^hex/" .. version:gsub("%W", "%%%0") .. " update script"), "UA shape: " .. ua)
   local curl = data.download_inner("curl", ua, "/h/quow.db.part", "/h/quow.db")
   assert(curl:find("^curl %-fsSL %-A 'hex/"), "curl form prefix: " .. curl)
   assert(curl:find(ua, 1, true), "UA missing from curl line: " .. curl)
@@ -1576,6 +1578,55 @@ t("spells: resolve handles nick, prefix, name, ambiguity", function()
   spell, nick = spells.resolve("zzzznope")
   eq(spell, nil)
   assert(nick:find("no spell matches", 1, true), "unknown message: " .. tostring(nick))
+end)
+
+-- hex_capture (debug lane) ------------------------------------------------
+
+t("capture: probe groups carry every wire-gated key, nothing harmful", function()
+  local all = table.concat((function()
+    local flat = {}
+    for _, g in ipairs(capture.PROBE_GROUPS) do
+      for _, cmd in ipairs(g[2]) do
+        flat[#flat + 1] = cmd
+      end
+    end
+    return flat
+  end)(), "\n")
+  for _, key in ipairs({
+    "options output", "brief exits", "options terminal automatic rows", "options output map plain",
+    "score brief", "score verbose stats", "score stats",
+    "options output skills = list", "skills", "options output skills = branched",
+    "spells", "hskills brief", "check quota brief", "glance", "look",
+  }) do
+    assert(all:find(key, 1, true), "probe missing: " .. key)
+  end
+  -- negative controls present; nothing game-state-changing
+  assert(all:find("say hex capture probe", 1, true), "say negative control")
+  assert(all:find("^bow$") or all:find("\nbow\n") or all:find("\nbow$"), "soul negative control")
+  -- banned game actions, checked as whole words ("skills" contains "kill"!)
+  for _, banned in ipairs({ "apply", "offer", "attack", "kill", "drop" }) do
+    assert(not all:find("%f[%a]" .. banned .. "%f[%A]"), "harmful probe slipped in: " .. banned)
+  end
+  assert(not all:find("%f[%a]get%f[%A]"), "harmful probe slipped in: get")
+end)
+
+t("capture: build_probe_commands flattens with frimble markers", function()
+  local cmds = capture.build_probe_commands()
+  assert(#cmds > #capture.PROBE_GROUPS, "flattened length")
+  eq(cmds[1], "frimble hex-capture: options section")
+  assert(cmds[#cmds] == "frimble hex-capture: probe batch end", "end marker: " .. cmds[#cmds])
+  local markers = 0
+  for _, cmd in ipairs(cmds) do
+    if cmd:find("^frimble hex%-capture", 1, false) then
+      markers = markers + 1
+    end
+  end
+  eq(markers, #capture.PROBE_GROUPS + 1)
+end)
+
+t("capture: path lands in the hex captures dir", function()
+  local p = capture.path_for("20261105-120000")
+  assert(p:find("%.local/share/hex/captures/hex%-capture%-20261105%-120000%.log$"), "path: " .. p)
 end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))
