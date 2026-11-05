@@ -11,6 +11,10 @@ The wire-verification release: everything here is grounded in the capture transc
 - DEBUG LANE REMOVED: `src/hex_capture.lua`, the `/hexcapture` alias, and the `debug_capture` flag are gone exactly as the v0.5.2-dbg notes promised; the archived transcripts remain the wire-shape reference and AGENTS.md points at them.
 - Tests grow to 121 (126 with the opt-in goldens): the stats block fixtures (round and odd values, negative controls), the guild-clause mapping, and the two registration/look-around invariants now cover the stats module; the capture-lane tests went with the lane.
 
+First-live-session hotfix (same milestone, found live):
+
+- Fixed the reload-time `[!!] create_tab(chat): tab already exists` error: the `blight.tabs()` existence check does not work on stock 5.7.1, so every reload re-created the existing chat tab. A session-store flag is now the gate — it survives `/hexreload` exactly as long as the tab itself does and clears on client restart. Also deduplicated the `[hex] alt:` line to print only when the alt actually changes (char.info pushes repeatedly at login).
+
 ## v0.5.2-dbg (2026-11-05)
 
 DEBUG RELEASE. This lane ships one purpose-built debug command and is slated for removal in v0.6.0, which will cut it out entirely; do not build on it.
