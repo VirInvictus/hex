@@ -11,6 +11,8 @@ local gagfile = require("src.hex_gagfile")
 local setup_cmd = require("src.hex_setup")
 local data = require("src.hex_data")
 local walk = require("src.hex_walk")
+local missions = require("src.hex_missions")
+local quota = require("src.hex_quota")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -23,6 +25,15 @@ registry.reap()
 -- all registrations go through the registry so /hexreload can reap them
 local trigger_add = function(re, opts, cb)
   return registry.record("trigger", trigger.add(re, opts, cb))
+end
+
+-- announce-only timers (mission resets, quota expiry) are registry-recorded
+-- too, so a reload cannot double a pending timer
+local timer_add = function(duration, count, cb)
+  return registry.record("timer", timer.add(duration, count, cb))
+end
+local timer_remove = function(id)
+  return timer.remove(id)
 end
 
 local vitals = vitals_mod.new()
@@ -44,12 +55,30 @@ end
 
 local function refresh_status()
   vitals.rate = vitals_mod.xp_rate(vitals)
-  status.apply(status.render(vitals, room, select(1, blight.terminal_dimensions())))
+  -- chips: quota first (priority over missions), then minutes to the next
+  -- mission reset; both nil-able
+  local chips = {}
+  local qchip = quota.chip(quota.state, os.time())
+  if qchip then
+    chips[#chips + 1] = qchip
+  end
+  local mchip = missions.chip(missions.state, os.time())
+  if mchip then
+    chips[#chips + 1] = mchip
+  end
+  status.apply(status.render(vitals, room, select(1, blight.terminal_dimensions()), chips))
 end
 
 status.setup()
 refresh_status() -- draw the placeholder bars immediately, not on first data
 gags.register(trigger_add, regex)
+
+-- missions + quota (Phase 3): announce-only timers, no send paths outside
+-- the /apply, /dl and /quota refresh aliases
+missions.setup({ config = config, room = room, timer_add = timer_add, timer_remove = timer_remove })
+quota.setup({ config = config, timer_add = timer_add, timer_remove = timer_remove })
+missions.register(trigger_add, regex)
+quota.register(trigger_add, regex)
 
 -- user gags as data: loaded additively after the built-ins (a bad entry
 -- skips only itself; the file degrades to built-in gags only if unloadable)
@@ -74,6 +103,7 @@ gmcp_wire.setup({
     if type(data) == "table" and (data.capname or data.name) then
       config.set_alt(data.capname or data.name)
       print(util.ansi.gray .. "[hex] alt: " .. (data.capname or data.name) .. util.ansi.reset)
+      missions.load_if_needed() -- per-alt mission state follows the alt
     end
   end,
   on_char_login = function(data)
@@ -139,6 +169,8 @@ commands.setup({
   setup = setup_cmd,
   data = data,
   walk = walk,
+  missions = missions,
+  quota = quota,
   paths_cache = paths_cache,
 })
 

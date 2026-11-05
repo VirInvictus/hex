@@ -35,6 +35,10 @@ function M.reap()
   for _, h in ipairs(load_handles()) do
     if h.kind == "trigger" then
       pcall(trigger.remove, h.id)
+    elseif h.kind == "timer" then
+      -- announce-only timers (mission resets, quota expiry) must die with
+      -- their load too, or /hexreload doubles every pending timer
+      pcall(timer.remove, h.id)
     else
       pcall(alias.remove, h.id)
     end

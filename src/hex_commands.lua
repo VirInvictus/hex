@@ -6,6 +6,7 @@ local util = require("src.hex_util")
 local queries = require("src.hex_queries")
 local targets = require("src.hex_targets")
 local paths = require("src.hex_paths")
+local missiondata = require("src.hex_missiondata")
 
 local M = {}
 
@@ -474,6 +475,143 @@ local function cmd_near(args)
   end
 end
 
+-- missions surface (design: docs/phase-3-character.md §5): /missions and
+-- /quota never send; /apply, /dl and /quota refresh are user-alias sends.
+
+local function cmd_missions(args)
+  local ms = M.deps.missions
+  local q = M.deps.quota
+  local pending = args:match("^pending%s+(%S+)")
+  if pending then
+    pending = pending:upper()
+    local short = ms.board_market(pending)
+    if not short then
+      local letter = pending:match("^DL([A-I])$")
+      short = letter and ms.session.next_letter
+    end
+    if short then
+      ms.session.market_apply = short
+      print(a("gray", "[hex] pending fixup: next job-market writ completes " .. ms.label("market_" .. short)))
+    else
+      print(a("gray", "[hex] no board id " .. pending .. " on the current board (read the board first)"))
+    end
+    return
+  end
+  if util.trim(args) ~= "" then
+    -- one mission: stats + resets (tt_dw /show_mission's display rules)
+    local short = util.trim(args):lower():gsub("%s+", "_")
+    local st = ms.state[short]
+    if not st then
+      print(a("gray", "[hex] no data for " .. args .. " yet; names look like market_dogwalker, letter_close_vague, plain_sausages"))
+      return
+    end
+    local learned = short == "letter_difficult" and ms.learned or nil
+    local xp = ms.xp_for(short, ms.count(short), learned)
+    local tilde = short:find("_sausages$") or short == "letter_difficult" and "~" or ""
+    print(a("bold", ms.label(short)) .. a("gray", tilde .. "  xp " .. xp .. "  rate " .. ms.rate_for(short, ms.state, learned) .. "/hr"))
+    if st.resets and #st.resets > 0 then
+      local now = os.time()
+      local parts = {}
+      for _, t in ipairs(st.resets) do
+        if t > now then
+          parts[#parts + 1] = ms.fmt_dur(t - now)
+        end
+      end
+      print(a("gray", "resets in " .. (#parts > 0 and table.concat(parts, ", ") or "-")))
+    end
+    if st.est_time then
+      print(a("gray", ("done %d times: est %s, avg %s, min %s, max %s"):format(st.total_count or 0, ms.fmt_dur(st.est_time), ms.fmt_dur(st.avg_time), ms.fmt_dur(st.min_time), ms.fmt_dur(st.max_time))))
+    end
+    return
+  end
+  -- the table: every mission sorted by the comparator
+  local rows = {}
+  for short, _ in pairs(missiondata.xp) do
+    local learned = short == "letter_difficult" and ms.learned or nil
+    local count = ms.count(short)
+    local xp = ms.xp_for(short, count, learned)
+    rows[#rows + 1] = {
+      short = short,
+      xp = xp,
+      rate = ms.rate_for(short, ms.state, learned),
+      count = count,
+    }
+  end
+  table.sort(rows, ms.compare)
+  print(a("bold", "Missions") .. a("gray", "  xp halves per pending reset; /missions <name> for details"))
+  for _, r in ipairs(rows) do
+    local pending = r.count > 0 and (" (" .. r.count .. ")") or ""
+    local rate = r.rate > 0 and (util.comma(r.rate) .. "/hr") or "-"
+    print(("  %-34s %12s xp  %14s%s"):format(ms.label(r.short), util.comma(r.xp), rate, a("gray", pending)))
+  end
+  local chip = ms.chip(ms.state, os.time())
+  if chip then
+    print(a("gray", "next reset " .. chip))
+  end
+end
+
+local function cmd_apply(args)
+  local ms = M.deps.missions
+  local id = util.trim(args):upper()
+  if not id:match("^[BMH][A-F]$") then
+    print(a("gray", "usage: /apply <board id>   e.g. /apply MB (ids come from the job board)"))
+    return
+  end
+  if M.deps.room.id ~= missiondata.JOB_MARKET_ID then
+    print(a("gray", "[hex] not at the job market"))
+    return
+  end
+  local short = ms.board_market(id)
+  if not short then
+    print(a("gray", "[hex] no job " .. id .. " on the current board; read the board first"))
+    return
+  end
+  ms.session.market_apply = short
+  mud.send("apply for " .. id)
+end
+
+local function cmd_dl(args)
+  local ms = M.deps.missions
+  local letter = util.trim(args):upper()
+  if not letter:match("^[A-H]$") then
+    print(a("gray", "usage: /dl <A-H>   (I, the difficult customer, is typed in full on purpose)"))
+    return
+  end
+  if M.deps.room.id ~= missiondata.DEAD_LETTER_ID then
+    print(a("gray", "[hex] not at the dead letter office"))
+    return
+  end
+  if not ms.session.board.letters[letter] then
+    print(a("gray", "[hex] pigeonhole " .. letter .. " has no letter waiting; check holes first"))
+    return
+  end
+  ms.session.next_letter = ms.session.board.letters[letter]
+  mud.send("offer to deliver DL" .. letter)
+end
+
+local function cmd_quota(args)
+  local q = M.deps.quota
+  if util.trim(args) == "refresh" then
+    mud.send("check quota brief")
+    print(a("gray", "[hex] sent: check quota brief"))
+    return
+  end
+  local st = q.state
+  if not st.max then
+    print(a("gray", "[hex] no quota data yet; /quota refresh reads the licence (you can also run: check quota brief)"))
+    return
+  end
+  print(a("bold", "Quota") .. q.chip(st, os.time()))
+  local lines = {
+    ("receipts %s / min %s / max %s"):format(q.fmt_num(st.rcpt or 0), q.fmt_num(st.min or 0), q.fmt_num(st.max)),
+    ("owed %s / paid %s"):format(q.fmt_num(st.owed or 0), q.fmt_num(st.paid or 0)),
+    ("resets in " .. q.fmt_remaining((st.deadline or os.time()) - os.time())),
+  }
+  for _, l in ipairs(lines) do
+    print(a("gray", l))
+  end
+end
+
 local function cmd_gag_list()
   local gf = M.deps.gagfile
   print(
@@ -595,6 +733,24 @@ function M.setup(deps)
   alias_add("^/stopwalk$", function()
     M.deps.walk.stop()
   end)
+  alias_add("^/missions$", function()
+    cmd_missions("")
+  end)
+  alias_add("^/missions%s+(.+)$", function(matches)
+    cmd_missions(matches[2])
+  end)
+  alias_add("^/apply%s+(.+)$", function(matches)
+    cmd_apply(matches[2])
+  end)
+  alias_add("^/dl%s+(%S+)$", function(matches)
+    cmd_dl(matches[2])
+  end)
+  alias_add("^/quota$", function()
+    cmd_quota("")
+  end)
+  alias_add("^/quota%s+(%S+)$", function(matches)
+    cmd_quota(matches[2])
+  end)
   alias_add("^/wmap$", function()
     cmd_show_map("wmap")
   end)
@@ -652,6 +808,8 @@ function M.setup(deps)
     print("  /where                   /wmap, /dwmap")
     print("  /path [--full] <target>  /near <search>  (route graph, identified rooms)")
     print("  /goto <target>           one-batch speedwalk; /stopwalk aborts")
+    print("  /missions [name]         mission table, resets, rates; /missions pending <id>")
+    print("  /apply <id>              /dl <A-H>       /quota [refresh]")
     print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
     print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
     print("  /hexgag, /gaglog         user gags as data; /hexungag <n|text> removes")

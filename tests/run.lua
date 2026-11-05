@@ -21,6 +21,9 @@ local version = require("hex_version")
 local paths = require("hex_paths")
 local targets = require("hex_targets")
 local walk = require("hex_walk")
+local missions = require("hex_missions")
+local quota = require("hex_quota")
+local missiondata = require("hex_missiondata")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -872,6 +875,195 @@ end)
 t("walk: long routes warn before the MUD's 5-minute abort", function()
   eq(walk.should_warn({ steps = walk.WARN_STEPS }), false)
   eq(walk.should_warn({ steps = walk.WARN_STEPS + 1 }), true)
+end)
+
+-- hex_missions ---------------------------------------------------------------
+
+t("missiondata: tables are complete and coherent", function()
+  local n_jobs = 0
+  for _ in pairs(missiondata.jobs) do
+    n_jobs = n_jobs + 1
+  end
+  eq(n_jobs, 13)
+  for short, name in pairs(missiondata.jobs) do
+    assert(missiondata.xp["market_" .. short], "missing xp for market_" .. short)
+    assert(missiondata.job_short(name) == short, "job_short round-trip fails for " .. name)
+  end
+  eq(missiondata.job_short("Delivery Lackey (m/f)"), "lackey") -- (m/f) suffix tolerated
+  eq(missiondata.job_short("No Such Job"), nil)
+  for letter, id in pairs(missiondata.letters) do
+    assert(missiondata.xp["letter_" .. id], "missing xp for letter_" .. id)
+    assert(missiondata.tletters[letter], "missing tletter label " .. letter)
+  end
+  eq(missiondata.xp.letter_difficult, 40000) -- the guess, replaced on first live delivery
+end)
+
+t("missions: xp halves per pending reset", function()
+  eq(missions.xp_for("market_quencher", 0), 1600)
+  eq(missions.xp_for("market_quencher", 1), 800)
+  eq(missions.xp_for("market_quencher", 3), 200)
+  eq(missions.xp_for("market_maintenance", 2), 47000)
+end)
+
+t("missions: sausage xp uses critter table then per-dollar", function()
+  eq(missions.xp_for("plain_sausages", 0, nil, nil, "badger"), 52800)
+  eq(missions.xp_for("spiced_sausages", 1, nil, nil, "whale"), 74640) -- 149280 / 2
+  eq(missions.xp_for("plain_sausages", 0, nil, 25, "unknown critter"), 1955 * 25)
+  -- no critter and no dollars: the A$25 default payout, then halved twice
+  eq(missions.xp_for("plain_sausages", 2, nil, nil, nil), math.floor(1955 * 25 / 4 + 0.5))
+end)
+
+t("missions: difficult letter learns past the guess", function()
+  eq(missions.xp_for("letter_difficult", 0, nil), 40000)
+  eq(missions.xp_for("letter_difficult", 0, 45123), 45123)
+end)
+
+t("missions: completion EMA and stats (hand-computed)", function()
+  local st = { _short = "market_dogwalker", total_count = 0 }
+  local out = missions.apply_completion(st, 600, nil)
+  eq(st.est_time, 600)
+  eq(st.avg_time, 600)
+  eq(st.min_time, 600)
+  eq(st.max_time, 600)
+  eq(out.rate, 96000) -- 16000 / 600 * 3600
+  -- second completion, slower: EMA leans toward the new time
+  st.total_count = 1
+  out = missions.apply_completion(st, 1200, nil)
+  eq(st.est_time, 900) -- (1200 + 600) / 2
+  eq(st.avg_time, 900) -- (1200 + 600*1) / 2
+  eq(st.max_time, 1200)
+  eq(out.rate, 48000) -- 16000 / 900 * 3600
+  -- rewarded xp lower than the model: the caller sees both values; one
+  -- pending reset halves the model xp (the caller appends the new reset
+  -- after this call)
+  st.total_count = 2
+  st.resets = { 1000000001 }
+  out = missions.apply_completion(st, 900, 4000)
+  eq(out.xp, 4000)
+  eq(out.full_xp, 8000)
+end)
+
+t("missions: timer sweep announces inside the window only", function()
+  local now = 1000000
+  local m = {
+    a = { resets = { now + 1800, now - 5 } }, -- one future, one just expired
+    b = { resets = { now - 10 } }, -- fresh expiry: announce
+    c = { resets = { now - 5, now - 2 } }, -- two expiries, announce once when empty
+    old = { resets = { now - 7 * 3600 } }, -- outside the 6h window: silent
+  }
+  local announce, next_reset = missions.check_timers(m, now)
+  table.sort(announce)
+  eq(#announce, 2)
+  eq(announce[1], "b")
+  eq(announce[2], "c")
+  eq(next_reset, now + 1800)
+  eq(#m.a.resets, 1) -- pruned to the future one
+  eq(#m.b.resets, 0)
+  eq(#m.old.resets, 0)
+  -- a mission with a STILL-PENDING reset does not announce its expiry
+  m = { d = { resets = { now - 5, now + 60 } } }
+  announce = missions.check_timers(m, now)
+  eq(#announce, 0)
+end)
+
+t("missions: chip shows minutes to the next reset", function()
+  local now = 1000000
+  eq(missions.chip({}, now), nil)
+  eq(missions.chip({ x = { resets = { now + 1500 } } }, now), "[M:25m]")
+  eq(missions.chip({ x = { resets = { now + 5 } } }, now), "[M:1m]")
+end)
+
+t("missions: comparator rates descending, unrated last", function()
+  local rated_hi = { rate = 90000, xp = 16000 }
+  local rated_lo = { rate = 8000, xp = 188000 }
+  local unrated = { rate = 0, xp = 50064 }
+  assert(missions.compare(rated_hi, rated_lo), "higher rate first")
+  assert(not missions.compare(rated_lo, rated_hi), "antisymmetry")
+  assert(missions.compare(rated_lo, unrated), "rated before unrated")
+  assert(missions.compare({ rate = 0, xp = 999 }, unrated) == false, "equal rates: higher xp first")
+end)
+
+-- hex_quota ----------------------------------------------------------------
+
+t("quota: parses the brief example block", function()
+  local st = {}
+  local fixture = {
+    "  Receipts received: A$131.56.",
+    "  Guild cut: A$39.46.",
+    "  Amount paid: A$39.46.",
+    "  Amount owed: A$0.",
+    "  Time left: 1 hour, 10 minutes, 17 seconds.",
+    "  Min quota: A$8.25.",
+    "  Max quota: A$133.",
+  }
+  local handled = 0
+  for _, line in ipairs(fixture) do
+    if quota.parse_line(st, line) then
+      handled = handled + 1
+    end
+  end
+  eq(handled, 6) -- "Guild cut" is not tracked (tt_dw tracks five fields + time)
+  eq(st.rcpt, 131.56)
+  eq(st.min, 8.25)
+  eq(st.max, 133)
+  eq(st.owed, 0)
+  eq(st.paid, 39.46)
+  eq(st.deadline, os.time() + 1 * 3600 + 10 * 60 + 17)
+end)
+
+t("quota: pence forms divide by 100", function()
+  local st = {}
+  eq(quota.parse_line(st, "  Receipts received: 13156p."), true)
+  eq(st.rcpt, 131.56)
+  st = {}
+  eq(quota.parse_line(st, "  Amount owed: 250p."), true)
+  eq(st.owed, 2.5)
+end)
+
+t("quota: all six time-left shapes", function()
+  local cases = {
+    { "  Time left: 2 days, 3 hours, 4 minutes, 5 seconds.", 2 * 86400 + 3 * 3600 + 4 * 60 + 5 },
+    { "  Time left: 1 hour, 2 minutes, 3 seconds.", 3600 + 120 + 3 },
+    { "  Time left: 1 hour, 2 minutes.", 3600 + 120 },
+    { "  Time left: 1 hour, 30 seconds.", 3630 },
+    { "  Time left: 5 minutes, 6 seconds.", 306 },
+    { "  Time left: 45 seconds.", 45 },
+  }
+  for _, c in ipairs(cases) do
+    local st = {}
+    eq(quota.parse_line(st, c[1]), true)
+    eq(st.deadline, os.time() + c[2])
+  end
+  eq(quota.parse_time_left("  Time left: someday."), nil)
+end)
+
+t("quota: chip colors, owed flag, time shapes", function()
+  local now = 1000000
+  local ok = { max = 133, rcpt = 60, min = 8.25, owed = 0, deadline = now + 4200 }
+  assert(quota.chip(ok, now):find("%[Q:%$133%-%$60=%$73%]"), "base chip: " .. quota.chip(ok, now))
+  assert(quota.chip(ok, now):find("1:10"), "hour form: " .. quota.chip(ok, now))
+  local under = { max = 133, rcpt = 5, min = 8.25, deadline = now + 305 }
+  assert(quota.chip(under, now):find("5m5s"), "minute-second form: " .. quota.chip(under, now))
+  local over = { max = 100, rcpt = 110, min = 10, deadline = now + 61 }
+  assert(quota.chip(over, now):find("%$%-10%]"), "negative left: " .. quota.chip(over, now))
+  local owing = { max = 133, rcpt = 60, min = 8.25, owed = 2.5, deadline = now + 600 }
+  assert(quota.chip(owing, now):find("O:%$2%.50!"), "owed flag: " .. quota.chip(owing, now))
+  eq(quota.chip({}, now), nil)
+end)
+
+-- status chips -------------------------------------------------------------
+
+t("status: chips append to the vitals row and truncate", function()
+  local st = vitals_mod.new()
+  vitals_mod.apply(st, { hp = 600, maxhp = 700, gp = 350, maxgp = 400, xp = 123456, burden = 10, alignment = "good" })
+  st.rate = 150000
+  local lines = status.render(st, { id = string.rep("ab", 20), name = "Drum" }, 80, { "[Q:$133-$5=$128]", "[M:32m]" })
+  eq(#lines, 3)
+  assert(lines[3]:find("%[Q:%$133"), "chips row: " .. lines[3])
+  assert(lines[3]:find("%[M:32m%]"), "second chip: " .. lines[3])
+  local lines_bare = status.render(st, {}, 80, nil)
+  assert(not lines_bare[3]:find("%[Q:"), "no quota chip: " .. lines_bare[3])
+  assert(not lines_bare[3]:find("%[M:"), "no mission chip: " .. lines_bare[3])
 end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))

@@ -21,7 +21,7 @@ local function points_bar(label, cur, max)
   return colored(util.hp_color_name(r), label .. bar) .. " " .. tostring(cur or "?") .. "/" .. tostring(max or "?")
 end
 
-function M.render(st, room, width)
+function M.render(st, room, width, chips)
   local c = st.cur
   local m = st.max
 
@@ -49,6 +49,14 @@ function M.render(st, room, width)
   end
   if c.alignment then
     line3 = line3 .. colored("gray", "  " .. tostring(c.alignment))
+  end
+  -- chips row (Phase 3): quota, mission, future contributors append after
+  -- the vitals summary, truncated to the terminal width
+  if chips and #chips > 0 then
+    line3 = line3 .. "  " .. table.concat(chips, " ")
+    if width and #line3 > width then
+      line3 = line3:sub(1, width)
+    end
   end
   return { line1, line2, line3 }
 end
