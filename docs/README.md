@@ -5,7 +5,7 @@ One document per roadmap phase, produced by the 2026-11-04/05 exploration campai
 | Doc | Phase | Status | The one decision that shapes it |
 |---|---|---|---|
 | [phase-1x-setup.md](phase-1x-setup.md) | 1.x hotfix lane | shipped in v0.2.0 | `/hexsetup` sends tt_dw's exact eight game-side strings (documented rows form + `term xterm256`); user gags live in a data file; `/hexupdate` owns the Quow database |
-| [phase-2-mapper.md](phase-2-mapper.md) | 2 find your way | core shipped 2026-11-05; walker next | Dijkstra over the identified subgraph in Lua, built lazily; BP and Genua are disconnected in the identified subgraph (measured), so the /goto walker is batch-only and never re-routes blind |
+| [phase-2-mapper.md](phase-2-mapper.md) | 2 find your way | shipped in v0.3.0 | Dijkstra over the identified subgraph in Lua, built lazily; BP and Genua are disconnected in the identified subgraph (measured), so the /goto walker is batch-only and never re-routes blind |
 | [phase-3-character.md](phase-3-character.md) | 3 working character | designed | Missions mirror tt_dw's SQL schema as per-alt JSON; the bonus formula (0.1020408·ln(prod) − 0.25) is extracted and cross-checked |
 | [phase-4-magic.md](phase-4-magic.md) | 4 magic & faith | designed | spelldata ships committed (117 spells, ~130 KB) so installs work without tt_dw; the TM algorithm is tt_dw's exact relative-chance pipeline |
 | [phase-5-room.md](phase-5-room.md) | 5 the room | designed | Render ladder: top rows (dev) → tab → inline (stock); maze movement is an input-listener rewrite, legal because plugin sends bypass it |

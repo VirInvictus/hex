@@ -49,7 +49,7 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 
 ## Status
 
-Milestone 1 (vitals, status area, room awareness, Quow lookups, gags v1). See `roadmap.md` for pathfinding and beyond.
+Milestones 1-2: vitals and status area, room awareness, Quow lookups, gags, user setup, Hex-owned data, and pathfinding (`/path`, `/near`, `/goto`). See `roadmap.md` for missions, magic, the social layer, and beyond.
 
 ## Credits
 
