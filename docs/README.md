@@ -9,7 +9,7 @@ One document per roadmap phase, produced by the 2026-11-04/05 exploration campai
 | [phase-3-character.md](phase-3-character.md) | 3 working character | v0.4.0 + v0.4.1; stats wire-gated | Missions mirror tt_dw's SQL schema as per-alt JSON; the bonus formula (0.1020408·ln(prod) − 0.25) is extracted and cross-checked |
 | [phase-4-magic.md](phase-4-magic.md) | 4 magic & faith | designed | spelldata ships committed (117 spells, ~130 KB) so installs work without tt_dw; the TM algorithm is tt_dw's exact relative-chance pipeline |
 | [phase-5-room.md](phase-5-room.md) | 5 the room | designed | Render ladder: top rows (dev) → tab → inline (stock); maze movement is an input-listener rewrite, legal because plugin sends bypass it |
-| [phase-6-social.md](phase-6-social.md) | 6 social | designed | One mirror-mode `chat` tab routed by Rust-side filters (colors free, no double-routing); GMCP always beats the monitor fallback |
+| [phase-6-social.md](phase-6-social.md) | 6 social | shipped in v0.5.0 | One mirror-mode `chat` tab routed by Rust-side filters (colors free, no double-routing); GMCP always beats the monitor fallback |
 | [phase-7-feel.md](phase-7-feel.md) | 7 feel & options | designed | Sound off by default (no bundled files; tt_dw's CC0 set via sound_dir); options = schema-validated layers (session > alt > global > default) |
 | [phase-8-engineering.md](phase-8-engineering.md) | 8 ship | designed | CI from the house shape; three-layer goldens; a fake-GMCP shim that makes the M1 dead-vitals bug class a red CI run instead of a dead status bar |
 

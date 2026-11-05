@@ -1,6 +1,6 @@
 # Phase 6: the social layer — chat, combat spam, monitor fallback, URLs, notifications
 
-Design doc. Status: designed, not implemented. Ports from tt_dw `misc/chat.tin`, `ui/chat.tin`, `misc/combat.tin`, `status/status.tin`, `util/links.tin`, `misc/high.tin`, `sound/speech.tin`, `session.tin`.
+Design doc. Status: implemented 2026-11-05 (v0.5.0) with the design's core combat families; combat.tin's divine-ire/special-weapon tail and the digest engine wait for the capture session and Phase 7. Wire checks (chat shapes, monitor spacing) ride tonight's capture. Ports from tt_dw `misc/chat.tin`, `ui/chat.tin`, `misc/combat.tin`, `status/status.tin`, `util/links.tin`, `misc/high.tin`, `sound/speech.tin`, `session.tin`.
 
 ## 0. Verified blightmud facts (do not re-derive)
 

@@ -92,13 +92,13 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 
 ## Phase 6: the social layer (M6)
 
-- [ ] Chat capture (tells, souls, club/talker channels) into a scrolling dev-tab, feature-detected
-- [ ] Awareness-rule constraint (concepts/automation): the chat tab must never bury tells out of sight - the main feed stays readable
-- [ ] Talker regexes adopt the documented line shapes (leading dash, parenthesised channel, `saying : `); club names are player-configurable, so club regexes stay wire-checkable (`blight.create_tab` exists in the dev tree)
-- [ ] Combat spam levels (default/brief/verbose) with per-level gag sets, tt_dw `/combat` parity
-- [ ] Combat monitor parsing as a vitals fallback when GMCP is unavailable
-- [ ] URL catching and `/urls` recall
-- [ ] Notification hooks: mission-ready, connection loss, TPA expiring (sound-ready, see Phase 7)
+- [x] Chat capture (tells, souls, club/talker channels) into a scrolling dev-tab, feature-detected — shipped v0.5.0: tells/club/group/talker/shout capture with tt_dw's exclusions, session rings, mirror default; the tab is a feature-detected Rust-filter mirror (F1/F2 binds), stock blightmud sees no change
+- [x] Awareness-rule constraint (concepts/automation): the chat tab must never bury tells out of sight - the main feed stays readable — mirror mode is the design's answer; the tab never gags main
+- [x] Talker regexes adopt the documented line shapes (leading dash, parenthesised channel, `saying : `); club regexes are player-configurable, so club regexes stay wire-checkable (`blight.create_tab` exists in the dev tree) — both talker shapes shipped; wire checks ride tonight's capture
+- [x] Combat spam levels (default/brief/verbose) with per-level gag sets, tt_dw `/combat` parity — shipped v0.5.0 with the design's core families; the divine-ire/special-weapon tail and the digest engine wait for the capture and Phase 7
+- [x] Combat monitor parsing as a vitals fallback when GMCP is unavailable — the three `/hexsetup` strings, GMCP-freshness precedence (120 s window), `/combatstat` rounds
+- [x] URL catching and `/urls` recall — tt_dw guard set ported; `/url open` behind an opt-in flag
+- [x] Notification hooks: mission-ready, connection loss, TPA expiring (sound-ready, see Phase 7) — hex_notify bus shipped with chat/url/combat/mission/core events; TPA arrives with Phase 4
 
 ## Phase 7: feel & options (M7)
 

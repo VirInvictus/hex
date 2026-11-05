@@ -43,6 +43,10 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/bonus <skill> [target]` | Current and target bonus for a skill (targets: `120`, `l120`, `+10`, `b200`, `r180`) |
 | `/skillcost <skill\|prefix> [target] [etb N]` | XP cost to a target level or bonus; primaries flagged `*`; prefixes cover multi-skill totals |
 | `/goal add <skill> <target>`, `/goals` | Skill goals with XP bars and reach alerts |
+| `/chat [family] [n]` | Chat recall (tells, clubs, group, talkers, shouts) from session ring buffers; stays in the main feed (mirror mode) unless your blightmud has tabs |
+| `/chatset <family> on|off`, `/chattab on|off` | Chat family toggles and the tab gate |
+| `/combat [level]`, `/combatstat` | Combat spam ladder (verbatim/verbose/default/brief, per-alt) and attacks-per-round |
+| `/urls [pattern]`, `/url <n>` | URL catch and recall; `open` shells out behind an opt-in flag |
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
 | `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
 | `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |
@@ -56,7 +60,7 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 
 ## Status
 
-Milestones 1-3: vitals and status area, room awareness, Quow lookups, gags, user setup, Hex-owned data, pathfinding (`/path`, `/near`, `/goto`), mission tracking, the thief quota, and the skills store with bonus/cost math and goals. See `roadmap.md` for magic, the social layer, and beyond.
+Milestones 1-3 plus the social layer: vitals and status area, room awareness, Quow lookups, gags, user setup, Hex-owned data, pathfinding (`/path`, `/near`, `/goto`), mission tracking, the thief quota, the skills store with bonus/cost math and goals, chat capture, the combat spam ladder, and URL recall. See `roadmap.md` for magic, the room, and beyond.
 
 ## Credits
 

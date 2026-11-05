@@ -1,5 +1,16 @@
 # Hex patchnotes
 
+## v0.5.0 (2026-11-05)
+
+Phase 6: the social layer. Chat shapes and the monitor strings stay wire-checkable for tonight's capture; everything else is tt_dw-faithful port.
+
+- `/chat [family] [n]`: chat capture with tt_dw's taxonomy (tells in and out, clubs, group, talkers in both documented shapes, Offler shouts; room says and souls deliberately not captured, as upstream). Session ring buffers per family with the design's caps, the NPC speaker list and the twelve job-completion texts excluded exactly as ported. Mirror mode is the default, so the awareness rule holds: chat never leaves the main feed. With a blightmud carrying tabs (dev tree, feature-detected) one `chat` tab mirrors via Rust-side include/exclude filters, F1 main / F2 chat; `/chatset <family> on|off` persists (tab filters are append-only, so rebuilds need a restart) and `/chattab on|off` gates the tab.
+- The combat spam ladder: `/combat` cycles verbatim -> verbose -> default -> brief (or sets directly), per-alt persisted. Levels are data over the tt_dw family patterns: defense and "nothing happened" lines gag at default, the hit/burn/hurt/miss/prepare/special alternations gag at brief, with the moon-dragon hurt-line exclusion as a code check. The divine-ire and special-weapon tail stays pending as data work against the live capture; the digest engine is Phase 7's.
+- The combat monitor as a vitals fallback: the three strings `/hexsetup` installs (monitor, verbose prompt, `score brief` tail) parse into the vitals model when GMCP is stale or dead (120 s freshness window), and never touch it when GMCP is alive. A GMCP push always overwrites monitor values; both feeds assign absolutes, so nothing double-counts. The monitor lines gag (the status area replaces them) and count rounds for `/combatstat`, the attacks-per-round readout.
+- `/urls [pattern]` and `/url <n>`: URL catching with tt_dw's false-positive guards (filenames, the MUD's own address, skill names and their short prefixes, double dots, under ten characters), a deduplicated recall ring, and `/url open <n>` shelling to xdg-open behind an opt-in flag (core.exec blocks the UI thread, so it defaults off). Click-to-copy is an upstream blightmud gap.
+- `hex_notify`: the ~40-line event bus (subscribe/emit/debounced/list, per-subscriber pcall isolation, announce-only contract). It now carries chat.tell/club/group/talker/shout, url.captured, combat.attack, mission.ready, core.connected/disconnected; Phase 7's sound and TTS subscribe to it.
+- Tests grow to 110 (115 with the opt-in goldens): the chat fixtures (language-tell, NPC and job exclusions, both talker shapes, room-say negative, ring caps), the URL guard matrix, the notify bus contract (order, isolation, debounce), the level-ladder table, and the GMCP-freshness precedence cases.
+
 ## v0.4.1 (2026-11-05)
 
 Phase 3's skills lane. Stats parsing stays wire-gated (its layout question needs tonight's capture); bonus math runs on the documented all-13 baseline until then.
