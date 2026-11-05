@@ -23,6 +23,7 @@ House invariants that out-rank every phase:
 - [x] `tools/convert_map.py`: tt_dw map -> rooms.db (62,130 rooms, 156,800 exits)
 - [x] `tests/run.lua` + `tests/test_convert_map.py` green
 - [x] Live GMCP probe against Discworld (handshake verified against the game's own doc after the first login exposed the dead-vitals bug)
+- [x] v0.1.0 release: patchnotes entry, annotated tag, pushed (2026-11-05)
 
 ### 1.x hotfix lane (current)
 
