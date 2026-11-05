@@ -4,7 +4,7 @@ Per-repo guidance; overrides the global `~/.zcode/AGENTS.md` where they conflict
 
 ## What this is
 
-Lua 5.4 plugin suite for Blightmud playing Discworld MUD (https://discworld.starturtle.com). Portfolio project owned by Brandon. Local-only for now (no remote).
+Lua 5.4 plugin suite for Blightmud playing Discworld MUD (https://discworld.starturtle.com). Portfolio project owned by Brandon. Public at https://github.com/VirInvictus/hex.
 
 ## Commands
 
