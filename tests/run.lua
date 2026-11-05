@@ -1661,6 +1661,12 @@ t("spec invariant: registration patterns carry no Lua %-classes", function()
         if line:find('alias_add%("') or line:find('Regex%.new%("') or line:find('trigger_add%("')
           or line:find('T%("') or line:find('arm%("') then
           assert(not line:find("%%%a"), f .. ".lua registration literal has a Lua class: " .. line)
+          -- single backslash + letter inside a Lua string literal is an
+          -- invalid escape (found live: the hotfix-4 rustifier wrote \s
+          -- instead of \\s and the file stopped parsing)
+          for bad in line:gmatch("([^\\])\\[sSdDwWaA]") do
+            error(f .. ".lua registration literal has a single-backslash escape: " .. line)
+          end
         end
       end
       fh:close()
