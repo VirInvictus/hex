@@ -4,6 +4,8 @@ External materials for every phase are staged under `testing_facility/` (gitigno
 
 Every phase below has an implementation-ready design document under [docs/](docs/README.md), produced by the 2026-11-04/05 exploration campaign (eight research agents; measured benchmarks, extracted formulas, wire-verification backlogs). The roadmap tracks boxes; the docs carry the designs. The official Discworld documentation mirror and the research findings built from it live in [docs/discworld-docs-research.md](docs/discworld-docs-research.md) — including the automation ruling that reshaped the `/goto` walker.
 
+**Position (2026-11-05): Hex is Brandon's primary Discworld client** — the TinTin++/tt_dw setup was declined; the tt_dw clone stays as the porting source and, until the item below ships, the host of the Quow database and sound files.
+
 North star: Hex becomes the Discworld suite a Blightmud player reaches for first, the way Quow's Cow Bar is the suite a MUSHclient player reaches for first. That bar has three parts, and every phase below serves one of them: nothing essential is missing (map, vitals, data, missions, magic), nothing breaks quietly (the GMCP lesson: verify every protocol claim against the live wire), and nothing feels alien to a terminal user (one binary, text everywhere, zero dependencies).
 
 House invariants that out-rank every phase:
@@ -40,6 +42,7 @@ House invariants that out-rank every phase:
 - [ ] `/hexcheck` Tier-2 parser: the documented `options output` shape is space-separated with no `=` in some trees and `key = value` in others (tactics); live-verified before shipping
 - [ ] `/gaglog` and a gag registry file so players add their own gags as data without touching code
 - [ ] Optional quow DB auto-refresh check (`update.sh -q` parity): warn when the database is older than 60 days
+- [ ] **"Hex owns its data"**: default `quow_db` moves to `~/.local/share/hex/` with a `/hexupdate` alias that downloads Quow's database directly (and a Hex-owned CC0 sound copy), so daily play no longer depends on the tt_dw clone
 
 ## Phase 2: find your way (M2) — the mapper that matters first
 
