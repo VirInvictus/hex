@@ -1,5 +1,16 @@
 # Hex patchnotes
 
+## v0.3.0 (2026-11-05)
+
+Phase 2 complete: find your way.
+
+- `/path [--full] [any] <target>` routes through the identified map graph. Targets: room name with the house glob rules (`*` `?` `^` `$`), `@<area>` for an area's origin room, a room id, `#<n>` from the last candidate list, or a bare vnum. Multiple matches give a numbered candidate list with per-candidate step counts, routed by `/path #n`; `any` allows avoid-flagged and water rooms; `--full` prints every room on the way.
+- `/near <search>` ranks the five nearest matches to your current room by path length from one multi-target Dijkstra.
+- The routable subgraph builds lazily inside the first routing command: 31,157 identified rooms, 78,979 directed edges, ~280 ms once and ~21 ms per route on this machine (21.7 MB heap after GC). `lua tests/bench_paths.lua` keeps the numbers honest. Known limits, measured 2026-11-05: Bes Pelargic and Genua are disconnected from Ankh-Morpork in the identified-room subgraph (the open-sea swim chain crosses unidentified rooms; the Bois has no inbound edges), so boats wait for Phase 5's journey/ferry tables.
+- `/goto <target>` is the ONE-SHOT batch speedwalk in the MUD's officially sanctioned "fast" style, ported from tt_dw's packed-alias shape: the travel option, every route command, an optional journey restore (config `travel_mode`), and a frimble end-marker are defined as one MUD-side alias and invoked in two sends. Hex never sends again after the burst; `stop` in-game or `/stopwalk` aborts. room.info pushes drive post-hoc drift display only: a first mismatch is reported once with expected-vs-actual, the queue is never altered, and the frimble marker (or the last planned room) prints the arrival summary.
+- Walk noise gags: the queued-command echo catch-all and the `Removed queue.` notice are walk-duration triggers; the travel-option confirmations and compact queued-command echoes are permanent data gags (tt_dw paths.tin port). The alias-definition echo shape is wire-unverified pending tonight's capture.
+- Tests grow to 69 (74 with the opt-in `HEX_GOLDEN=1` goldens): batch-queue packing, drift transitions, frimble completion, BFS-equivalence, tie determinism, one-way edges, avoid reroute/refuse, and the documented-negative BP/Genua goldens.
+
 ## v0.2.0 (2026-11-05)
 
 The 1.x hotfix lane completes: setup, user gags, and Hex's own data.

@@ -1,6 +1,6 @@
 # Phase 2: "find your way" — the graph pathfinding mapper
 
-Design doc. Status: §1-3 and §5-6 implemented 2026-11-05 (Phase 2 core: `hex_targets`, `hex_paths`, `/path`, `/near`, synthetic property tests, opt-in goldens, bench); §4's walker is the next batch. Every number in §0 was measured on this machine; **2026-11-05 correction: the implementation's loader (this doc's §1 SQL verbatim) measured the graph smaller than the exploration's numbers, and two BP/Genua golden claims from the campaign proved wrong — see the correction block at the end of §0.**
+Design doc. Status: fully implemented 2026-11-05 (Phase 2: `hex_targets`, `hex_paths`, `/path`, `/near`, §4's batch `/goto` walker with drift display, synthetic property tests, opt-in goldens, bench). Every number in §0 was measured on this machine; **2026-11-05 correction: the implementation's loader (this doc's §1 SQL verbatim) measured the graph smaller than the exploration's numbers, and two BP/Genua golden claims from the campaign proved wrong — see the correction block at the end of §0.**
 
 ## 0. Measured facts the design rests on
 

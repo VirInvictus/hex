@@ -32,8 +32,10 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/npc <search>` | Find NPCs (`room:<identifier>` narrows to one room) |
 | `/shop [room id]` | List what a room sells (defaults to your current room) |
 | `/where` | Current room identifier plus map-database details |
-| `/path [--full] <target>` | Route from your room through the identified map graph. Targets: room name (with `*`/`?`/`^`/`$`), `@<area>`, a room id, `#<n>` from the last candidate list, a bare vnum. Multiple matches give a numbered list with step counts |
+| `/path [--full] [any] <target>` | Route from your room through the identified map graph. Targets: room name (with `*`/`?`/`^`/`$`), `@<area>`, a room id, `#<n>` from the last candidate list, a bare vnum. Multiple matches give a numbered list with step counts; `any` allows avoid-flagged/water rooms |
 | `/near <search>` | The five nearest matches to your current room by path length |
+| `/goto <target>` | One-batch speedwalk to a target: the whole route queues in a single user-invoked burst (the MUD's sanctioned "fast" style) and Hex never sends again after it. `stop` in-game or `/stopwalk` aborts; drift is reported for information only |
+| `/stopwalk` | Send `stop` and clear the walk display |
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
 | `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
 | `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |
