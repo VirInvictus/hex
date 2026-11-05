@@ -1,5 +1,16 @@
 # Hex patchnotes
 
+## v0.2.0 (2026-11-05)
+
+The 1.x hotfix lane completes: setup, user gags, and Hex's own data.
+
+- `/hexsetup`: sends tt_dw's exact game-side strings (prompt, combat monitor, map off, brief exits, rows paging in the documented form, `term xterm256`, the afterinventory alias), one send per line behind a user alias, with `/hexsetup preview` for a no-traffic look. Hex never re-sends these or puts them on a timer.
+- User gags as data: `~/.local/share/hex/gags.lua`, edited by `/hexgag [-i] <pattern> [-> <substitution>]`, listed by `/hexgag` or `/gaglog`, removed by `/hexungag <n|text>`. Entries register live, one bad regex skips only itself, and hand edits need `/hexreload`.
+- Quow staleness check: at connect, once per session, the database's mtime warns when it is older than `quow_stale_days` (default 60, `/hexset`-able).
+- "Hex owns its data": `/hexupdate` downloads Quow's database detached (curl with wget fallback, part file + atomic move, `/hexupdate` again as the status check) into `~/.local/share/hex/quow.db`, copies the CC0 sound set from the tt_dw clone once, and writes `quow_db` explicitly. The resolution ladder (explicit `/hexset` > Hex's copy > tt_dw copy with a one-time hint) keeps current sessions working during the move.
+- `/dwmap` strips the room map's embedded ANSI at render time by default (a stray unclosed colour fragment reads as broken output); `/hexset map_ansi ansi` keeps the colours, and the stored payload stays raw for Phase 5's panel.
+- `hex_version.lua` is the Lua-side version carrier (GMCP hello and the update User-Agent read it). Unit suite grows 31 -> 47 tests.
+
 ## v0.1.0 (2026-11-05)
 
 First milestone: M1 core + Quow.

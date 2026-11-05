@@ -4,7 +4,7 @@ External materials for every phase are staged under `testing_facility/` (gitigno
 
 Every phase below has an implementation-ready design document under [docs/](docs/README.md), produced by the 2026-11-04/05 exploration campaign (eight research agents; measured benchmarks, extracted formulas, wire-verification backlogs). The roadmap tracks boxes; the docs carry the designs. The official Discworld documentation mirror and the research findings built from it live in [docs/discworld-docs-research.md](docs/discworld-docs-research.md) — including the automation ruling that reshaped the `/goto` walker.
 
-**Position (2026-11-05): Hex is Brandon's primary Discworld client** — the TinTin++/tt_dw setup was declined; the tt_dw clone stays as the porting source and, until the item below ships, the host of the Quow database and sound files.
+**Position (2026-11-05): Hex is Brandon's primary Discworld client** — the TinTin++/tt_dw setup was declined; the tt_dw clone stays as the porting source, and since v0.2.0 `/hexupdate` owns the Quow database and sound copies in Hex's data directory (the tt_dw copy is only a fallback until the first `/hexupdate` run).
 
 North star: Hex becomes the Discworld suite a Blightmud player reaches for first, the way Quow's Cow Bar is the suite a MUSHclient player reaches for first. That bar has three parts, and every phase below serves one of them: nothing essential is missing (map, vitals, data, missions, magic), nothing breaks quietly (the GMCP lesson: verify every protocol claim against the live wire), and nothing feels alien to a terminal user (one binary, text everywhere, zero dependencies).
 
@@ -37,12 +37,12 @@ House invariants that out-rank every phase:
 - [x] Nil-guarded renderers; placeholder status bars at load and on connect
 - [x] Password-safe logging (sent lines are skip-logged while a password prompt is up)
 - [x] Pin the real `char.vitals` JSON keys (live 2026-11-05: hp, maxhp, gp, maxgp, xp, burden, alignment; room.info is {identifier, name, visibility, kind}, so `kind` feeds terrain)
-- [ ] `/hexsetup`: one alias that sets the game-side options tt_dw requires (prompt and monitor strings, `brief exits`, `options set output map all "off"`, `options terminal rows=999` — the documented form; bare `rows 999` is undocumented and invalid values reset to 24 — plus `term xterm256`, the officially recommended colour setting) so text-parsing fallbacks and room maps behave; `brief exits` and `automatic rows` stay live-verified
-- [ ] `room.map` colour handling: strip or render the ANSI the MUD embeds; honor the plain-map option (`options output map plain = on`, officially documented)
-- [ ] `/hexcheck` Tier-2 parser: the documented `options output` shape is space-separated with no `=` in some trees and `key = value` in others (tactics); live-verified before shipping
-- [ ] `/gaglog` and a gag registry file so players add their own gags as data without touching code
-- [ ] Optional quow DB auto-refresh check (`update.sh -q` parity): warn when the database is older than 60 days
-- [ ] **"Hex owns its data"**: default `quow_db` moves to `~/.local/share/hex/` with a `/hexupdate` alias that downloads Quow's database directly (and a Hex-owned CC0 sound copy), so daily play no longer depends on the tt_dw clone
+- [x] `/hexsetup`: one alias that sets the game-side options tt_dw requires (prompt and monitor strings, `brief exits`, `options set output map all "off"`, `options terminal rows=999` — the documented form; bare `rows 999` is undocumented and invalid values reset to 24 — plus `term xterm256`, the officially recommended colour setting) so text-parsing fallbacks and room maps behave; `brief exits` and `automatic rows` stay live-verified
+- [x] `room.map` colour handling: strip or render the ANSI the MUD embeds; honor the plain-map option (`options output map plain = on`, officially documented) — `/dwmap` strips at render by default (`hex.map_ansi ansi` keeps colours; the raw payload stays stored for Phase 5's panel)
+- [ ] `/hexcheck` Tier-2 parser: the documented `options output` shape is space-separated with no `=` in some trees and `key = value` in others (tactics); live-verified before shipping (tonight's capture session)
+- [x] `/gaglog` and a gag registry file so players add their own gags as data without touching code
+- [x] Optional quow DB auto-refresh check (`update.sh -q` parity): warn when the database is older than 60 days
+- [x] **"Hex owns its data"**: default `quow_db` moves to `~/.local/share/hex/` with a `/hexupdate` alias that downloads Quow's database directly (and a Hex-owned CC0 sound copy), so daily play no longer depends on the tt_dw clone — shipped with the resolution ladder (explicit `/hexset` > Hex's copy > tt_dw copy with hint)
 
 ## Phase 2: find your way (M2) — the mapper that matters first
 
@@ -124,7 +124,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 
 Aggressive, honest, gated: every LIVE item needs a capture session from Brandon (30-60 min/day with `/hexprobe` + `/hexraw` on). "Finished" definition for the sprint: the daily-play suite is transformed (1.x + Phases 2, 3, 4-core, 6 by Nov 12); Phase 8's full definition-of-done and Phase 5's wire-gated halves land week two on the way to v1.0.0.
 
-- [ ] **Thu 6**: 1.x completion — `strip_ansi` + `/dwmap` default, `/hexsetup` (documented strings, `term xterm256`, `options terminal rows=999`), gag registry file, Quow staleness + **"Hex owns its data"** (`/hexupdate`, quow_db moves to `~/.local/share/hex/`). Ship v0.2.0.
+- [x] **Thu 6**: 1.x completion — `strip_ansi` + `/dwmap` default, `/hexsetup` (documented strings, `term xterm256`, `options terminal rows=999`), gag registry file, Quow staleness + **"Hex owns its data"** (`/hexupdate`, quow_db moves to `~/.local/share/hex/`). Ship v0.2.0.
 - [ ] **Fri 7**: Phase 2 core — `hex_targets` resolver, `hex_paths` (Dijkstra + heap + render), `/path`, `/near`; bench + synthetic property tests.
 - [ ] **Sat 8 (FULL DAY - the open weekend)**: 1.x completion + Phase 2 core + Phase 2 walker in one run - `/hexsetup`, `/hexupdate`, gag registry, resolver, Dijkstra, `/path` `/near`, batch `/goto`, drift chip, goldens. Ship v0.3.0 by night. **Brandon: capture session #1 in the evening** (seed, `options output`, quota/score transcripts, chat sweep - this feeds everything after).
 - [ ] **Sun 9 (FULL DAY)**: Phase 3 verified against Saturday's captures - missions data + board triggers + timer engine + `/missions`, quota chip, then skills parser + bonus/cost/goals + stats. Ship v0.4.0-pre by night. Phase 6 chat starts in the background.

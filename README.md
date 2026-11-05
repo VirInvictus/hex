@@ -15,12 +15,13 @@ From inside Blightmud, with the repo cloned to `~/.gitrepos/hex`:
 
 Restart Blightmud (the plugin auto-loads if enabled). For updates after that: `/update_plugins` then `/hexreload` — a bare `/load_plugin` re-runs `main.lua` but Lua's require cache keeps the old modules warm, so a full restart or `/hexreload` is the only clean reload. Then connect to Discworld as usual.
 
-Hex also expects two data files (created once, refreshed manually):
+Hex owns its data under `~/.local/share/hex/`:
 
-- Quow's database: `~/.gitrepos/tt_dw/quow/_quowmap_database.db` (downloaded from [quow.co.uk](http://quow.co.uk/maps/_quowmap_database.db)). Read-only; Hex never writes it.
-- Hex's room database: run `python3 tools/convert_map.py` in the repo to build it from the tt_dw map clone.
+- Quow's database: run `/hexupdate` once; it downloads the database from [quow.co.uk](https://quow.co.uk/maps/_quowmap_database.db) into `~/.local/share/hex/quow.db` (detached, so the client keeps responding; run `/hexupdate` again for status) and copies the CC0 sound set for later phases. Until then Hex falls back to `~/.gitrepos/tt_dw/quow/_quowmap_database.db` with a one-time hint. Read-only either way; Hex never writes tt_dw's copy. Hex warns at connect when the database is older than `quow_stale_days` (60).
+- Hex's room database: run `python3 tools/convert_map.py` in the repo to build `~/.local/share/hex/rooms.db` from the tt_dw map clone.
+- Your gags live in `~/.local/share/hex/gags.lua` (created on first load), edited with `/hexgag`.
 
-Both paths are overridable with `/hexset quow_db <path>` and `/hexset rooms_db <path>`.
+Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, and `/hexset gags_file <path>`.
 
 ## Commands
 
@@ -31,7 +32,11 @@ Both paths are overridable with `/hexset quow_db <path>` and `/hexset rooms_db <
 | `/npc <search>` | Find NPCs (`room:<identifier>` narrows to one room) |
 | `/shop [room id]` | List what a room sells (defaults to your current room) |
 | `/where` | Current room identifier plus map-database details |
-| `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map |
+| `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
+| `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
+| `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |
+| `/hexgag`, `/gaglog` | List and add your own gags as data (`/hexgag [-i] <pattern> [-> <substitution>]`) |
+| `/hexungag <n\|text>` | Remove user gag entries |
 | `/hexprobe` | Toggle raw GMCP echo (debugging) |
 | `/hexraw` | Show the last raw GMCP payloads (debugging) |
 | `/hexreload` | Reload Hex without restarting the client |
