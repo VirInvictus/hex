@@ -26,6 +26,8 @@ local quota = require("hex_quota")
 local missiondata = require("hex_missiondata")
 local skills = require("hex_skills")
 local skilldata = require("hex_skilldata")
+local spelldata = require("hex_spelldata")
+local spells = require("hex_spells")
 local notify = require("hex_notify")
 local urls = require("hex_urls")
 local chat = require("hex_chat")
@@ -1453,6 +1455,127 @@ t("combat: monitor precedence honours GMCP freshness", function()
   eq(vitals_mod2.gmcp_alive(st, 120), false)
   st.last_gmcp = nil -- never pushed
   eq(vitals_mod2.gmcp_alive(st, 120), false)
+end)
+
+-- hex_spelldata / hex_spells ------------------------------------------------
+
+t("spelldata: the committed dataset holds the design's counts", function()
+  eq(#spelldata.order, 117)
+  local octogram, tome, learnt = 0, 0, 0
+  for _, nick in ipairs(spelldata.order) do
+    local sp = spelldata.spells[nick]
+    assert(sp, "order nick without data: " .. nick)
+    assert(sp.type == "Offensive" or sp.type == "Defensive" or sp.type == "Miscellaneous", "bad type: " .. nick)
+    if sp.octogram ~= nil then
+      octogram = octogram + 1 -- field presence (tt_dw counts the key; "" = not an octogram spell)
+    end
+    if sp.tome ~= nil then
+      tome = tome + 1
+    end
+    if sp.learnt_at ~= nil then
+      learnt = learnt + 1
+    end
+    for _, st in ipairs(sp.spellcheck or {}) do
+      eq(#st.thresholds, 10)
+      for i = 2, 10 do
+        assert(st.thresholds[i] > st.thresholds[i - 1], nick .. " stage " .. st.stage .. " not ascending")
+      end
+      assert(spelldata.spellskills[st.skill], "unresolved shorthand: " .. st.skill)
+    end
+  end
+  eq(octogram, 93)
+  eq(tome, 93)
+  eq(learnt, 25)
+end)
+
+t("spells: stage chance breaks at the first failure", function()
+  local t = { 100, 150, 200, 250, 300, 350, 400, 450, 500, 550 }
+  eq(spells.stage_chance(t, 0), 0)
+  eq(spells.stage_chance(t, 100), 10)
+  eq(spells.stage_chance(t, 340), 50) -- passes 100-300, stops at 350
+  eq(spells.stage_chance(t, 999), 100)
+end)
+
+t("spells: tm chance clamps and punishes certainty", function()
+  local spell = { spellcheck = { { stage = 1, skill = "evoking", thresholds = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 } } } }
+  -- all-pass: chance clamps to 99 -> p .99 -> tm 1% (certainty TMs badly)
+  assert(spells.tm_chance(spell, "evoking", 999) < 5, "certain cast barely TMs: " .. spells.tm_chance(spell, "evoking", 999))
+  -- 50%: p .5 -> tm .25 -> notm .75 -> 25
+  eq(spells.tm_chance(spell, "evoking", 5), 25)
+  -- zero-pass: clamps to 1 -> tm ~1% -> result ~1
+  eq(spells.tm_chance(spell, "evoking", 0), 1)
+  -- a stage without the method contributes nothing
+  eq(spells.tm_chance(spell, "channeling", 5), 0)
+end)
+
+t("spells: cast chance is the product over all stages", function()
+  local spell = {
+    spellcheck = {
+      { stage = 1, skill = "evoking", thresholds = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 } },
+      { stage = 2, skill = "evoking", thresholds = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 } },
+    },
+  }
+  eq(spells.cast_chance(spell, "evoking", 5), 25) -- 50% x 50%
+  eq(spells.cast_chance(spell, "channeling", 5), 100) -- empty product: no stages with it
+end)
+
+t("spells: skills_50 picks the 5th threshold", function()
+  local out = spells.skills_50({ spellcheck = { { stage = 2, skill = "evoking", thresholds = { 1, 2, 3, 4, 55, 6, 7, 8, 9, 10 } } } })
+  eq(out[1].stage, 2)
+  eq(out[1].bonus, 55)
+end)
+
+t("spells: suggestion ordering is deterministic and blacklist-aware", function()
+  local mk = function(nick, thresholds)
+    return { spellcheck = { { stage = 1, skill = "evoking", thresholds = thresholds } } }
+  end
+  local fake_order = { "aaa", "bbb", "ccc", "ddd" }
+  local fake_spells = {
+    aaa = mk("aaa", { 0, 0, 0, 0, 0, 1000, 1000, 1000, 1000, 1000 }), -- 50% stage chance -> tm 25
+    bbb = mk("bbb", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1000 }), -- 10% -> tm ~9
+    ccc = mk("ccc", { 0, 0, 0, 0, 0, 1000, 1000, 1000, 1000, 1000 }), -- ties aaa
+    ddd = mk("ddd", { 0, 0, 0, 0, 0, 0, 500, 500, 1000, 1000 }), -- 30% -> tm 21
+  }
+  spells.data = { order = fake_order, spells = fake_spells, spellskills = spelldata.spellskills }
+  spells.deps = { config = { get = function(_, key, def) return def end } }
+  spells.skills = nil
+  local list = spells.suggestions("evoking", 500) -- all stages pass 5+ thresholds
+  -- suggestion first (cast chance: bbb's 90% wins), then the rest by tm
+  -- descending with the spelldata-order tie (aaa before ccc at 25%)
+  eq(list[1].nick, "bbb")
+  assert(list[1].suggestion, "bbb is the suggestion")
+  eq(list[2].nick, "aaa")
+  eq(list[2].tm, 25)
+  eq(list[3].nick, "ccc")
+  eq(list[4].nick, "ddd")
+  -- blacklisting aaa: the suggestion rule is cast-chance (spellinfo.tin's
+  -- replace rule), so bbb's 90% cast wins even though its TM chance is low
+  -- (near-certain casts TM poorly) — aaa stays listed but never suggested
+  spells.deps.config.get = function(_, key, def)
+    if key == "tm_blacklist" then
+      return "aaa"
+    end
+    return def
+  end
+  list = spells.suggestions("evoking", 500)
+  eq(list[1].nick, "bbb")
+  assert(list[1].suggestion, "bbb becomes the suggestion")
+  eq(list[2].nick, "aaa")
+  assert(not list[2].suggestion, "aaa is listed but blacklisted")
+  spells.data = spelldata
+  spells.deps = {}
+end)
+
+t("spells: resolve handles nick, prefix, name, ambiguity", function()
+  spells.deps = {}
+  local spell, nick = spells.resolve("ahsb")
+  assert(spell, "ahsb resolves")
+  eq(nick, "ahsb")
+  spell, nick = spells.resolve("Al'Hrahaz")
+  eq(nick, "ahsb")
+  spell, nick = spells.resolve("zzzznope")
+  eq(spell, nil)
+  assert(nick:find("no spell matches", 1, true), "unknown message: " .. tostring(nick))
 end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))

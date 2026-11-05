@@ -14,6 +14,7 @@ local walk = require("src.hex_walk")
 local missions = require("src.hex_missions")
 local quota = require("src.hex_quota")
 local skills = require("src.hex_skills")
+local spells = require("src.hex_spells")
 local chat = require("src.hex_chat")
 local combat = require("src.hex_combat")
 local urls = require("src.hex_urls")
@@ -89,6 +90,9 @@ quota.register(trigger_add, regex)
 -- /skills refresh alias; the passive hskills feed registers here
 skills.setup({ config = config, timer_add = timer_add, timer_remove = timer_remove, trigger_add = trigger_add })
 skills.register(trigger_add, regex)
+
+-- spells: spelldata queries + TM suggestions feed off the skills store
+spells.setup({ config = config, skills = skills })
 
 -- Phase 6 social layer: chat capture (mirror mode; tab feature-detected),
 -- the combat spam ladder + monitor fallback (GMCP wins), URL recall, and
@@ -200,6 +204,7 @@ commands.setup({
   missions = missions,
   quota = quota,
   skills = skills,
+  spells = spells,
   chat = chat,
   combat = combat,
   urls = urls,
