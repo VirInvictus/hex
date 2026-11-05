@@ -14,6 +14,10 @@ local walk = require("src.hex_walk")
 local missions = require("src.hex_missions")
 local quota = require("src.hex_quota")
 local skills = require("src.hex_skills")
+local chat = require("src.hex_chat")
+local combat = require("src.hex_combat")
+local urls = require("src.hex_urls")
+local notify = require("src.hex_notify")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -86,6 +90,17 @@ quota.register(trigger_add, regex)
 skills.setup({ config = config, timer_add = timer_add, timer_remove = timer_remove, trigger_add = trigger_add })
 skills.register(trigger_add, regex)
 
+-- Phase 6 social layer: chat capture (mirror mode; tab feature-detected),
+-- the combat spam ladder + monitor fallback (GMCP wins), URL recall, and
+-- the notify bus wiring (core events emitted beside log.start)
+chat.setup({ config = config })
+combat.setup({ config = config, vitals = vitals, vitals_mod = vitals_mod, trigger_add = trigger_add })
+urls.setup({ config = config })
+chat.register(trigger_add, regex)
+combat.register(trigger_add, regex)
+urls.register(trigger_add, regex)
+chat.setup_tab()
+
 -- user gags as data: loaded additively after the built-ins (a bad entry
 -- skips only itself; the file degrades to built-in gags only if unloadable)
 gagfile.activate(trigger_add, regex, function(id)
@@ -157,8 +172,13 @@ end)
 mud.on_connect(function()
   -- Client-side logging only; nothing is ever sent to the MUD on connect.
   log.start("discworld")
+  notify.emit("core.connected", {})
   data.on_connect() -- migration hints + Quow staleness, once per session
   refresh_status()
+end)
+
+mud.on_disconnect(function()
+  notify.emit("core.disconnected", {})
 end)
 
 blight.on_dimensions_change(function()
@@ -180,6 +200,10 @@ commands.setup({
   missions = missions,
   quota = quota,
   skills = skills,
+  chat = chat,
+  combat = combat,
+  urls = urls,
+  notify = notify,
   paths_cache = paths_cache,
 })
 

@@ -26,6 +26,10 @@ local quota = require("hex_quota")
 local missiondata = require("hex_missiondata")
 local skills = require("hex_skills")
 local skilldata = require("hex_skilldata")
+local notify = require("hex_notify")
+local urls = require("hex_urls")
+local chat = require("hex_chat")
+local combat = require("hex_combat")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -1241,6 +1245,214 @@ t("skills: goal bar fills by spend fraction", function()
   assert(full ~= empty and half ~= empty, "bars differ by spend")
   assert(full:find("/"), "bar carries the divider: " .. full)
   eq(skills.goal_bar(100, 0), "-")
+end)
+
+-- hex_notify ---------------------------------------------------------------
+
+t("notify: emit order, isolation, unsubscribe, debounce, list", function()
+  notify.subscribers = {}
+  notify.debounce = {}
+  local seen = {}
+  local id1 = notify.subscribe("test.event", function(p)
+    seen[#seen + 1] = "one:" .. tostring(p)
+  end)
+  notify.subscribe("test.event", function()
+    error("subscriber blew up")
+  end)
+  notify.subscribe("test.event", function(p)
+    seen[#seen + 1] = "two:" .. tostring(p)
+  end)
+  notify.emit("test.event", 7)
+  eq(seen[1], "one:7")
+  eq(seen[2], "two:7") -- the failing middle subscriber did not stop the third
+  eq(#seen, 2)
+  eq(notify.unsubscribe(id1), true)
+  eq(notify.unsubscribe(9999), false)
+  seen = {}
+  notify.emit("test.event", 8)
+  eq(seen[1], "two:8")
+  -- debounce swallows the repeat inside the window, passes after it
+  local fired = 0
+  notify.subscribe("test.deb", function()
+    fired = fired + 1
+  end)
+  eq(notify.emit_debounced("test.deb", nil, 60, "key", 1000), true)
+  eq(notify.emit_debounced("test.deb", nil, 60, "key", 1030), false)
+  eq(notify.emit_debounced("test.deb", nil, 60, "key", 1061), true)
+  eq(fired, 2)
+  local subs = notify.list()
+  assert(#subs >= 2, "list entries")
+  notify.subscribers = {}
+end)
+
+-- hex_urls -----------------------------------------------------------------
+
+t("urls: guards reject filenames, the MUD address, skills, dots, shorts", function()
+  eq(urls.is_url("https://discworld.starturtle.net/lpc/"), false)
+  eq(urls.is_url("some/file.tin"), false)
+  eq(urls.is_url("map.db"), false)
+  eq(urls.is_url("fighting.melee.sword"), false)
+  eq(urls.is_url("co.me.uk"), false) -- short-skill shape
+  eq(urls.is_url("a..b.example"), false)
+  eq(urls.is_url("ab.cd"), false)
+  eq(urls.is_url("https://github.com/VirInvictus/hex"), true)
+  eq(urls.is_url("www.example.com/page?q=1"), true)
+end)
+
+t("urls: extract finds the guarded match in a line", function()
+  eq(urls.extract("see https://github.com/VirInvictus/hex for the code"), "https://github.com/VirInvictus/hex")
+  eq(urls.extract("fighting.melee.sword is a skill"), nil)
+end)
+
+t("urls: ring dedupes, keeps newest first, respects the cap", function()
+  urls.ring = {}
+  urls.deps = { config = { get = function(_, key, def) return def end } }
+  urls.remember("https://a.example/1")
+  urls.remember("https://b.example/2")
+  urls.remember("https://a.example/1") -- dedupe: moves to front
+  eq(urls.ring[1], "https://a.example/1")
+  eq(urls.ring[2], "https://b.example/2")
+  eq(#urls.ring, 2)
+end)
+
+-- hex_chat -----------------------------------------------------------------
+
+t("chat: NPC list catches exact names and suffix patterns", function()
+  eq(chat.is_npc("Frank"), true)
+  eq(chat.is_npc("mr werks"), true)
+  eq(chat.is_npc("a city guard"), true)
+  eq(chat.is_npc("Ankh-Morpork watchman"), true)
+  eq(chat.is_npc("some buccaneer"), true)
+  eq(chat.is_npc("Froggy"), false)
+  eq(chat.is_npc("Brandon"), false)
+end)
+
+t("chat: job noise catches the accent-tolerant texts", function()
+  eq(chat.is_job_noise("Great, I've been waitin' for this!"), true)
+  eq(chat.is_job_noise([[Great, I've been waitin" for "his!]]), true)
+  eq(chat.is_job_noise("Thank you, that's everything I needed!"), true)
+  eq(chat.is_job_noise("hello there"), false)
+end)
+
+t("chat: incoming tells classify, NPC and job excluded", function()
+  local fam, e = chat.classify("Froggy tells you: hello there")
+  eq(fam, "tell")
+  eq(e.name, "Froggy")
+  eq(e.text, "hello there")
+  eq(chat.classify("Mr Werks tells you: your writ is ready"), nil)
+  eq(chat.classify("Frank tells you: Great, I've been waitin' for this!"), nil)
+  -- incoming tells in a language are still tells (the broadcast guard is
+  -- for OWN tells only); the language rides the entry
+  fam, e = chat.classify("Froggy says to you in Djelian: bo joujoka")
+  eq(fam, "tell")
+  eq(e.language, "Djelian")
+end)
+
+t("chat: own tells, language broadcasts excluded", function()
+  local fam, e = chat.classify("You tell Froggy: hi frog")
+  eq(fam, "tell")
+  eq(e.own, true)
+  eq(e.name, "Froggy")
+  eq(chat.classify("You tell Froggy in Djelian: bo joujoka"), nil)
+end)
+
+t("chat: clubs, groups, talkers (both shapes), shouts", function()
+  local fam, e = chat.classify("(hisppers) Froggy: squeak")
+  eq(fam, "club")
+  eq(e.channel, "hisppers")
+  fam, e = chat.classify("[Fighting] Brandon: anyone up?")
+  eq(fam, "group")
+  eq(e.channel, "Fighting")
+  fam, e = chat.classify("- (Two) Froggy's wispy voice comes from the bracelet saying : I am a blue frog!")
+  eq(fam, "talker")
+  eq(e.channel, "Two")
+  eq(e.name, "Froggy")
+  fam, e = chat.classify("(one) Feantur wisps: Ook!")
+  eq(fam, "talker")
+  eq(e.channel, "one")
+  fam, e = chat.classify("Offler the Crocodile God shouts: MEEP")
+  eq(fam, "system")
+  eq(e.text, "MEEP")
+end)
+
+t("chat: room says and souls are not captured", function()
+  eq(chat.classify("Brandon says: hello"), nil)
+  eq(chat.classify("Brandon bows politely."), nil)
+end)
+
+t("chat: rings respect caps and the all-ring aggregates", function()
+  chat.rings = { tell = {}, club = {}, group = {}, talker = {}, system = {}, all = {} }
+  for i = 1, 10 do
+    chat.push("tell", { name = "x" .. i, text = "m" .. i })
+  end
+  eq(#chat.rings.tell, 10)
+  eq(#chat.rings.all, 10)
+  for i = 1, chat.CAPS.tell + 5 do
+    chat.push("tell", { name = "y", text = tostring(i) })
+  end
+  eq(#chat.rings.tell, chat.CAPS.tell)
+  eq(#chat.rings.all, 10 + chat.CAPS.tell + 5) -- all-ring aggregates under its own cap
+  eq(chat.rings.all[#chat.rings.all].family, "tell")
+end)
+
+-- hex_combat ---------------------------------------------------------------
+
+t("combat: level ladder table and cycling", function()
+  local v = combat.families_for("verbatim")
+  eq(v.nop, false)
+  eq(v.act, false)
+  local d = combat.families_for("default")
+  eq(d.nop, true)
+  eq(d.act, false)
+  local b = combat.families_for("brief")
+  eq(b.nop, true)
+  eq(b.act, true)
+  eq(combat.families_for("verbose").act, false)
+  eq(combat.next_level("verbatim"), "verbose")
+  eq(combat.next_level("brief"), "verbatim")
+  eq(combat.next_level("bogus"), "verbatim")
+end)
+
+t("combat: family pattern data carries the ported anchors", function()
+  -- Lua cannot execute Rust regexes; assert the pattern set carries the
+  -- design's quoted anchors verbatim
+  local nop_text = table.concat(combat.NOP_FAMILIES, "\n")
+  assert(nop_text:find("but you (?:deftly |just |easily )?(?:block|parry)", 1, true), "own defense anchor")
+  assert(nop_text:find("dodge out of the way", 1, true), "dodge anchor")
+  assert(nop_text:find("although unable to defend", 1, true), "unable anchor")
+  assert(nop_text:find("swoops in and absorbs", 1, true), "floating anchor")
+  assert(nop_text:find("but .+ (?:blocks|parries|dodges|absorbs|avoids)", 1, true), "others-missing anchor")
+  local act_text = table.concat((function()
+    local flat = {}
+    for _, e in ipairs(combat.ACT_FAMILIES) do
+      flat[#flat + 1] = type(e) == "table" and e[1] or e
+    end
+    return flat
+  end)(), "\n")
+  assert(act_text:find("snick|fillet", 1, true), "hit verbs")
+  assert(act_text:find("incinerate", 1, true), "burn verbs")
+  assert(act_text:find("bruise|smashe", 1, true), "hurt verbs")
+  assert(act_text:find("^You prepare to ", 1, true), "prepares")
+  assert(act_text:find("^You launch a powerful attack", 1, true), "specials")
+  -- the moon-dragon flag rides the hurt family
+  local hurt_family = combat.ACT_FAMILIES[3]
+  eq(hurt_family.moon_dragon, true)
+end)
+
+t("combat: combatstat line maths", function()
+  eq(combat.combatstat_line(0, 0), nil)
+  eq(combat.combatstat_line(20, 13), "Attacks per round: 13/20 (0.65)")
+end)
+
+t("combat: monitor precedence honours GMCP freshness", function()
+  local vitals_mod2 = vitals_mod
+  local st = vitals_mod2.new()
+  st.last_gmcp = os.time() - 10 -- fresh GMCP
+  eq(vitals_mod2.gmcp_alive(st, 120), true)
+  st.last_gmcp = os.time() - 300 -- stale
+  eq(vitals_mod2.gmcp_alive(st, 120), false)
+  st.last_gmcp = nil -- never pushed
+  eq(vitals_mod2.gmcp_alive(st, 120), false)
 end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))

@@ -63,6 +63,41 @@ function M.set_alt(name)
   store.session_write(PREFIX .. "alt", name)
 end
 
+-- Per-alt config (design: docs/phase-6-social.md §2.3): one JSON blob per
+-- alt on the disk store ("hex.alts.<alt>"), read through on access.
+function M.get_for_alt(key, default)
+  local alt = M.alt()
+  if not alt then
+    return default
+  end
+  local raw = store.disk_read(PREFIX .. "alts." .. alt)
+  if raw then
+    local ok, saved = pcall(json.decode, raw)
+    if ok and type(saved) == "table" and saved[key] ~= nil then
+      return saved[key]
+    end
+  end
+  return default
+end
+
+function M.set_for_alt(key, value)
+  local alt = M.alt()
+  if not alt then
+    return nil
+  end
+  local blob = {}
+  local raw = store.disk_read(PREFIX .. "alts." .. alt)
+  if raw then
+    local ok, saved = pcall(json.decode, raw)
+    if ok and type(saved) == "table" then
+      blob = saved
+    end
+  end
+  blob[key] = value
+  store.disk_write(PREFIX .. "alts." .. alt, json.encode(blob))
+  return value
+end
+
 function M.alt()
   return store.session_read(PREFIX .. "alt")
 end

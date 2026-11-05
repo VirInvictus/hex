@@ -8,6 +8,7 @@
 -- unit-tested; the runtime glue below the marker owns blightmud globals.
 local util = require("src.hex_util")
 local data = require("src.hex_missiondata")
+local notify = require("src.hex_notify")
 
 local M = {}
 
@@ -301,6 +302,7 @@ function M.check_timers_runtime()
   local announce, next_reset = M.check_timers(M.state, now)
   for _, short in ipairs(announce) do
     print(red("[hex] Mission") .. ": " .. green(M.label(short)) .. " has been reset!")
+    notify.emit("mission.ready", { short = short, label = M.label(short) })
   end
   M.save()
   if next_reset and M.deps.timer_add then
@@ -509,6 +511,7 @@ function M.available_announce(text, key)
   end
   M.announce_handles[key] = M.deps.timer_add(600, 1, function()
     print(green("[hex] " .. text .. "."))
+    notify.emit("mission.ready", { source = key })
     M.announce_handles[key] = nil
   end)
 end

@@ -35,11 +35,14 @@ local function to_number(value)
   return n
 end
 
--- Merge a decoded char.vitals payload into state.
+-- Merge a decoded char.vitals payload into state. Records freshness for
+-- the combat-monitor precedence rule (Phase 6): GMCP wins; the monitor
+-- fills a dead-GMCP gap, never the reverse.
 function M.apply(st, vals)
   if type(vals) ~= "table" then
     return
   end
+  st.last_gmcp = os.time()
   for target, candidates in pairs(KEYS) do
     for _, key in ipairs(candidates) do
       local value = vals[key]
@@ -64,6 +67,12 @@ end
 
 function M.add_spent(st, amount)
   st.xp_spent = st.xp_spent + (tonumber(amount) or 0)
+end
+
+-- True when a GMCP vitals push arrived within the window (seconds); nil
+-- last_gmcp (never pushed) counts as dead so the monitor can feed.
+function M.gmcp_alive(st, window)
+  return st.last_gmcp ~= nil and (os.time() - st.last_gmcp) <= (window or 120)
 end
 
 -- XP per hour, or nil before the first start point / elapsed second.
