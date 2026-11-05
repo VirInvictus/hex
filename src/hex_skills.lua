@@ -426,7 +426,9 @@ function M.refresh()
   arm("^Queued command: (noalias )?skills$", function() end)
   arm("^Set option output skills to list$", function() end)
   -- the listing itself: matches[2] = skill, [3] = level, [4] = bonus (X ok)
-  arm("^(%w[%w%-]*(?:%.%w[%w%-]*){0,3})\\s+(\\d+)\\s+(\\d+|X)$", function(matches)
+  -- RUST pattern: the Lua-side parse_line in hex_skills keeps its own
+  -- %-class form; this one must use Rust classes or it never matches
+  arm("^([A-Za-z][A-Za-z0-9-]*(?:\\.[A-Za-z][A-Za-z0-9-]*){0,3})\\s+(\\d+)\\s+(\\d+|X)$", function(matches)
     M.state[matches[2]] = tonumber(matches[3])
     M.window.count = M.window.count + 1
   end)

@@ -1648,6 +1648,26 @@ t("spec invariant: no look-around constructs anywhere in src/", function()
   end
 end)
 
+t("spec invariant: registration patterns carry no Lua %-classes", function()
+  -- alias/trigger/Regex literals are handed to the RUST engine, where %s
+  -- matches a literal "%s" (found live: every command past the pathfinding
+  -- lane passed straight through to the MUD). Lua-side pure functions keep
+  -- their %-classes; this scans the registration call sites only.
+  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp" }) do
+    local path = root .. "src/" .. f .. ".lua"
+    local fh = io.open(path, "r")
+    if fh then
+      for line in fh:lines() do
+        if line:find('alias_add%("') or line:find('Regex%.new%("') or line:find('trigger_add%("')
+          or line:find('T%("') or line:find('arm%("') then
+          assert(not line:find("%%%a"), f .. ".lua registration literal has a Lua class: " .. line)
+        end
+      end
+      fh:close()
+    end
+  end
+end)
+
 io.write(("\n%d/%d passed\n"):format(count - failed, count))
 if failed > 0 then
   os.exit(1)
