@@ -18,8 +18,10 @@
 -- conventional capitalized spellings as a fallback.
 local M = {}
 
+local version = require("src.hex_version")
+
 local SUPPORTS = 'core.supports.set ["char.login", "char.info", "char.vitals", "room.info", "room.map", "room.writtenmap"]'
-local HELLO = 'core.hello {"client": "hex", "version": "0.1.0"}'
+local HELLO = 'core.hello {"client": "hex", "version": "' .. version .. '"}'
 
 -- message family -> suffix -> handler key. Char.Info and Room.Info both end
 -- in "info", so routing uses the family prefix too.

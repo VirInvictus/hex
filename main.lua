@@ -7,6 +7,9 @@ local vitals_mod = require("src.hex_vitals")
 local rooms_mod = require("src.hex_rooms")
 local registry = require("src.hex_registry")
 local gags = require("src.hex_gags")
+local gagfile = require("src.hex_gagfile")
+local setup_cmd = require("src.hex_setup")
+local data = require("src.hex_data")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -44,6 +47,15 @@ end
 status.setup()
 refresh_status() -- draw the placeholder bars immediately, not on first data
 gags.register(trigger_add, regex)
+
+-- user gags as data: loaded additively after the built-ins (a bad entry
+-- skips only itself; the file degrades to built-in gags only if unloadable)
+gagfile.activate(trigger_add, regex, function(id)
+  trigger.remove(id)
+end, config.get("gags_file", data.hex_dir() .. "/gags.lua"))
+
+-- Hex-owned data paths (quow_db ladder, /hexupdate, staleness)
+data.setup(config)
 
 gmcp_wire.setup({
   on_vitals = function(data)
@@ -98,6 +110,7 @@ end)
 mud.on_connect(function()
   -- Client-side logging only; nothing is ever sent to the MUD on connect.
   log.start("discworld")
+  data.on_connect() -- migration hints + Quow staleness, once per session
   refresh_status()
 end)
 
@@ -112,6 +125,10 @@ commands.setup({
   config = config,
   gmcp = gmcp_wire,
   registry = registry,
+  gags = gags,
+  gagfile = gagfile,
+  setup = setup_cmd,
+  data = data,
 })
 
 print(util.ansi.gray .. "[hex] loaded: /hexhelp for commands" .. util.ansi.reset)

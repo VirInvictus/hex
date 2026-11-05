@@ -173,9 +173,90 @@ local function cmd_show_map(which)
     print(a("gray", "[hex] no " .. (which == "wmap" and "written map" or "room map") .. " received yet"))
     return
   end
+  -- room.map carries real ANSI; strip at render time by default (a stray
+  -- unclosed colour fragment reads as broken output). The stored payload
+  -- stays raw so Phase 5's panel can render the colours. /wmap is plain text.
+  local strip = which == "dwmap" and M.deps.config.get("map_ansi", "strip") ~= "ansi"
   for line in (text .. "\n"):gmatch("([^\n]*)\n") do
-    print(line)
+    print(strip and util.strip_ansi(line) or line)
   end
+end
+
+local function cmd_gag_list()
+  local gf = M.deps.gagfile
+  print(
+    a("bold", "Gags")
+      .. a(
+        "gray",
+        "  built-ins: "
+          .. #M.deps.gags.patterns
+          .. ", user file: "
+          .. #gf.state.entries
+          .. "  ("
+          .. tostring(gf.state.path)
+          .. ")"
+      )
+  )
+  for i, e in ipairs(gf.state.entries) do
+    print(gf.render_entry(i, e))
+  end
+  print(a("gray", "add: /hexgag [-i] <pattern> [-> <substitution>]   remove: /hexungag <n|pattern-text>"))
+end
+
+local function cmd_gag_add(args)
+  local gf = M.deps.gagfile
+  local case_insensitive = false
+  local rest = args
+  if rest:match("^%-i%s+") then
+    case_insensitive = true
+    rest = rest:gsub("^%-i%s+", "", 1)
+  end
+  local pattern, sub = rest:match("^(.-)%s*->%s*(.+)$")
+  if pattern then
+    pattern = util.trim(pattern)
+    sub = util.trim(sub)
+  else
+    pattern = util.trim(rest)
+  end
+  if pattern == "" then
+    print(a("gray", "[hex] empty pattern"))
+    return
+  end
+  if not pcall(regex.new, pattern) then
+    print(a("red", "[hex] regex rejected") .. a("gray", " (the Rust engine has no lookaround/lookbehind)"))
+    return
+  end
+  local entry = { re = pattern }
+  if case_insensitive then
+    entry.i = true
+  end
+  if sub then
+    entry.sub = sub
+  end
+  local n, err = gf.add(entry)
+  if not n then
+    print(a("red", "[hex] gag not saved: ") .. tostring(err))
+    return
+  end
+  print(a("gray", "[hex] gag added (user entry " .. n .. "); live now, saved to " .. tostring(gf.state.path)))
+end
+
+local function cmd_gag_remove(args)
+  local gf = M.deps.gagfile
+  local selector = tonumber(util.trim(args))
+  if not selector then
+    selector = util.trim(args)
+  end
+  local removed, err = gf.remove(selector)
+  if not removed then
+    print(a("red", "[hex] gag not removed: ") .. tostring(err))
+    return
+  end
+  if removed == 0 then
+    print(a("gray", "[hex] no user gag matches: " .. args))
+    return
+  end
+  print(a("gray", "[hex] removed " .. removed .. " user gag(s); live now, saved to " .. tostring(gf.state.path)))
 end
 
 function M.setup(deps)
@@ -231,6 +312,22 @@ function M.setup(deps)
     script.load(blight.data_dir() .. "/plugins/hex/main.lua")
     print(a("gray", "[hex] reloaded"))
   end)
+  deps.setup.register(alias_add)
+  alias_add("^/hexupdate$", function()
+    deps.data.update()
+  end)
+  alias_add("^/hexgag$", function()
+    cmd_gag_list()
+  end)
+  alias_add("^/gaglog$", function()
+    cmd_gag_list()
+  end)
+  alias_add("^/hexgag\\s+(.+)$", function(matches)
+    cmd_gag_add(matches[2])
+  end)
+  alias_add("^/hexungag\\s+(.+)$", function(matches)
+    cmd_gag_remove(matches[2])
+  end)
   alias_add("^/hexset\\s+(\\S+)\\s+(.+)$", function(matches)
     local value = deps.config.set(matches[2], matches[3])
     print(a("gray", "[hex] " .. matches[2] .. " = " .. tostring(value)))
@@ -240,6 +337,9 @@ function M.setup(deps)
     print("  /item [exact] <search>   /items [sold|free|loot] <search>")
     print("  /npc <search>            /shop [room id]")
     print("  /where                   /wmap, /dwmap")
+    print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
+    print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
+    print("  /hexgag, /gaglog         user gags as data; /hexungag <n|text> removes")
     print("  /hexprobe (gmcp echo)    /hexraw (last raw gmcp)")
     print("  /hexreload               /hexset <key> <value>")
   end)

@@ -18,6 +18,13 @@ M.ansi = {
   white = "\27[37m",
 }
 
+-- Strip CSI sequences (ESC [ params final-letter): the colour codes the MUD
+-- embeds in room.map payloads. Covers \x1b[39;49m, \x1b[0m, \x1b[31m and
+-- other final letters, not just 'm'.
+function M.strip_ansi(s)
+  return (tostring(s):gsub("\27%[[%d;]*%a", ""))
+end
+
 -- SQL string literal escape, matching tt_dw's @sql_escape: double single
 -- quotes and strip pipes (pipes are the result-field separator).
 function M.sql_escape(s)

@@ -38,6 +38,20 @@ function M.get(key, default)
   return M.options()[key] or default
 end
 
+-- A saved /hexset value vs the merged defaults: nil when the key was never
+-- explicitly set. hex_data's migration ladder needs the distinction.
+function M.explicit(key)
+  local raw = store.disk_read(PREFIX .. "options")
+  if not raw then
+    return nil
+  end
+  local ok, saved = pcall(json.decode, raw)
+  if ok and type(saved) == "table" then
+    return saved[key]
+  end
+  return nil
+end
+
 function M.set(key, value)
   local opts = M.options()
   opts[key] = value

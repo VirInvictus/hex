@@ -6,7 +6,7 @@ local root = (arg and arg[0] and arg[0]:match("^(.*)tests[/\\]run%.lua$")) or ""
 if root == "" then
   root = "./"
 end
-package.path = root .. "src/?.lua;" .. package.path
+package.path = root .. "?.lua;" .. root .. "src/?.lua;" .. package.path
 
 local util = require("hex_util")
 local vitals_mod = require("hex_vitals")
@@ -14,6 +14,10 @@ local queries = require("hex_queries")
 local rooms_mod = require("hex_rooms")
 local gags = require("hex_gags")
 local status = require("hex_status")
+local setup_mod = require("hex_setup")
+local gagfile = require("hex_gagfile")
+local data = require("hex_data")
+local version = require("hex_version")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -283,6 +287,167 @@ end)
 t("status render: empty state does not crash", function()
   local lines = status.render(vitals_mod.new(), {}, 80)
   eq(#lines, 3)
+end)
+
+-- strip_ansi -------------------------------------------------------------
+
+t("strip_ansi removes colour sequences", function()
+  eq(util.strip_ansi("\27[39;49mfoo\27[0m"), "foo")
+  eq(util.strip_ansi("\27[31mred\27[0m and \27[32mgreen\27[0m"), "red and green")
+  eq(util.strip_ansi("\27[1;34;47mstacked\27[0m"), "stacked")
+end)
+
+t("strip_ansi handles other CSI final letters", function()
+  eq(util.strip_ansi("\27[2Jclear\27[5;10Hpos"), "clearpos")
+  eq(util.strip_ansi("plain text stays"), "plain text stays")
+  eq(util.strip_ansi(""), "")
+end)
+
+-- hex_setup ----------------------------------------------------------------
+
+t("setup: all groups send 8 documented commands", function()
+  local cmds = setup_mod.commands("all")
+  eq(#cmds, 8)
+  assert(cmds[1]:find('^prompt "%$hurtcolour%$'), "prompt string not first: " .. cmds[1])
+  assert(cmds[2]:find("^monitor %$hurtcolour%$"), "monitor not second: " .. cmds[2])
+end)
+
+t("setup: documented rows form and xterm256 colour", function()
+  local found_rows, found_term, found_bare_rows = false, false, false
+  for _, cmd in ipairs(setup_mod.commands("all")) do
+    if cmd == "options terminal rows=999" then
+      found_rows = true
+    end
+    if cmd == "term xterm256" then
+      found_term = true
+    end
+    if cmd == "rows 999" then
+      found_bare_rows = true
+    end
+  end
+  eq(found_rows, true)
+  eq(found_term, true)
+  eq(found_bare_rows, false) -- undocumented bare form stays out
+end)
+
+t("setup: group selection and unknown groups", function()
+  eq(#setup_mod.commands("prompt"), 2)
+  eq(#setup_mod.commands("aliases"), 1)
+  eq(#setup_mod.commands("options"), 5)
+  eq(#setup_mod.commands("nope"), 0)
+  eq(#setup_mod.commands(nil), 0)
+end)
+
+-- hex_version ---------------------------------------------------------------
+
+t("hex_version matches the VERSION file", function()
+  local f = io.open(root .. "VERSION", "r")
+  assert(f, "VERSION file missing")
+  local v = f:read("l") or ""
+  f:close()
+  eq(util.trim(v), version)
+end)
+
+-- hex_gagfile ----------------------------------------------------------------
+
+t("gagfile: serialize round-trips through load", function()
+  local entries = {
+    { re = "^The priest blesses you\\.$" },
+    { re = "^Xavara whispers, .*$", i = true },
+    { re = "^A .* messenger arrives\\.$", sub = "" },
+    { re = "contains ]] inside", sub = 'say "hi"' },
+  }
+  local chunk = load(gagfile.serialize(entries))
+  assert(chunk, "serialized file does not parse")
+  local parsed = chunk()
+  eq(#parsed, 4)
+  for i = 1, 4 do
+    eq(parsed[i].re, entries[i].re)
+    eq(parsed[i].i, entries[i].i)
+    eq(parsed[i].sub, entries[i].sub)
+  end
+end)
+
+t("gagfile: sanitize validates entries", function()
+  local e = gagfile.sanitize({ re = "^x$", i = 1, sub = "" })
+  eq(e.re, "^x$")
+  eq(e.i, true)
+  eq(e.sub, "")
+  local bad = { gagfile.sanitize(nil), gagfile.sanitize({}), gagfile.sanitize({ re = "" }), gagfile.sanitize({ re = "x", sub = 5 }) }
+  for i, r in ipairs(bad) do
+    eq(r, nil)
+  end
+end)
+
+t("gagfile: render_entry shows kind, flags, pattern", function()
+  local line = gagfile.render_entry(3, { re = "^abc$", i = true })
+  assert(line:find("^  3  gag  i  %^abc%$$"), "unexpected render: " .. line)
+  assert(gagfile.render_entry(1, { re = "^x$", sub = "" }):find("sub", 1, true), "sub kind missing")
+end)
+
+-- hex_data -----------------------------------------------------------------
+
+local LADDER_PATHS = { owned = "/h/quow.db", legacy = "/ttdw/_quowmap_database.db" }
+
+t("data: ladder prefers an explicit /hexset value", function()
+  local r = data.resolve_quow("/custom.db", true, true, LADDER_PATHS)
+  eq(r.path, "/custom.db")
+  eq(r.source, "set")
+  eq(r.hint, nil)
+end)
+
+t("data: ladder uses the owned copy when present", function()
+  local r = data.resolve_quow(nil, true, true, LADDER_PATHS)
+  eq(r.path, "/h/quow.db")
+  eq(r.source, "owned")
+  -- an empty-string explicit counts as unset
+  eq(data.resolve_quow("", true, true, LADDER_PATHS).source, "owned")
+end)
+
+t("data: ladder falls back to tt_dw with a hint", function()
+  local r = data.resolve_quow(nil, false, true, LADDER_PATHS)
+  eq(r.path, LADDER_PATHS.legacy)
+  eq(r.source, "legacy")
+  assert(r.hint:find("/hexupdate", 1, true), "hint missing /hexupdate")
+end)
+
+t("data: missing everywhere resolves to the owned path", function()
+  local r = data.resolve_quow(nil, false, false, LADDER_PATHS)
+  eq(r.path, LADDER_PATHS.owned)
+  eq(r.source, "missing")
+  assert(r.hint:find("/hexupdate", 1, true), "hint missing /hexupdate")
+end)
+
+t("data: days_old maths and guards", function()
+  local now = 1800000000
+  eq(data.days_old(now - 86400 * 73 - 3600, now), 73)
+  eq(data.days_old(now, now), 0)
+  eq(data.days_old(now + 10, now), nil) -- clock skew: not negative days
+  eq(data.days_old(nil, now), nil)
+end)
+
+t("data: stale warning names path, age, and /hexupdate", function()
+  local lines = data.stale_warning("/some/quow.db", 73)
+  eq(#lines, 2)
+  assert(lines[1]:find("73 days old", 1, true), "age missing: " .. lines[1])
+  assert(lines[1]:find("/some/quow%.db"), "path missing: " .. lines[1])
+  assert(lines[2]:find("/hexupdate", 1, true), "refresh hint missing: " .. lines[2])
+end)
+
+t("data: download command builders quote and chain mv", function()
+  local ua = data.user_agent()
+  assert(ua:find("^hex/" .. version .. " update script"), "UA shape: " .. ua)
+  local curl = data.download_inner("curl", ua, "/h/quow.db.part", "/h/quow.db")
+  assert(curl:find("^curl %-fsSL %-A 'hex/0%.2%.0 update script %(https://github%.com/VirInvictus/hex%)' %-o '/h/quow%.db%.part'"), "curl form: " .. curl)
+  assert(curl:find("quow%.co%.uk/maps/_quowmap_database%.db"), "quow URL missing")
+  assert(curl:find(" && mv %-f '/h/quow%.db%.part' '/h/quow%.db'$"), "atomic mv missing: " .. curl)
+  local wget = data.download_inner("wget", ua, "/h/quow.db.part", "/h/quow.db")
+  assert(wget:find("^wget %-q %-U 'hex/0%.2%.0"), "wget form: " .. wget)
+  local outer = data.download_outer(curl, "/h/quow-update.log")
+  -- the inner's single quotes come back POSIX-escaped ('\''') inside the
+  -- sh -c wrapper; assert shape, not a full equality
+  assert(outer:find("^nohup sh %-c '.+' > '/h/quow%-update%.log' 2>&1 &$"), "outer form: " .. outer)
+  assert(outer:find("mv -f", 1, true), "inner missing from outer: " .. outer)
 end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))
