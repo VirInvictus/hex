@@ -6,7 +6,7 @@ Every phase below has an implementation-ready design document under [docs/](docs
 
 **Position (2026-11-05): Hex is Brandon's primary Discworld client** — the TinTin++/tt_dw setup was declined; the tt_dw clone stays as the porting source, and since v0.2.0 `/hexupdate` owns the Quow database and sound copies in Hex's data directory (the tt_dw copy is only a fallback until the first `/hexupdate` run).
 
-**Debug lane (v0.5.2-dbg)**: `/hexcapture` (gated behind `/hexset debug_capture on`) arms a file sink at `~/.local/share/hex/captures/` — every MUD output line plus raw GMCP — and runs the read-only probe batch with frimble markers. It exists to feed the wire-verification backlog and is **cut out of v0.6.0 entirely**; nothing builds on it.
+**Debug lane (v0.5.2-dbg → REMOVED in v0.6.0)**: `/hexcapture` shipped in v0.5.2-dbg, fed the wire-verification backlog (transcripts archived at `~/.local/share/hex/captures/`), and was cut out of v0.6.0 entirely as planned.
 
 North star: Hex becomes the Discworld suite a Blightmud player reaches for first, the way Quow's Cow Bar is the suite a MUSHclient player reaches for first. That bar has three parts, and every phase below serves one of them: nothing essential is missing (map, vitals, data, missions, magic), nothing breaks quietly (the GMCP lesson: verify every protocol claim against the live wire), and nothing feels alien to a terminal user (one binary, text everywhere, zero dependencies).
 
@@ -41,7 +41,8 @@ House invariants that out-rank every phase:
 - [x] Pin the real `char.vitals` JSON keys (live 2026-11-05: hp, maxhp, gp, maxgp, xp, burden, alignment; room.info is {identifier, name, visibility, kind}, so `kind` feeds terrain)
 - [x] `/hexsetup`: one alias that sets the game-side options tt_dw requires (prompt and monitor strings, `brief exits`, `options set output map all "off"`, `options terminal rows=999` — the documented form; bare `rows 999` is undocumented and invalid values reset to 24 — plus `term xterm256`, the officially recommended colour setting) so text-parsing fallbacks and room maps behave; `brief exits` and `automatic rows` stay live-verified
 - [x] `room.map` colour handling: strip or render the ANSI the MUD embeds; honor the plain-map option (`options output map plain = on`, officially documented) — `/dwmap` strips at render by default (`hex.map_ansi ansi` keeps colours; the raw payload stays stored for Phase 5's panel)
-- [ ] `/hexcheck` Tier-2 parser: the documented `options output` shape is space-separated with no `=` in some trees and `key = value` in others (tactics); live-verified before shipping (tonight's capture session)
+- [ ] `/hexcheck` Tier-2 parser: live shape CONFIRMED by the 2026-11-05 capture (`name = value <choices>` and `name <more options>`); parser implementation remains in the 1.x lane
+  - live verification (2026-11-05 capture): `brief exits` bare works ("Okay."); `options set output brief exits on` is INVALID on this MUD (never sent by Hex); `options terminal automatic rows = off` is REJECTED under blightmud's NAWS negotiation (dropped from the send list); `rows=999`, `term xterm256`, `map all "off"` and `map plain = on` all confirm with `Set option ...` echoes (now gaged)
 - [x] `/gaglog` and a gag registry file so players add their own gags as data without touching code
 - [x] Optional quow DB auto-refresh check (`update.sh -q` parity): warn when the database is older than 60 days
 - [x] **"Hex owns its data"**: default `quow_db` moves to `~/.local/share/hex/` with a `/hexupdate` alias that downloads Quow's database directly (and a Hex-owned CC0 sound copy), so daily play no longer depends on the tt_dw clone — shipped with the resolution ladder (explicit `/hexset` > Hex's copy > tt_dw copy with hint)
@@ -68,7 +69,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [x] `hex_skills`: parse `options output skills = branched` listings into a per-alt skills store — shipped v0.4.1 (round-trip inside the alias, parse window closed by the terminator or a 30 s safety timer; live check of the option strings pending tonight's capture)
 - [x] Skill cost calculator and skill goals (`/skillcost`, `/goal`) ported from tt_dw — shipped v0.4.1; bonus math runs on the documented all-13 baseline until the stats batch
 - [x] `/skillcost` carries the official ETB caveat (the documented teaching-bonus formula differs from tt_dw's teach-cost model); parsers note `skillcap` (used level = cap when capped) and the 3-line `score stats` layout (live check); `/goal` alerts accept `hskills brief` lines as a sanctioned second feed — ETB caveat, skillcap note, and both hskills shapes shipped v0.4.1; the `score stats` layout check waits for the capture (stats parsing box below stays open)
-- [ ] Stat parsing from `score verbose` for bonus-dependent features (wire-gated: one-line vs 3-line layout question)
+- [x] Stat parsing from `score verbose` for bonus-dependent features — shipped v0.6.0: the live layout is TWO dot-padded lines (wire-verified, not the documented 3-line); hex_stats stores per-alt, /stats + /stats refresh, and the skills bonus math reads real stats instead of the all-13 baseline; stat-item netting stays Phase 4
 
 ## Phase 4: magic & faith (M4)
 
@@ -98,7 +99,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [x] Awareness-rule constraint (concepts/automation): the chat tab must never bury tells out of sight - the main feed stays readable — mirror mode is the design's answer; the tab never gags main
 - [x] Talker regexes adopt the documented line shapes (leading dash, parenthesised channel, `saying : `); club regexes are player-configurable, so club regexes stay wire-checkable (`blight.create_tab` exists in the dev tree) — both talker shapes shipped; wire checks ride tonight's capture
 - [x] Combat spam levels (default/brief/verbose) with per-level gag sets, tt_dw `/combat` parity — shipped v0.5.0 with the design's core families; the divine-ire/special-weapon tail and the digest engine wait for the capture and Phase 7
-- [x] Combat monitor parsing as a vitals fallback when GMCP is unavailable — the three `/hexsetup` strings, GMCP-freshness precedence (120 s window), `/combatstat` rounds
+- [x] Combat monitor parsing as a vitals fallback when GMCP is unavailable — the `/hexsetup` prompt/monitor strings, GMCP-freshness precedence (120 s window), `/combatstat` rounds (the live monitor line itself awaits first combat)
 - [x] URL catching and `/urls` recall — tt_dw guard set ported; `/url open` behind an opt-in flag
 - [x] Notification hooks: mission-ready, connection loss, TPA expiring (sound-ready, see Phase 7) — hex_notify bus shipped with chat/url/combat/mission/core events; TPA arrives with Phase 4
 

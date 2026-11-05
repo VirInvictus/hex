@@ -19,9 +19,7 @@ local chat = require("src.hex_chat")
 local combat = require("src.hex_combat")
 local urls = require("src.hex_urls")
 local notify = require("src.hex_notify")
--- DEBUG LANE: slated for removal in v0.6.0 once the wire transcripts land;
--- aliases below register only when /hexset debug_capture on
-local capture = require("src.hex_capture")
+local stats = require("src.hex_stats")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -94,15 +92,16 @@ quota.register(trigger_add, regex)
 skills.setup({ config = config, timer_add = timer_add, timer_remove = timer_remove, trigger_add = trigger_add })
 skills.register(trigger_add, regex)
 
+-- stats: the score-verbose-stats block feeds the per-alt store that
+-- skills.stats() reads (real bonus math replaces the all-13 baseline)
+stats.setup({ config = config })
+stats.register(trigger_add, regex)
+
 -- spells: spelldata queries + TM suggestions feed off the skills store
 spells.setup({ config = config, skills = skills })
 
--- debug capture lane (v0.5.2-dbg; removed in v0.6.0)
-capture.setup({ config = config, gmcp = gmcp_wire })
-mud.add_output_listener(capture.listener)
-if not config.get("debug_capture", false) then
-  print(util.ansi.gray .. "[hex] debug capture lane present but off (/hexset debug_capture on to enable /hexcapture)" .. util.ansi.reset)
-end
+-- debug capture lane REMOVED in v0.6.0 (transcripts consumed; wire facts
+-- folded into spec.md and the parsers)
 
 -- Phase 6 social layer: chat capture (mirror mode; tab feature-detected),
 -- the combat spam ladder + monitor fallback (GMCP wins), URL recall, and
@@ -219,7 +218,7 @@ commands.setup({
   combat = combat,
   urls = urls,
   notify = notify,
-  capture = capture,
+  stats = stats,
   paths_cache = paths_cache,
 })
 

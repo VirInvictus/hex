@@ -8,7 +8,6 @@ local targets = require("src.hex_targets")
 local paths = require("src.hex_paths")
 local missiondata = require("src.hex_missiondata")
 local skilldata = require("src.hex_skilldata")
-local capture = require("src.hex_capture")
 
 local M = {}
 
@@ -987,24 +986,8 @@ function M.setup(deps)
   alias_add("^/spells\\s*(.*)$", function(matches)
     deps.spells.cmd_spells(matches[2])
   end)
-  alias_add("^/hexcapture\\s*(.*)$", function(matches)
-    if not deps.config.get("debug_capture", false) then
-      print(a("gray", "[hex] the debug capture lane is off: /hexset debug_capture on"))
-      return
-    end
-    local arg = util.trim(matches[2])
-    if arg == "on" then
-      deps.capture.arm()
-    elseif arg == "off" then
-      deps.capture.disarm()
-    elseif arg == "probes" then
-      deps.capture.run_probes()
-    else
-      deps.capture.status()
-      print(a("gray", "  /hexcapture on    arm the file sink (MUD output + raw GMCP)"))
-      print(a("gray", "  /hexcapture probes  run the read-only probe batch (frimble-bracketed)"))
-      print(a("gray", "  /hexcapture off   disarm; prints the manual-probe list and the file path"))
-    end
+  alias_add("^/hexcapture\\s*(.*)$", function()
+    print(a("gray", "[hex] the debug capture lane was removed in v0.6.0"))
   end)
   alias_add("^/wmap$", function()
     cmd_show_map("wmap")
@@ -1070,9 +1053,7 @@ function M.setup(deps)
     print("  /chat [family] [n]        /chatset <family> on|off   /chattab on|off")
     print("  /combat [level]           /combatstat       /urls, /url <n>")
     print("  /spellinfo <nick|name>    /spellcheck <n>   /tm <method>, /spells")
-    if deps.config.get("debug_capture", false) then
-      print(a("gray", "  [debug] /hexcapture on|probes|off  (removed in v0.6.0)"))
-    end
+    print("  /stats [refresh]          read your stats into the bonus math")
     print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
     print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
     print("  /hexgag, /gaglog         user gags as data; /hexungag <n|text> removes")

@@ -353,7 +353,9 @@ end
 
 -- Passive hskills feed (documented shapes, both formats): "X - skill
 -- increased by N levels (and bonus B) to level L (and bonus B)." and the
--- plain-parens variant. Announce-only.
+-- plain-parens variant — both wire-verified 2026-11-05 (hskills brief).
+-- Plus guild auto-detection from score verbose's "level N in the X Guild"
+-- clause (wire-verified: "level 0 in the Adventurers' Guild"). Announce-only.
 function M.register(trigger_add, Regex)
   local shapes = {
     "^.- %- (%w[%w%-]*(?:%.%w[%w%-]*){0,3}) increased by (%d+) levels? %(and bonus (%d+)%) to level (%d+) %(and bonus (%d+)%)%.$",
@@ -364,6 +366,24 @@ function M.register(trigger_add, Regex)
       M.advance(matches[2], tonumber(matches[5]) or 0, nil)
     end)
   end
+  -- guild clause on score verbose / score: map to a primaries key
+  local GUILD_NAMES = {
+    ["Adventurers"] = "adventurers",
+    ["Warriors"] = "warriors",
+    ["Assassins"] = "assassins",
+    ["Thieves"] = "thieves",
+    ["Priests"] = "priests",
+    ["Witches"] = "witches",
+    ["Wizards"] = "wizards",
+    ["Fools"] = "fools",
+  }
+  trigger_add(Regex.new("\\blevel \\d+ in the ([\\w' ]+) Guild"), {}, function(matches)
+    local key = GUILD_NAMES[matches[2]] or GUILD_NAMES[matches[2]:gsub("'$", "")]
+    if key and M.deps.config and M.deps.config.get("guild") ~= key then
+      M.deps.config.set("guild", key)
+      print(util.ansi.gray .. "[hex] guild: " .. key .. util.ansi.reset)
+    end
+  end)
 end
 
 function M.stats()

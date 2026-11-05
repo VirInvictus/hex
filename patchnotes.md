@@ -1,5 +1,16 @@
 # Hex patchnotes
 
+## v0.6.0 (2026-11-05)
+
+The wire-verification release: everything here is grounded in the capture transcript from `~/.local/share/hex/captures/` (v0.5.2-dbg's debug lane did its job and is gone, as planned).
+
+- `/stats [refresh]` and `hex_stats`: stat parsing finally lands. The live layout is TWO dot-padded lines (`Constitution ...` / `Dexterity ...`), not the documented 3-line — wire-verified — and the same pair tails `score verbose`. Values store per-alt; the skills bonus math, `/spellinfo` hints, and `/skillcost` now compute on your real stats instead of the all-13 baseline. Stat-item netting stays Phase 4 (the stored values are the shown ones).
+- Guild auto-detection: score verbose's `level N in the X Guild` clause maps to the primaries key (the capture caught `level 0 in the Adventurers' Guild`), so TM gating and `/skillcost` primary flags go live without touching `char.info` (whose guild field remains an open question — score answers it more reliably anyway).
+- `/hexsetup` corrected from the wire: `options set output brief exits on` does not exist on this MUD (bare `brief exits` works and stays); `options terminal automatic rows = off` is rejected under blightmud's NAWS negotiation and was dropped from the send list. The option-confirmation lines (`Set option ...`, `Set output map ... to off`, `Terminal type unchanged as ...`) and their queued-command echoes are now permanent data gags.
+- Wire facts hardened into spec.md: GMCP identifiers are 40-hex matching rooms.db verbatim; `glance` AND `look` both push info+map+writtenmap; the stats block, score-brief, hskills (plain-parens shape), and spells-negative shapes are now capture-quoted in the spec rather than ported claims.
+- DEBUG LANE REMOVED: `src/hex_capture.lua`, the `/hexcapture` alias, and the `debug_capture` flag are gone exactly as the v0.5.2-dbg notes promised; the archived transcripts remain the wire-shape reference and AGENTS.md points at them.
+- Tests grow to 123 (128 with the opt-in goldens): the stats block fixtures (round and odd values, negative controls), the guild-clause mapping, and the two registration/look-around invariants now cover the stats module; the capture-lane tests went with the lane.
+
 ## v0.5.2-dbg (2026-11-05)
 
 DEBUG RELEASE. This lane ships one purpose-built debug command and is slated for removal in v0.6.0, which will cut it out entirely; do not build on it.

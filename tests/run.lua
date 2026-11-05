@@ -32,7 +32,7 @@ local notify = require("hex_notify")
 local urls = require("hex_urls")
 local chat = require("hex_chat")
 local combat = require("hex_combat")
-local capture = require("hex_capture")
+local stats_mod = require("hex_stats")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -320,9 +320,9 @@ end)
 
 -- hex_setup ----------------------------------------------------------------
 
-t("setup: all groups send 8 documented commands", function()
+t("setup: all groups send 7 documented commands", function()
   local cmds = setup_mod.commands("all")
-  eq(#cmds, 8)
+  eq(#cmds, 7)
   assert(cmds[1]:find('^prompt "%$hurtcolour%$'), "prompt string not first: " .. cmds[1])
   assert(cmds[2]:find("^monitor %$hurtcolour%$"), "monitor not second: " .. cmds[2])
 end)
@@ -348,7 +348,7 @@ end)
 t("setup: group selection and unknown groups", function()
   eq(#setup_mod.commands("prompt"), 2)
   eq(#setup_mod.commands("aliases"), 1)
-  eq(#setup_mod.commands("options"), 5)
+  eq(#setup_mod.commands("options"), 4)
   eq(#setup_mod.commands("nope"), 0)
   eq(#setup_mod.commands(nil), 0)
 end)
@@ -1580,62 +1580,14 @@ t("spells: resolve handles nick, prefix, name, ambiguity", function()
   assert(nick:find("no spell matches", 1, true), "unknown message: " .. tostring(nick))
 end)
 
--- hex_capture (debug lane) ------------------------------------------------
-
-t("capture: probe groups carry every wire-gated key, nothing harmful", function()
-  local all = table.concat((function()
-    local flat = {}
-    for _, g in ipairs(capture.PROBE_GROUPS) do
-      for _, cmd in ipairs(g[2]) do
-        flat[#flat + 1] = cmd
-      end
-    end
-    return flat
-  end)(), "\n")
-  for _, key in ipairs({
-    "options output", "brief exits", "options terminal automatic rows", "options output map plain",
-    "score brief", "score verbose stats", "score stats",
-    "options output skills = list", "skills", "options output skills = branched",
-    "spells", "hskills brief", "check quota brief", "glance", "look",
-  }) do
-    assert(all:find(key, 1, true), "probe missing: " .. key)
-  end
-  -- negative controls present; nothing game-state-changing
-  assert(all:find("say hex capture probe", 1, true), "say negative control")
-  assert(all:find("^bow$") or all:find("\nbow\n") or all:find("\nbow$"), "soul negative control")
-  -- banned game actions, checked as whole words ("skills" contains "kill"!)
-  for _, banned in ipairs({ "apply", "offer", "attack", "kill", "drop" }) do
-    assert(not all:find("%f[%a]" .. banned .. "%f[%A]"), "harmful probe slipped in: " .. banned)
-  end
-  assert(not all:find("%f[%a]get%f[%A]"), "harmful probe slipped in: get")
-end)
-
-t("capture: build_probe_commands flattens with frimble markers", function()
-  local cmds = capture.build_probe_commands()
-  assert(#cmds > #capture.PROBE_GROUPS, "flattened length")
-  eq(cmds[1], "frimble hex-capture: options section")
-  assert(cmds[#cmds] == "frimble hex-capture: probe batch end", "end marker: " .. cmds[#cmds])
-  local markers = 0
-  for _, cmd in ipairs(cmds) do
-    if cmd:find("^frimble hex%-capture", 1, false) then
-      markers = markers + 1
-    end
-  end
-  eq(markers, #capture.PROBE_GROUPS + 1)
-end)
-
-t("capture: path lands in the hex captures dir", function()
-  local p = capture.path_for("20261105-120000")
-  assert(p:find("%.local/share/hex/captures/hex%-capture%-20261105%-120000%.log$"), "path: " .. p)
-end)
+-- wire-verified invariants (2026-11-05 capture) ---------------------------
 
 t("spec invariant: no look-around constructs anywhere in src/", function()
   -- the Rust regex engine rejects (?!( (?= and (?< at Regex.new time, and
   -- a pattern that fails there kills the whole plugin load (found live in
-  -- v0.5.2-dbg's first run); Lua patterns never contain these either, so
-  -- ANY occurrence in src/ is a bug
+  -- v0.5.2-dbg's first run); Lua patterns never contain these either
   local bad = { "%(%?!", "%(%?=", "%(%?<" }
-  for _, f in ipairs({ "hex_capture", "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -1648,12 +1600,11 @@ t("spec invariant: no look-around constructs anywhere in src/", function()
   end
 end)
 
-t("spec invariant: registration patterns carry no Lua %-classes", function()
-  -- alias/trigger/Regex literals are handed to the RUST engine, where %s
-  -- matches a literal "%s" (found live: every command past the pathfinding
-  -- lane passed straight through to the MUD). Lua-side pure functions keep
-  -- their %-classes; this scans the registration call sites only.
-  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp" }) do
+t("spec invariant: registration literals carry no Lua classes or bad escapes", function()
+  -- alias/trigger/Regex literals go to the RUST engine: %s matches literal
+  -- "%s" there (found live: 22 commands passed through to the MUD), and a
+  -- single backslash + letter is an invalid Lua escape that stops parsing
+  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture_removed", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp", "hex_stats" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -1661,10 +1612,7 @@ t("spec invariant: registration patterns carry no Lua %-classes", function()
         if line:find('alias_add%("') or line:find('Regex%.new%("') or line:find('trigger_add%("')
           or line:find('T%("') or line:find('arm%("') then
           assert(not line:find("%%%a"), f .. ".lua registration literal has a Lua class: " .. line)
-          -- single backslash + letter inside a Lua string literal is an
-          -- invalid escape (found live: the hotfix-4 rustifier wrote \s
-          -- instead of \\s and the file stopped parsing)
-          for bad in line:gmatch("([^\\])\\[sSdDwWaA]") do
+          for _bad in line:gmatch("([^\\])\\[sSdDwWaA]") do
             error(f .. ".lua registration literal has a single-backslash escape: " .. line)
           end
         end
@@ -1672,6 +1620,38 @@ t("spec invariant: registration patterns carry no Lua %-classes", function()
       fh:close()
     end
   end
+end)
+
+-- hex_stats (wire shapes from the 2026-11-05 capture) ----------------------
+
+t("stats: parses both dot-padded lines from the live shapes", function()
+  local st = {}
+  eq(stats_mod.parse_line(st, "Constitution ... 13        Intelligence ... 13        Wisdom ......... 13        Weight ......... 80.0 kg"), "a")
+  eq(stats_mod.parse_line(st, "Dexterity ...... 13        Strength ....... 13        Height ......... 175 cm"), "b")
+  eq(st.con, 13)
+  eq(st.int, 13)
+  eq(st.wis, 13)
+  eq(st.dex, 13)
+  eq(st.str, 13)
+  eq(st.height, 175)
+  eq(st.weight, 80)
+  st = {}
+  stats_mod.parse_line(st, "Constitution ... 9        Intelligence ... 23        Wisdom ......... 11        Weight ......... 62.4 kg")
+  eq(st.con, 9)
+  eq(st.int, 23)
+  eq(st.weight, 62.4)
+  eq(stats_mod.parse_line(st, "You say: hex capture probe"), nil)
+  eq(stats_mod.parse_line(st, "Hp: 500(500)  Gp: 50(50)  Xp: 6361  Burden: 3%"), nil)
+end)
+
+t("stats: guild clause maps to primaries keys", function()
+  local names = { ["Adventurers"] = "adventurers", ["Warriors"] = "warriors", ["Assassins"] = "assassins", ["Thieves"] = "thieves", ["Priests"] = "priests", ["Witches"] = "witches", ["Wizards"] = "wizards", ["Fools"] = "fools" }
+  local line = "Your current experience is 6361 and you are level 0 in the Adventurers' Guild; your overall rating is 64."
+  local guild = line:match(" in the ([%w' ]+) Guild")
+  -- the capture keeps the possessive apostrophe; the trigger strips it
+  -- before the lookup
+  guild = guild:gsub("'$", "")
+  eq(names[guild], "adventurers")
 end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))

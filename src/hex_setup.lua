@@ -26,7 +26,9 @@ M.groups = {
   options = {
     'options set output map all "off"',
     "brief exits",
-    "options terminal automatic rows = off",
+    -- "options terminal automatic rows = off" is deliberately NOT sent:
+    -- wire-verified 2026-11-05, the MUD rejects it ("Unable to set") when
+    -- rows are telnet-negotiated, which blightmud always does via NAWS
     "options terminal rows=999",
     "term xterm256",
   },

@@ -48,6 +48,15 @@ M.patterns = {
   { re = [[^(Added|Changed) alias "hex_goto_walk"$]] },
   { re = "^Queued command: hex_goto_walk$" },
   { re = "^Queued command: (journey )?((n|s)?(e|w)|n|s|u|d)$" },
+  -- /hexsetup confirmation noise (wire-verified shapes, 2026-11-05 capture):
+  -- the option confirmations and their queued-command echoes
+  { re = "^Set option terminal rows to \\d+\\.$" },
+  { re = "^Set option output map plain to on\\.$" },
+  { re = "^Set output map .* to off\\.$" },
+  { re = "^Terminal type unchanged as .+\\.$" },
+  { re = "^Queued command: options " },
+  { re = "^Queued command: brief exits$" },
+  { re = "^Queued command: term " },
 }
 
 -- Register everything with blightmud's trigger system (called from main.lua,
