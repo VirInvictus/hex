@@ -36,6 +36,9 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/near <search>` | The five nearest matches to your current room by path length |
 | `/goto <target>` | One-batch speedwalk to a target: the whole route queues in a single user-invoked burst (the MUD's sanctioned "fast" style) and Hex never sends again after it. `stop` in-game or `/stopwalk` aborts; drift is reported for information only |
 | `/stopwalk` | Send `stop` and clear the walk display |
+| `/missions [name]` | Mission table: live XP (halving per pending reset), XP/hour from your own history, reset countdowns; `/missions <name>` for one mission's stats |
+| `/apply <board id>`, `/dl <A-H>` | Take a job market / dead letter mission (records the pending mission, then sends) |
+| `/quota [refresh]` | Thief quota chip and detail; `refresh` sends `check quota brief` |
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
 | `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
 | `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |
@@ -49,7 +52,7 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 
 ## Status
 
-Milestones 1-2: vitals and status area, room awareness, Quow lookups, gags, user setup, Hex-owned data, and pathfinding (`/path`, `/near`, `/goto`). See `roadmap.md` for missions, magic, the social layer, and beyond.
+Milestones 1-3: vitals and status area, room awareness, Quow lookups, gags, user setup, Hex-owned data, pathfinding (`/path`, `/near`, `/goto`), mission tracking, and the thief quota. See `roadmap.md` for skills, magic, the social layer, and beyond.
 
 ## Credits
 

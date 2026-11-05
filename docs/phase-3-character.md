@@ -1,6 +1,6 @@
 # Phase 3: the working character — missions, quota, skills, stats
 
-Design doc. Status: designed, not implemented. Sources: tt_dw `scripts/missions/*.tin`, `status/quota.tin`, `char/*.tin`, `sql/migrations/*.tin`, `settings/default.tin`, `util/setup_check.tin`. Carried invariants: no `mud.send` outside user-alias handlers and no timer ever sends (cooldown reminders render/announce only); no third-party deps; per-alt state keyed on the `char.info` capname; nil-guarded parsers; registry-wrapped registration; Rust regex has no lookaround.
+Design doc. Status: §1 missions and §2 quota implemented 2026-11-05 (v0.4.0); §3 skills and §4 stats stay designed-not-implemented, wire-gated on the capture session (options output shape, score layouts). Sources: tt_dw `scripts/missions/*.tin`, `status/quota.tin`, `char/*.tin`, `sql/migrations/*.tin`, `settings/default.tin`, `util/setup_check.tin`. Carried invariants: no `mud.send` outside user-alias handlers and no timer ever sends (cooldown reminders render/announce only); no third-party deps; per-alt state keyed on the `char.info` capname; nil-guarded parsers; registry-wrapped registration; Rust regex has no lookaround.
 
 Blightmud facts used (verified): `timer.add(duration, count, cb)` one-shot with count=1 (`blightmud.d.lua:576-582`); `TriggerOptions.count` = fire N times then auto-remove (`:1401`) — the parse-window mechanism; `mud.add_output_listener` sees every line but is evaluated and rejected here (triggers are cheaper than an always-on listener).
 

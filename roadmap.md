@@ -60,9 +60,9 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 
 ## Phase 3: the working character (M3)
 
-- [ ] `hex_missions`: job market, dead letters, sausages, delivery cooldown trackers with per-alt persistence (tt_dw semantics, missions.tin port)
-- [ ] Mission XP estimates and XP/hour integration into the status row
-- [ ] Thief quota chip from `check quota brief` (regex already spec'd)
+- [x] `hex_missions`: job market, dead letters, sausages, delivery cooldown trackers with per-alt persistence (tt_dw semantics, missions.tin port) — shipped v0.4.0; skills and stats boxes below stay wire-gated on tonight's capture
+- [x] Mission XP estimates and XP/hour integration into the status row — live XP table + best-rate ordering; the status row carries the minutes-to-reset chip (the full chips row lands with the skills batch)
+- [x] Thief quota chip from `check quota brief` (regex already spec'd) — deadline model instead of tt_dw's 1 Hz tick; passive parse, `/quota refresh` sends
 - [ ] `hex_skills`: parse `options output skills = branched` listings into a per-alt skills store
 - [ ] Skill cost calculator and skill goals (`/skillcost`, `/goal`) ported from tt_dw
 - [ ] `/skillcost` carries the official ETB caveat (the documented teaching-bonus formula differs from tt_dw's teach-cost model); parsers note `skillcap` (used level = cap when capped) and the 3-line `score stats` layout (live check); `/goal` alerts accept `hskills brief` lines as a sanctioned second feed

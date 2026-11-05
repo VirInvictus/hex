@@ -1,5 +1,17 @@
 # Hex patchnotes
 
+## v0.4.0 (2026-11-05)
+
+Phase 3, missions lane: cooldowns and quota for the working character. (Skills and stats wait for tonight's capture session: their parsers are wire-gated.)
+
+- `/missions`: the full mission table with live XP (halving per pending reset), XP/hour estimates from your own completion history, reset countdowns, and per-mission detail (`/missions <name>`). Ordered best-rate first, unrated by XP.
+- Job market, dead letter office, sausage shop, and the two side missions (Theodor Hackett, Pennie Laced) parse their boards and lifecycle lines, gated on the GMCP room identifier so nothing misfires away from the board. `/apply <board id>` and `/dl <A-H>` record the pending mission before sending (the suite's only new send paths, both user aliases). A writ arriving with no pending record prints a fixup hint (`/missions pending <id>`).
+- Cooldown engine: every completion re-arms its mission an hour later; the sweep announces "has been reset!" once per mission inside a 6-hour window and silently prunes older resets (no login spam). Timers are announce-only and registry-recorded, so `/hexreload` cannot double a pending reset. The difficult customer's real XP replaces the 40,000 guess on first live delivery, stored per alt.
+- Per-alt persistence in the disk store (`hex.missions.<alt>`), keyed on the GMCP capname.
+- Thief quota: `check quota brief` parses passively (A$ and pence forms, all six time-left shapes) into a deadline model, stored once and rendered live (no ticking, no drift). The status row gains `[Q:$max-$rcpt=$left]` with an owed flag and reset countdown; expiry announces once. `/quota` displays; `/quota refresh` sends the check (user alias).
+- The status area's vitals row takes a chips argument: the quota chip first, then minutes to the next mission reset.
+- Tests grow to 82 (87 with the opt-in goldens): hand-computed EMA stats, timer-sweep announce/prune rules, the quota brief fixture, all six time-left shapes, chip colors, per-critter sausage XP.
+
 ## v0.3.0 (2026-11-05)
 
 Phase 2 complete: find your way.
