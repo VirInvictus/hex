@@ -39,6 +39,10 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/missions [name]` | Mission table: live XP (halving per pending reset), XP/hour from your own history, reset countdowns; `/missions <name>` for one mission's stats |
 | `/apply <board id>`, `/dl <A-H>` | Take a job market / dead letter mission (records the pending mission, then sends) |
 | `/quota [refresh]` | Thief quota chip and detail; `refresh` sends `check quota brief` |
+| `/skills [refresh\|search]` | Skill store: `refresh` runs the listing round-trip; a search shows levels and bonuses |
+| `/bonus <skill> [target]` | Current and target bonus for a skill (targets: `120`, `l120`, `+10`, `b200`, `r180`) |
+| `/skillcost <skill\|prefix> [target] [etb N]` | XP cost to a target level or bonus; primaries flagged `*`; prefixes cover multi-skill totals |
+| `/goal add <skill> <target>`, `/goals` | Skill goals with XP bars and reach alerts |
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
 | `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
 | `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |
@@ -52,7 +56,7 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 
 ## Status
 
-Milestones 1-3: vitals and status area, room awareness, Quow lookups, gags, user setup, Hex-owned data, pathfinding (`/path`, `/near`, `/goto`), mission tracking, and the thief quota. See `roadmap.md` for skills, magic, the social layer, and beyond.
+Milestones 1-3: vitals and status area, room awareness, Quow lookups, gags, user setup, Hex-owned data, pathfinding (`/path`, `/near`, `/goto`), mission tracking, the thief quota, and the skills store with bonus/cost math and goals. See `roadmap.md` for magic, the social layer, and beyond.
 
 ## Credits
 

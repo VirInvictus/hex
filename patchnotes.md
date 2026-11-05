@@ -1,5 +1,16 @@
 # Hex patchnotes
 
+## v0.4.1 (2026-11-05)
+
+Phase 3's skills lane. Stats parsing stays wire-gated (its layout question needs tonight's capture); bonus math runs on the documented all-13 baseline until then.
+
+- `/skills [refresh|search]`: the listing round-trip ports tt_dw's three documented sends (`options output skills = list`, `skills`, `options output skills = branched`) inside the user alias, with a parse window armed for the listing, closed by the `Set option output skills to branched.` terminator or a 30-second display-only safety timer, triggers registered through the handle registry so a reload cannot orphan the window. Levels store per alt; a search shows levels and bonuses.
+- The bonus model, ported from tt_dw (credited to bonuses.irreducible.org): piecewise raw-level bonus, the 0.1020408·ln(stat product) − 0.25 multiplicator over each skill's C/D/I/W/S dependencies, floored at zero. Golden-tested at the documented constant: all-13 stats give bonus 307 at level 300.
+- `/bonus <skill> [target]` and `/skillcost <skill|prefix> [target] [etb N]`: the full tt_dw cost model (primary formula to the 300 skillcap, teach-cost curve with an optional ETB), multi-skill prefixes capped at 8 matches, primaries flagged `*`. The output carries the official-docs caveat that teach-cost numbers are tt_dw's approximation.
+- `/goal add|remove`, `/goals`: per-alt goals with the xp-bar port (10 pips, divider, at least one pip lit unless empty or done). Goal alerts fire off the tightened advance line (now capturing skill and level) and the documented `hskills` shapes as the sanctioned second feed.
+- Static data generated from tt_dw's char/data.tin: 251 skill stat-dependencies, primaries for all eight guilds including every specialisation branch, wizard order-to-colour translation. Guild is configurable via `/hexset guild` until char.info's guild key is wire-verified.
+- Tests grow to 95 (100 with the opt-in goldens): the piecewise pins, the golden constant, multiplicator edge cases (zero skipped, negatives divide by abs), target grammar, cost monotonicity and the primary-branch discount, parent-fallback levels, listing lines at all four depths with hyphenated skills and X bonuses.
+
 ## v0.4.0 (2026-11-05)
 
 Phase 3, missions lane: cooldowns and quota for the working character. (Skills and stats wait for tonight's capture session: their parsers are wire-gated.)
