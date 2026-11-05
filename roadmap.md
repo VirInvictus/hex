@@ -35,8 +35,9 @@ House invariants that out-rank every phase:
 - [x] Nil-guarded renderers; placeholder status bars at load and on connect
 - [x] Password-safe logging (sent lines are skip-logged while a password prompt is up)
 - [x] Pin the real `char.vitals` JSON keys (live 2026-11-05: hp, maxhp, gp, maxgp, xp, burden, alignment; room.info is {identifier, name, visibility, kind}, so `kind` feeds terrain)
-- [ ] `/hexsetup`: one alias that sets the game-side options tt_dw requires (prompt and monitor strings, `brief exits`, plain map output) so text-parsing fallbacks and room maps behave
-- [ ] `room.map` colour handling: strip or render the ANSI the MUD embeds; honor the plain-map option
+- [ ] `/hexsetup`: one alias that sets the game-side options tt_dw requires (prompt and monitor strings, `brief exits`, `options set output map all "off"`, `options terminal rows=999` — the documented form; bare `rows 999` is undocumented and invalid values reset to 24 — plus `term xterm256`, the officially recommended colour setting) so text-parsing fallbacks and room maps behave; `brief exits` and `automatic rows` stay live-verified
+- [ ] `room.map` colour handling: strip or render the ANSI the MUD embeds; honor the plain-map option (`options output map plain = on`, officially documented)
+- [ ] `/hexcheck` Tier-2 parser: the documented `options output` shape is space-separated with no `=` in some trees and `key = value` in others (tactics); live-verified before shipping
 - [ ] `/gaglog` and a gag registry file so players add their own gags as data without touching code
 - [ ] Optional quow DB auto-refresh check (`update.sh -q` parity): warn when the database is older than 60 days
 
@@ -50,6 +51,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [ ] `/goto <target>`: user-invoked ONE-SHOT batch speedwalk — every route command queued in a single burst on one user invocation (the officially sanctioned "fast" style per concepts/automation), cancellable with `stop`/`/stopwalk`; room.info drives post-hoc drift reporting only (never re-sends, never re-routes)
 - [ ] `/near <search>`: nearest match to the current room by path length
 - [ ] Quow `/item` and `/npc` results gain walk-distance and "nearest source" ordering
+- [ ] Research deltas applied: `options personal travel = walk|journey` handling is officially documented; journey arrival lines and maze identifiers remain wire-only (official docs silent)
 - [ ] Walk drift reporting as a status chip (post-hoc: the batch queue sends once; room.info drives the step counter and drift warnings only)
 - [ ] Tests: golden routes against hand-picked city pairs; Dijkstra property tests on synthetic graphs
 
@@ -60,6 +62,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [ ] Thief quota chip from `check quota brief` (regex already spec'd)
 - [ ] `hex_skills`: parse `options output skills = branched` listings into a per-alt skills store
 - [ ] Skill cost calculator and skill goals (`/skillcost`, `/goal`) ported from tt_dw
+- [ ] `/skillcost` carries the official ETB caveat (the documented teaching-bonus formula differs from tt_dw's teach-cost model); parsers note `skillcap` (used level = cap when capped) and the 3-line `score stats` layout (live check); `/goal` alerts accept `hskills brief` lines as a sanctioned second feed
 - [ ] Stat parsing from `score verbose` for bonus-dependent features
 
 ## Phase 4: magic & faith (M4)
@@ -69,6 +72,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [ ] `hex_spells`: spelldata port (static dataset), `/spellinfo <spell>` with TM suggestions ordered by skill
 - [ ] Official-doc hooks: resync via `shields` (the official command name; "check shields" appears nowhere) and `meditate upon divine protection`; the known-spells store purges on death (spells detach on death per helpdir/spells); TM framing stays informational per the automation page's trivialising clause
 - [ ] TM blacklist and cast-chance constants as config, not code
+- [ ] Sendable fallbacks where docs are silent: `spellcheck` (documented cost/accuracy model) and `remember` when skill data is unavailable
 - [ ] Broomstick charge tracking, mindspace gauge, spell sizes
 - [ ] Stat-item tracking (worn/removed chips)
 
@@ -79,11 +83,15 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [ ] Lost-room matching by name/area when the identifier is unknown (tt_dw's guess logic, identifier-keyed)
 - [ ] Library (UU/Shades/AoA) and maze movement modes; shared-instance identifiers disambiguated by room name
 - [ ] Journey/boat routing on top of the room graph (ferry tables as data)
+- [ ] Room-kind vocabulary: `outside` officially documented alongside inside/underwater (road/water stay live-verified)
+- [ ] Travel annotations for `/path`: carriages (documented arrival message set) and arcane transport NPCs (`list / travel to / cancel`, fixed price, language-gated)
 - [ ] Blorps and bookmarks: label -> room id in Hex's own SQLite, walk-to via Phase 2
 
 ## Phase 6: the social layer (M6)
 
-- [ ] Chat capture (tells, souls, club/talker channels) into a scrolling dev-tab, feature-detected (`blight.create_tab` exists in the dev tree)
+- [ ] Chat capture (tells, souls, club/talker channels) into a scrolling dev-tab, feature-detected
+- [ ] Awareness-rule constraint (concepts/automation): the chat tab must never bury tells out of sight - the main feed stays readable
+- [ ] Talker regexes adopt the documented line shapes (leading dash, parenthesised channel, `saying : `); club names are player-configurable, so club regexes stay wire-checkable (`blight.create_tab` exists in the dev tree)
 - [ ] Combat spam levels (default/brief/verbose) with per-level gag sets, tt_dw `/combat` parity
 - [ ] Combat monitor parsing as a vitals fallback when GMCP is unavailable
 - [ ] URL catching and `/urls` recall
@@ -95,11 +103,14 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [ ] `/hexoptions`: an options menu over config with persisted toggles (gag levels, sound, chat tab, walker confirmations)
 - [ ] Guild packs: witch/warrior/thief/priest/assassin modules as opt-in data files, ported from tt_dw's guild trees
 - [ ] Theme constants extracted so the whole suite re-skins from one table
+- [ ] Theme raw material: the MUD documents ~250 colour names (xterm256-exact), hex codes, and `ansi*` overrides; MXP offers native 24-bit colour
+- [ ] `/hexoptions` records that auto-reconnect after quit/idle-out is banned by name (never grows one)
 - [ ] Per-alt profiles: config inheritance (global -> alt) like tt_dw's settings order
 
 ## Phase 8: ship as the premiere suite (M8)
 
 - [ ] CI: GitHub Actions running `lua tests/run.lua` and the Python suite on every push; green before any tag
+- [ ] Reconcile the ruff pin (local 0.17.2 vs CI 0.16.8) with a format-only commit before the first CI run
 - [ ] Golden tests: recorded Quow query outputs asserted against the builders, so refactors cannot change semantics silently
 - [ ] A fake-GMCP harness: replay captured payload fixtures through the handler chain in plain Lua, so protocol regressions die in CI instead of at login
 - [ ] README with screenshots/asciinema of the status area, `/item`, and `/path`; install docs for `/add_plugin <url>`
