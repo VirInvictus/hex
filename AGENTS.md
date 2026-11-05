@@ -14,6 +14,7 @@ HEX_GOLDEN=1 lua tests/run.lua         # + golden routes (needs ~/.local/share/h
 lua tests/bench_paths.lua              # graph build/route benchmark against the real db
 python3 -m unittest discover -s tests  # converter tests (stdlib unittest)
 python3 tools/convert_map.py           # rebuild rooms.db from the tt_dw map clone
+python3 tools/convert_spelldata.py     # regenerate src/hex_spelldata.lua from tt_dw spelldata.tin
 ```
 
 Run all commands from the repo root.

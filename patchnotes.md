@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.5.1 (2026-11-05)
+
+Phase 4's data lane: the spell dataset and the TM tooling. The trackers (TPA, charm, broom, stat items) stay wire-gated on capture session #2.
+
+- The committed spell dataset: `tools/convert_spelldata.py` (stdlib, dev-time) parses tt_dw's spelldata.tin into `src/hex_spelldata.lua` (84 KB, 117 spells, 376 spellcheck stages), validated on every run (10 strictly ascending thresholds per stage, every shorthand resolved, type enumeration, the 93/93/25 octogram/tome/learnt-at counts) and shipping the upstream attribution verbatim. Committed so `/add_plugin` installs work without the tt_dw clone. Two upstream quirks handled: one spell carries two nicknames (`cmseq cms2`), and two distinct spells share the nickname `jmc` (suffixed deterministically).
+- `/spellinfo <nick|name>`: the full card with type colour, GP, size, description, components, octogram/tome/learnt-at lines, and the spellcheck table showing your stage chance, the 50% bonus point, and the level that reaches it (via Phase 3's `level_for_bonus`). `/spellcheck <n>` is an alias for the card; nick, prefix, and name-substring resolution with ambiguity listing.
+- `/tm <method>` and `/spells [list|long|<method>|<text>]`: the TM suggestion engine ported whole from spellinfo.tin — stage chance counts thresholds passed breaking at the first failure; the relative TM chance clamps 1-99 (near-certain casts TM poorly); the suggestion ranks by cast chance, skips the blacklist, and the scan breaks early on a good-enough incumbent. The list renders the suggestion starred, then candidates by TM chance descending, with the low-chance warning at the `tm_cutoff`. Constants are config (`tm_blacklist`, `tm_cast_chance` 30, `tm_cutoff` 9), defaults = tt_dw's.
+- Tests grow to 117 (122 with the opt-in goldens): the dataset integrity matrix, stage-chance break behaviour, TM clamp edges (0/100 -> 1/99), the cast-chance product, the 50% thresholds, and suggestion ordering + blacklist demotion on a synthetic four-spell graph.
+
 ## v0.5.0 (2026-11-05)
 
 Phase 6: the social layer. Chat shapes and the monitor strings stay wire-checkable for tonight's capture; everything else is tt_dw-faithful port.

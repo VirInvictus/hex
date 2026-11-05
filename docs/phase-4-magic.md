@@ -1,6 +1,6 @@
 # Phase 4: magic & faith — TPA, charms, spells, broom, stat items
 
-Design doc. Status: designed, not implemented. Measured source sizes: `magic/tpa.tin` 223 lines, `bugshield.tin` 99, `spellinfo.tin` 788, `spelldata.tin` 2,179 (117 spells), `spellsizes.tin` 138, `broomstick.tin` 92, `faith/*` 468, `items/*` 9 files. All paths relative to `~/.gitrepos/tt_dw/scripts/` unless `hex:`.
+Design doc. Status: §4's data lane implemented 2026-11-05 (v0.5.1: hex_spelldata committed dataset via tools/convert_spelldata.py, hex_spells TM/spellinfo/search; known-spells store deferred to the trackers batch). §2-3, §5-6 (TPA, charm, broom, stat items) stay designed-not-implemented, wire-gated on capture session #2. Measured source sizes: `magic/tpa.tin` 223 lines, `bugshield.tin` 99, `spellinfo.tin` 788, `spelldata.tin` 2,179 (117 spells), `spellsizes.tin` 138, `broomstick.tin` 92, `faith/*` 468, `items/*` 9 files. All paths relative to `~/.gitrepos/tt_dw/scripts/` unless `hex:`.
 
 ## 0. Modules
 

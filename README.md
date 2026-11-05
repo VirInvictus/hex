@@ -47,6 +47,8 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/chatset <family> on|off`, `/chattab on|off` | Chat family toggles and the tab gate |
 | `/combat [level]`, `/combatstat` | Combat spam ladder (verbatim/verbose/default/brief, per-alt) and attacks-per-round |
 | `/urls [pattern]`, `/url <n>` | URL catch and recall; `open` shells out behind an opt-in flag |
+| `/spellinfo <nick\|name>`, `/spellcheck` | The full spell card with your per-stage spellcheck chances and level hints |
+| `/tm <method>`, `/spells [list\|long\|<text>]` | TM suggestions per method (blacklist and thresholds configurable) and spell search |
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
 | `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
 | `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |
@@ -60,7 +62,7 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 
 ## Status
 
-Milestones 1-3 plus the social layer: vitals and status area, room awareness, Quow lookups, gags, user setup, Hex-owned data, pathfinding (`/path`, `/near`, `/goto`), mission tracking, the thief quota, the skills store with bonus/cost math and goals, chat capture, the combat spam ladder, and URL recall. See `roadmap.md` for magic, the room, and beyond.
+Milestones 1-3 plus the social layer and spell data: vitals and status area, room awareness, Quow lookups, gags, user setup, Hex-owned data, pathfinding (`/path`, `/near`, `/goto`), mission tracking, the thief quota, the skills store with bonus/cost math and goals, chat capture, the combat spam ladder, URL recall, and the spell dataset with TM tooling. See `roadmap.md` for magic trackers, the room, and beyond.
 
 ## Credits
 
