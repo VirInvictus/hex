@@ -1384,6 +1384,19 @@ t("chat: room says and souls are not captured", function()
   eq(chat.classify("Brandon bows politely."), nil)
 end)
 
+t("chat: extra NPCs from /chatnpc join the exclusion list", function()
+  chat.deps = { config = { get = function(_, key, def)
+    if key == "chat_npcs_extra" then
+      return { "melvyn torche", "cony" }
+    end
+    return def
+  end } }
+  eq(chat.is_npc("Melvyn Torche"), true)
+  eq(chat.is_npc("cony"), true)
+  eq(chat.is_npc("Froggy"), false)
+  chat.deps = {}
+end)
+
 t("chat: rings respect caps and the all-ring aggregates", function()
   chat.rings = { tell = {}, club = {}, group = {}, talker = {}, system = {}, all = {} }
   for i = 1, 10 do

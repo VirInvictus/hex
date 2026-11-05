@@ -22,7 +22,8 @@ local notify = require("src.hex_notify")
 local M = {}
 
 -- NPCs whose chat lines are not worth capturing (chat.tin:19-27, deduped;
--- the tt_dw pattern entries become suffix checks in is_npc).
+-- the tt_dw pattern entries become suffix checks in is_npc). Pumpkin
+-- village entries added from live play 2026-11-05; extend with /chatnpc.
 M.NPCS = {
   "stephen jobbes", "sam slager", "mr werks", "frank", "sol", "shifty jim",
   "nella", "jonas", "thella", "free sitting birds", "nostos", "philip legrande",
@@ -31,6 +32,7 @@ M.NPCS = {
   "mr myrtle", "the aged teller", "shamir stonecutter", "talula", "buccaneer",
   "noelle ratson", "very reverend khepresh", "kess of sek", "william cobbler",
   "briony", "someone", "something",
+  "melvyn torche", "cony",
 }
 
 M.NPC_SUFFIXES = {
@@ -82,10 +84,22 @@ local OWN_VERBS = { "tell", "ask", "exclaim to", "whisper to" }
 
 -- --- pure core ---
 
+-- NPCs the user silenced with /chatnpc, persisted in config (lowercase).
+function M.extra_npcs()
+  local cfg = M.deps.config
+  local list = cfg and cfg.get("chat_npcs_extra", {}) or {}
+  return type(list) == "table" and list or {}
+end
+
 function M.is_npc(name)
   local n = util.trim(tostring(name)):lower()
   for _, npc in ipairs(M.NPCS) do
     if n == npc then
+      return true
+    end
+  end
+  for _, npc in ipairs(M.extra_npcs()) do
+    if n == util.trim(tostring(npc)):lower() then
       return true
     end
   end
@@ -354,6 +368,57 @@ function M.cmd_chat(args)
       end
     end
   end
+end
+
+-- /chatnpc: self-service NPC silencing for areas tt_dw's list never saw.
+-- /chatnpc            list the extra silenced NPCs
+-- /chatnpc <name>     silence that NPC's tells
+-- /chatnpc remove <name>  un-silence
+function M.cmd_chatnpc(args)
+  args = util.trim(args or "")
+  local cfg = M.deps.config
+  if args == "" then
+    local extra = M.extra_npcs()
+    if #extra == 0 then
+      print(util.ansi.gray .. "no extra silenced NPCs; /chatnpc <name> to silence one" .. util.ansi.reset)
+      return
+    end
+    print(util.ansi.bold .. "Silenced NPCs" .. util.ansi.reset .. util.ansi.gray .. "  (beyond the shipped list)" .. util.ansi.reset)
+    for _, npc in ipairs(extra) do
+      print("  " .. npc)
+    end
+    return
+  end
+  local remove, name = args:match("^(remove)%s+(.+)$")
+  name = util.trim(remove and name or args):lower()
+  if name == "" then
+    return
+  end
+  local extra = M.extra_npcs()
+  local kept, found = {}, false
+  for _, npc in ipairs(extra) do
+    if util.trim(tostring(npc)):lower() == name then
+      found = true
+    else
+      kept[#kept + 1] = npc
+    end
+  end
+  if remove then
+    if not found then
+      print(util.ansi.gray .. "[hex] " .. name .. " is not in your silenced list" .. util.ansi.reset)
+      return
+    end
+    cfg.set("chat_npcs_extra", kept)
+    print(util.ansi.gray .. "[hex] " .. name .. " un-silenced" .. util.ansi.reset)
+    return
+  end
+  if found then
+    print(util.ansi.gray .. "[hex] " .. name .. " is already silenced" .. util.ansi.reset)
+    return
+  end
+  kept[#kept + 1] = name
+  cfg.set("chat_npcs_extra", kept)
+  print(util.ansi.gray .. "[hex] " .. name .. " silenced (their tells stop being captured)" .. util.ansi.reset)
 end
 
 -- /chatset <family> on|off: config now; tab filter rebuild when the API
