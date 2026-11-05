@@ -14,7 +14,7 @@ First milestone: M1 core + Quow.
 First-login hotfix batch (same milestone, found live):
 
 - Fixed dead vitals: Discworld's GMCP is nonstandard (`core.supports.set` naming all six commands individually, lowercase, no version suffix); blightmud's `gmcp.register()` wrapper was silently ignored. Hex now sends the documented handshake raw, and vitals arrive per command from the next one.
-- `/hexraw`: the last raw GMCP payloads via a telnet option 201 tap, to pin down the real JSON keys; `hex_vitals` resolves field spellings (hitpoints/guildpoints/experience) until they are.
+- `/hexraw`: the last raw GMCP payloads via a telnet option 201 tap, to pin down the real JSON keys; keys confirmed on the first live session (hp/maxhp/gp/maxgp/xp/burden/alignment) and `room.info`'s `kind` now feeds the terrain display.
 - `/hexreload`: reap-and-reload without restarting the client; a handle registry in the session store removes exactly the triggers/aliases the previous load created, so reloads never double-register.
 - Fixed the `/item` crash on rows with empty trailing columns (Quow's cabbage has no weight); every result renderer is nil-guarded and the pipe splitter keeps empty fields.
 - The status area draws its placeholder bars at load and on connect instead of waiting silently for first data.
