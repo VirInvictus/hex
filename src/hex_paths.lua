@@ -150,6 +150,27 @@ function M.load(node_rows, edge_rows)
   return graph
 end
 
+-- Attach the city-gate set (tt_dw toggles AVOID on gate exits; Hex keeps
+-- them routable by default and blocks them only when /goto's avoid-gates
+-- is on). rows: "vnum|exit" pairs from the gates table.
+function M.attach_gates(graph, gate_rows)
+  graph.gates = {}
+  for _, f in ipairs(gate_rows or {}) do
+    if f[1] then
+      graph.gates[f[1]] = true
+    end
+  end
+  return graph
+end
+
+function M.is_gate(graph, from_vnum, cmd)
+  return graph.gates ~= nil and graph.gates[tostring(from_vnum) .. "|" .. tostring(cmd)] or false
+end
+
+function M.is_swim(cmd)
+  return tostring(cmd):find("^swim") ~= nil
+end
+
 -- Binary min-heap over (dist, dense) with deterministic tie-break on the
 -- dense index; parallel arrays, stale entries skipped by the caller.
 local function heap_less(H, i, j)
@@ -235,12 +256,19 @@ local function dijkstra(graph, starts, opts)
         for k = graph.offs[x] + 1, graph.offs[x + 1] do
           local y = graph.e_to[k]
           if not closed[y] and not blocked(graph.flags[y], allow) then
+            local cmd = graph.e_cmd[k]
+            if opts.exclude_swim and cmd:find("^swim") then
+              -- swim edges stay out of /goto routes unless allowed or wet
+            elseif opts.avoid_gates and graph.gates and graph.gates[tostring(graph.vnum[x]) .. "|" .. cmd] then
+              -- city gates lock at night; /goto avoids when asked
+            else
             local nd = d + math.max(graph.e_dist[k], 1)
             if dist[y] == nil or nd < dist[y] then
               dist[y] = nd
               prev[y] = x
               prev_edge[y] = k
               heap_push(H, nd, y)
+            end
             end
           end
         end
@@ -280,12 +308,16 @@ function M.find_route(graph, start_vnums, target_vnum, opts)
   while prev[cur] ~= nil do
     local k = prev_edge[cur]
     local from_d = prev[cur]
+    local cmd = graph.e_cmd[k]
     path[#path + 1] = {
       from = graph.vnum[from_d],
       to = graph.vnum[cur],
-      cmd = graph.e_cmd[k],
+      cmd = cmd,
       dir = graph.e_dir[k],
       eflag = graph.e_flag[k],
+      dist = graph.e_dist[k],
+      gate = M.is_gate(graph, graph.vnum[from_d], cmd),
+      swim = M.is_swim(cmd),
       room_id = graph.room_id[cur],
       name = graph.name[cur],
       area = graph.area[cur],
@@ -341,20 +373,23 @@ function M.render(route, graph, full)
   local parts = {}
   for _, st in ipairs(route.path) do
     local last = parts[#parts]
-    if last and last.cmd == st.cmd then
+    if last and last.cmd == st.cmd and not last.journey then
       last.n = last.n + 1
     else
-      parts[#parts + 1] = { cmd = st.cmd, dir = st.dir, n = 1 }
+      parts[#parts + 1] = { cmd = st.cmd, dir = st.dir, n = 1, journey = st.cmd:find("^journey ") ~= nil, swim = st.cmd:find("^swim") ~= nil, dist = st.dist }
     end
   end
   local out = {}
   local width = 78
   for _, sg in ipairs(parts) do
-    -- cardinal steps always carry their count; a lone special exit (dir=0,
-    -- e.g. "enter crate") renders as bare command text
+    -- journey steps render their mile count (the edge distance IS miles)
     local piece
-    if sg.n == 1 and sg.dir == 0 then
+    if sg.journey then
+      piece = "[journey: " .. math.floor(sg.dist + 0.5) .. " miles " .. sg.cmd:match("^journey (%w+)") .. "]"
+    elseif sg.n == 1 and sg.dir == 0 then
       piece = "[" .. sg.cmd .. "]"
+    elseif sg.swim then
+      piece = "[~ " .. sg.n .. " " .. sg.cmd .. "]"
     else
       piece = "[" .. sg.n .. " " .. sg.cmd .. "]"
     end

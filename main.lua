@@ -20,6 +20,8 @@ local combat = require("src.hex_combat")
 local urls = require("src.hex_urls")
 local notify = require("src.hex_notify")
 local stats = require("src.hex_stats")
+local blorps = require("src.hex_blorps")
+local minimap = require("src.hex_minimap")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -97,6 +99,12 @@ skills.register(trigger_add, regex)
 stats.setup({ config = config })
 stats.register(trigger_add, regex)
 
+-- Phase 5 exploration core: blorps/bookmarks in hex.db and the minimap
+-- render ladder (toprows -> tab -> inline, feature-detected). hex.db is
+-- Hex's OWN sqlite file; user data never touches rooms.db or tt_dw.
+blorps.setup({ config = config, room = room })
+minimap.setup({ config = config })
+
 -- spells: spelldata queries + TM suggestions feed off the skills store
 spells.setup({ config = config, skills = skills })
 
@@ -155,6 +163,7 @@ gmcp_wire.setup({
   end,
   on_map = function(data)
     maps.ascii = map_text(data)
+    minimap.on_map(maps.ascii, room.id) -- deduped; renders per the ladder
   end,
   on_writtenmap = function(data)
     maps.written = map_text(data)
@@ -222,6 +231,8 @@ commands.setup({
   urls = urls,
   notify = notify,
   stats = stats,
+  blorps = blorps,
+  minimap = minimap,
   paths_cache = paths_cache,
 })
 

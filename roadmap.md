@@ -84,14 +84,14 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 
 ## Phase 5: the room (M5) — mapper v2
 
-- [ ] ASCII minimap panel from GMCP `room.map` (already stored; now rendered beside the status area or in a dev-tab, feature-detected)
+- [x] ASCII minimap panel from GMCP `room.map` (already stored; now rendered beside the status area or in a dev-tab, feature-detected) — shipped v0.7.0 as the render ladder: toprows (dev trees) → `map` tab (stock 5.7.1; tabs proven live) → inline (`/dwmap` stays the fallback); deduped per room push, empty payloads noted, no-@ vision hint, `hex.map_panel` override; MUD colors are dropped on the tab path (output_to joins fresh lines) so it renders stripped
 - [ ] Written-map people tracker (MDT) parsing `room.writtenmap`
 - [ ] Lost-room matching by name/area when the identifier is unknown (tt_dw's guess logic, identifier-keyed)
 - [ ] Library (UU/Shades/AoA) and maze movement modes; shared-instance identifiers disambiguated by room name
-- [ ] Journey/boat routing on top of the room graph (ferry tables as data) — now load-bearing: the identified-subgraph sea gap makes BP boat-only (measured 2026-11-05, docs/phase-2-mapper.md §0)
+- [x] Journey/boat routing on top of the room graph (ferry tables as data) — journey edges were already single graph edges; v0.7.0 adds the display (`[journey: N miles e]`, the edge distance IS miles), swim-edge exclusion for `/goto` unless `hex.allow_swim` or already underwater (`~` marker on swim steps), and gate avoidance for `/goto` (`hex.avoid_gates`, default off; `/path` stays all-edges informational). The identified-subgraph sea gap remains measured fact: BP is boat-only until the ferry tables land as route data (Phase 5 slice 2)
 - [ ] Room-kind vocabulary: `outside` officially documented alongside inside/underwater (road/water stay live-verified)
 - [ ] Travel annotations for `/path`: carriages (documented arrival message set) and arcane transport NPCs (`list / travel to / cancel`, fixed price, language-gated)
-- [ ] Blorps and bookmarks: label -> room id in Hex's own SQLite, walk-to via Phase 2
+- [x] Blorps and bookmarks: label -> room id in Hex's own SQLite, walk-to via Phase 2 — shipped v0.7.0: hex.db (`~/.local/share/hex/hex.db`, real tables surviving rooms.db rebuilds), /blorp add|delete|rename|list|all|goto and /bookmark add|comment|rename|delete|find|goto|list, distance-sorted listings via one multi-target Dijkstra, instance-id refusal at add time; tt_dw's hub-room blorp semantics deliberately dropped (deviation noted in the module header)
 
 ## Phase 6: the social layer (M6)
 

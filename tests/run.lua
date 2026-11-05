@@ -33,6 +33,8 @@ local urls = require("hex_urls")
 local chat = require("hex_chat")
 local combat = require("hex_combat")
 local stats_mod = require("hex_stats")
+local blorps = require("hex_blorps")
+local minimap = require("hex_minimap")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -1665,6 +1667,116 @@ t("stats: guild clause maps to primaries keys", function()
   -- before the lookup
   guild = guild:gsub("'$", "")
   eq(names[guild], "adventurers")
+end)
+
+-- hex_blorps / hex_minimap -------------------------------------------------
+
+t("blorps: SQL builders escape and shape", function()
+  assert(blorps.blorp_add_sql("alt", "drum", 4659, string.rep("a", 40)):find("'alt'", 1, true), "character not escaped")
+  assert(blorps.blorp_add_sql("a", "it's", 4659, ""):find("'it''s'"), "label not escaped")
+  assert(blorps.blorp_goto_sql("alt", "it's"):find("'it''s'"), "goto not escaped")
+  assert(blorps.bm_add_sql("a", 13133, "crib", "combat: pumpkins", ""):find("'combat: pumpkins'"), "comment lost")
+  assert(blorps.bm_find_sql("drum"):find("LIKE '%drum%'", 1, true), "find wraps once: " .. blorps.bm_find_sql("drum"))
+  assert(blorps.bm_find_sql("dr*"):find("LIKE '%dr%%'", 1, true), "wildcards convert: " .. blorps.bm_find_sql("dr*"))
+  local init = blorps.init_sql()
+  eq(#init, 3)
+  assert(init[1]:find("blorp", 1, true), "blorp table missing")
+  assert(init[2]:find("bookmark", 1, true), "bookmark table missing")
+  assert(init[3]:find("meta", 1, true), "meta table missing")
+end)
+
+t("blorps: init_sql creates tables in Hex's own db shape", function()
+  -- PK(character, label) for blorps; PK(character, vnum) for bookmarks
+  assert(blorps.init_sql()[1]:find("PRIMARY KEY %(character, label%)"), "blorp PK")
+  assert(blorps.init_sql()[2]:find("PRIMARY KEY %(character, vnum%)"), "bookmark PK")
+end)
+
+t("minimap: inspect handles the live payload shape", function()
+  -- the real Combat Crib room.map (capture line 219), decoded
+  -- the decoded payload carries a real ESC (\27) and real newlines
+  local raw = "    \27[39;49m\27[0m\27[31m+\27[39;49m\27[0m     \n    \27[39;49m\27[0m\27[1;33m@\27[39;49m\27[0m     \n"
+  local info = minimap.inspect(raw)
+  eq(#info.lines, 2)
+  eq(info.has_player, true)
+  eq(info.empty, false)
+  assert(info.lines[1]:find("+", 1, true), "map content kept after strip")
+end)
+
+t("minimap: empty and whitespace payloads flag empty", function()
+  eq(minimap.inspect("").empty, true)
+  eq(minimap.inspect("   \n  \n").empty, true)
+  local info = minimap.inspect("no map here\n")
+  eq(info.has_player, false)
+  eq(info.empty, false)
+end)
+
+t("minimap: dedupe key covers payload and room", function()
+  assert(minimap.key("x", "room1") ~= minimap.key("x", "room2"), "room part matters")
+  assert(minimap.key("x", "r") ~= minimap.key("y", "r"), "payload part matters")
+  eq(minimap.key("x", "r"), minimap.key("x", "r"))
+end)
+
+t("paths: journey steps render miles; swim steps get the marker", function()
+  local nodes = { node_row(1), node_row(2), node_row(3), node_row(4) }
+  local edges = {
+    edge_row(1, { edge(2, "journey e", 0, 2, 3) }),
+    edge_row(2, { edge(3, "swim n", 0, 1) }),
+    edge_row(3, { edge(4, "north", 0, 1) }),
+    edge_row(4, {}),
+  }
+  local g = paths.load(nodes, edges)
+  local r = paths.find_route(g, { 1 }, 4)
+  local lines = paths.render(r, g)
+  local joined = table.concat(lines, " ")
+  assert(joined:find("%[journey: 3 miles e%]"), "journey render: " .. joined)
+  assert(joined:find("%[~ 1 swim n%]"), "swim render: " .. joined)
+  assert(joined:find("%[1 north%]"), "plain render: " .. joined)
+end)
+
+t("paths: attach_gates keys vnum|command", function()
+  local g = tiny_graph()
+  paths.attach_gates(g, { { "1|north" } })
+  eq(paths.is_gate(g, 1, "north"), true)
+  eq(paths.is_gate(g, 1, "east"), false)
+  eq(paths.is_gate(g, 2, "north"), false)
+end)
+
+t("paths: avoid_gates routes around gate edges", function()
+  -- bridge (gate) vs long way round
+  local nodes = { node_row(1), node_row(2), node_row(3), node_row(4), node_row(5) }
+  local edges = {
+    edge_row(1, { edge(2, "north"), edge(3, "west", 0, 8, 5) }),
+    edge_row(2, { edge(4, "north") }),
+    edge_row(3, { edge(4, "northeast", 0, 3, 1) }),
+    edge_row(4, { edge(5, "north") }),
+    edge_row(5, {}),
+  }
+  local g = paths.load(nodes, edges)
+  g.gates = { ["2|north"] = true }
+  -- avoid: the route bends through node 3 instead of the gated 2->4 edge
+  local r = paths.find_route(g, { 1 }, 5, { avoid_gates = true })
+  assert(r, "bypass route exists")
+  eq(r.path[1].cmd, "west")
+  -- unrestricted: the short gated route wins
+  local r2 = paths.find_route(g, { 1 }, 5, { avoid_gates = false })
+  eq(r2.steps, 3)
+  eq(r2.path[1].cmd, "north")
+end)
+
+t("paths: exclude_swim keeps water out of goto routes", function()
+  local nodes = { node_row(1), node_row(2), node_row(3) }
+  local edges = {
+    edge_row(1, { edge(2, "north"), edge(3, "swim e", 0, 2, 1) }),
+    edge_row(2, { edge(3, "north", 0, 1, 4) }),
+    edge_row(3, {}),
+  }
+  local g = paths.load(nodes, edges)
+  local wet = paths.find_route(g, { 1 }, 3)
+  eq(wet.cmd_ok, nil)
+  eq(wet.path[1].cmd, "swim e") -- swim is the short way when allowed
+  local dry = paths.find_route(g, { 1 }, 3, { exclude_swim = true })
+  eq(dry.steps, 2) -- the walk around
+  eq(dry.path[1].cmd, "north")
 end)
 
 io.write(("\n%d/%d passed\n"):format(count - failed, count))

@@ -47,9 +47,12 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/chatset <family> on|off`, `/chattab on|off` | Chat family toggles and the tab gate |
 | `/combat [level]`, `/combatstat` | Combat spam ladder (verbatim/verbose/default/brief, per-alt) and attacks-per-round |
 | `/urls [pattern]`, `/url <n>` | URL catch and recall; `open` shells out behind an opt-in flag |
-| `/stats [refresh]` | Read your stats into the bonus math (from `score verbose stats`) |
 | `/spellinfo <nick\|name>`, `/spellcheck` | The full spell card with your per-stage spellcheck chances and level hints |
 | `/tm <method>`, `/spells [list\|long\|<text>]` | TM suggestions per method (blacklist and thresholds configurable) and spell search |
+| `/chatnpc [name]` | Silence an NPC's tells (persisted; `remove <name>` undoes) |
+| `/blorp add|delete|rename|list|all|goto` | Named places, per-alt, distance-sorted; `goto` shows the route |
+| `/bookmark add <label>: comment`, `/bookmark find|goto|list` | Shared bookmarks with comments, attributed per alt |
+| `/stats [refresh]` | Read your stats into the bonus math (from `score verbose stats`) |
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
 | `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
 | `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |

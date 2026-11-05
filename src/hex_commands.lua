@@ -8,6 +8,7 @@ local targets = require("src.hex_targets")
 local paths = require("src.hex_paths")
 local missiondata = require("src.hex_missiondata")
 local skilldata = require("src.hex_skilldata")
+local blorps = require("src.hex_blorps")
 
 local M = {}
 
@@ -325,8 +326,8 @@ local function resolve_single(args, g, start, allow)
   return c
 end
 
-local function route_or_message(g, start, c, allow)
-  local route, rerr = paths.find_route(g, { start }, c.vnum, { allow_avoid = allow })
+local function route_or_message(g, start, c, allow, exclude_swim, avoid_gates)
+  local route, rerr = paths.find_route(g, { start }, c.vnum, { allow_avoid = allow, exclude_swim = exclude_swim, avoid_gates = avoid_gates })
   if not route then
     if rerr:find("avoid", 1, true) then
       print(a("gray", "[hex] " .. c.name .. ": " .. rerr))
@@ -404,7 +405,8 @@ local function cmd_goto(args)
   if not c then
     return
   end
-  local route = route_or_message(g, start, c)
+  local exclude_swim = not (deps.config.get("allow_swim", false) or (deps.room.terrain == "underwater"))
+  local route = route_or_message(g, start, c, false, exclude_swim, deps.config.get("avoid_gates", false))
   if not route then
     return
   end
@@ -992,6 +994,15 @@ function M.setup(deps)
   alias_add("^/spells\\s*(.*)$", function(matches)
     deps.spells.cmd_spells(matches[2])
   end)
+  alias_add("^/blorp\\s*(.*)$", function(matches)
+    deps.blorps.cmd_blorp(matches[2])
+  end)
+  alias_add("^/bookmark\\s*(.*)$", function(matches)
+    deps.blorps.cmd_bookmark(matches[2])
+  end)
+  alias_add("^/bookmarks$", function()
+    deps.blorps.cmd_bookmark("")
+  end)
   alias_add("^/hexcapture\\s*(.*)$", function()
     print(a("gray", "[hex] the debug capture lane was removed in v0.6.0"))
   end)
@@ -1026,6 +1037,15 @@ function M.setup(deps)
     print(a("gray", "[hex] reloaded"))
   end)
   deps.setup.register(alias_add)
+  -- blorps/bookmarks need the graph builder, the identifier->vnum lookup,
+  -- and the module deps; all live here (see hex_blorps deps)
+  deps.blorps.get_graph = get_graph
+  deps.blorps.vnum_of = function(id)
+    local r = rows(M.deps.config.get("rooms_db"), "SELECT vnum FROM rooms WHERE room_id = '" .. util.sql_escape(id) .. "';")
+    return r and r[1] and tonumber(r[1][1]) or nil
+  end
+  deps.blorps.targets = targets
+  deps.blorps.paths = paths
   alias_add("^/hexupdate$", function()
     deps.data.update()
   end)
@@ -1061,6 +1081,7 @@ function M.setup(deps)
     print("  /combat [level]           /combatstat       /urls, /url <n>")
     print("  /spellinfo <nick|name>    /spellcheck <n>   /tm <method>, /spells")
     print("  /stats [refresh]          read your stats into the bonus math")
+    print("  /blorp add|goto|list|all  /bookmark add|find|goto|list")
     print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
     print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
     print("  /hexgag, /gaglog         user gags as data; /hexungag <n|text> removes")
