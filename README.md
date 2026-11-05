@@ -13,7 +13,7 @@ From inside Blightmud, with the repo cloned to `~/.gitrepos/hex`:
 /enable_plugin hex
 ```
 
-Restart Blightmud (the plugin auto-loads if enabled). For updates after that: `/update_plugins` then `/hexreload` — a bare `/load_plugin` re-runs `main.lua` but Lua's require cache keeps the old modules warm, so a full restart or `/hexreload` is the only clean reload. Then connect to Discworld as usual.
+Restart Blightmud (the plugin auto-loads if enabled). For updates after that: `/update_plugins` then `/hexreload`; a bare `/load_plugin` re-runs `main.lua` but Lua's require cache keeps the old modules warm, so a full restart or `/hexreload` is the only clean reload. Then connect to Discworld as usual.
 
 Hex owns its data under `~/.local/share/hex/`:
 
