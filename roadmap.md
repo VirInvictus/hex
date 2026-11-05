@@ -6,6 +6,8 @@ Every phase below has an implementation-ready design document under [docs/](docs
 
 **Position (2026-11-05): Hex is Brandon's primary Discworld client** — the TinTin++/tt_dw setup was declined; the tt_dw clone stays as the porting source, and since v0.2.0 `/hexupdate` owns the Quow database and sound copies in Hex's data directory (the tt_dw copy is only a fallback until the first `/hexupdate` run).
 
+**Debug lane (v0.5.2-dbg)**: `/hexcapture` (gated behind `/hexset debug_capture on`) arms a file sink at `~/.local/share/hex/captures/` — every MUD output line plus raw GMCP — and runs the read-only probe batch with frimble markers. It exists to feed the wire-verification backlog and is **cut out of v0.6.0 entirely**; nothing builds on it.
+
 North star: Hex becomes the Discworld suite a Blightmud player reaches for first, the way Quow's Cow Bar is the suite a MUSHclient player reaches for first. That bar has three parts, and every phase below serves one of them: nothing essential is missing (map, vitals, data, missions, magic), nothing breaks quietly (the GMCP lesson: verify every protocol claim against the live wire), and nothing feels alien to a terminal user (one binary, text everywhere, zero dependencies).
 
 House invariants that out-rank every phase:

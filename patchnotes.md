@@ -1,5 +1,13 @@
 # Hex patchnotes
 
+## v0.5.2-dbg (2026-11-05)
+
+DEBUG RELEASE. This lane ships one purpose-built debug command and is slated for removal in v0.6.0, which will cut it out entirely; do not build on it.
+
+- `/hexcapture` (gated behind `/hexset debug_capture on`): the wire-verification capture harness. `/hexcapture on` arms a file sink at `~/.local/share/hex/captures/<stamp>.log` that mirrors every MUD output line (prompts flagged) and every raw GMCP payload; `/hexcapture probes` runs the read-only probe batch (options shapes, all four score layouts, the skills-listing round-trip, the spells listing, hskills, quota brief, glance/look room pushes, and say/soul as negative controls) bracketed with frimble markers; `/hexcapture off` disarms and prints the manual-probe list (a short /goto for walker echoes, weak combat for monitor lines, tells or a club line for chat shapes, and arming before the next login for char.login/char.info GMCP).
+- Safety: every send lives inside the `/hexcapture` alias handler; the probe batch is read-only options/query commands plus two deliberate negative controls, asserted by test to contain no game-state-changing commands.
+- Tests grow to 120 (125 with the opt-in goldens): the probe-group contents and the flattened frimble structure, and the capture-file path.
+
 ## v0.5.1 (2026-11-05)
 
 Phase 4's data lane: the spell dataset and the TM tooling. The trackers (TPA, charm, broom, stat items) stay wire-gated on capture session #2.

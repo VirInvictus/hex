@@ -34,6 +34,7 @@ Run all commands from the repo root.
 - APIs newer than the v5.7.1 release (tabs, top rows, line tags) must be feature-detected.
 - Command aliases must match the leading slash themselves (`"^/item\\s+"`): blightmud passes unmatched lines (slash included) straight to the MUD.
 - `script.reset` does NOT clear `package.loaded`: after editing plugin files, `/load_plugin` re-executes main.lua but cached modules stay stale. Restart the client for a clean reload (learned live in the probe).
+- **DEBUG LANE (v0.5.2-dbg, removed in v0.6.0)**: `src/hex_capture.lua`, gated by `/hexset debug_capture on`. `/hexcapture on` streams every MUD output line + raw GMCP payload to `~/.local/share/hex/captures/<stamp>.log`; `/hexcapture probes` runs the read-only frimble-bracketed probe batch. Wire-verification transcripts land there — read that directory first when resuming wire-gated work.
 
 ## Hard constraints (spec.md carries the details)
 
