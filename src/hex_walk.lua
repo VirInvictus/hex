@@ -176,7 +176,11 @@ function M.launch(route, label)
   M.handles[#M.handles + 1] = M.trigger_add("^Removed queue\\.$", {}, function()
     print(gray("[hex] the MUD cleared the walk queue (Removed queue.)"))
   end)
-  M.handles[#M.handles + 1] = M.trigger_add("^" .. M.DONE_MARKER:gsub("%W", "%%%0") .. "%s*$", {}, function()
+  -- the trigger pattern is RUST: escape with backslashes (the Lua-side
+  -- is_done_marker keeps its own %W form); %-escapes would silently never
+  -- match in Rust
+  local rust_marker = "^" .. M.DONE_MARKER:gsub("%W", "\\%0") .. "\\s*$"
+  M.handles[#M.handles + 1] = M.trigger_add(rust_marker, {}, function()
     if M.state then
       on_event(M.on_done_line(M.state))
     end
