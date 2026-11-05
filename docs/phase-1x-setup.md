@@ -143,3 +143,12 @@ Implication for Phase 7: a guild pack is (a) a slice of the primaries dataset pl
 
 1. Does `options output` list prompt/monitor/map/brief-exits/automatic-rows, in what exact `name = value` shape? (Feeds `/hexcheck` and the `brief exits` idempotency fix.)
 2. Does `char.info` carry `guild`/`guildspec` on the wire? (Feeds pack autoload.)
+
+
+## Official-docs corrections (2026-11-05 research)
+
+- `rows 999` (bare) is undocumented; documented syntax is `options terminal rows=[number]`, and invalid values reset to 24. `/hexsetup` sends the documented form; keep bare `rows 999` only if live verification shows it still sets.
+- The `options output` listing shape is space-separated (`look brief`) with no `=` - but the tactics tree shows `attack = left`. `/hexcheck`'s parser stays live-verified.
+- `brief exits` and `automatic rows` appear nowhere in the official corpus (live-verify only).
+- `term xterm256` is the officially recommended colour setting (newbie essentials); added to the `/hexsetup` option set.
+- `options output map plain = on` is officially documented (answers Phase 5's open question).

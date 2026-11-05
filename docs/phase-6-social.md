@@ -126,3 +126,13 @@ Chat fixtures (tell family with language-broadcast negative, NPC + job exclusion
 6. Group chat bracket style (tt_dw marks its group capture unused).
 7. Monitor/prompt exact spacing after `/hexsetup` runs once.
 8. Which blightmud release ships tabs (until then the fallback is the shipping behavior).
+
+
+## Official-docs corrections (2026-11-05 research)
+
+- Talker verbose line officially `- (Two) Froggy's wispy voice comes from the bracelet saying : I am a blue frog!` (leading dash, parenthesised channel, space before colon) and brief `(one) Feantur wisps: Ook!` - our regexes need those shapes.
+- Own-tell echo colon is ambiguous between help pages (wire-verify).
+- Club-name display is player-configurable (`brief name`): club regexes can never be canonical.
+- The monitor 'goes on during combat' only - the prompt is the out-of-combat vitals feed (precedence rule unchanged).
+- Awareness rule (concepts/automation): a UI constraint - the chat tab must never bury tells out of sight; gags/status layout must keep the main feed readable.
+- Logging conversations is officially endorsed (harassment-diary duty, client recommendation, server-side history commands) - chat capture is the safest feature in the suite.

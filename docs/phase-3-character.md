@@ -153,3 +153,13 @@ Fixtures are transcript blocks built from the action patterns themselves: quota 
 5. `mission_travel_time` is a flat 60 s upstream; per-mission travel via Phase 2 path lengths is the better v2.
 6. Bare-id input hijack (`B` → `apply for B`) deliberately not ported — `/apply` covers it.
 7. Skill-increase lines: confirm the plain advance line always fires so goal alerts can't miss self-taught levels.
+
+
+## Official-docs corrections (2026-11-05 research)
+
+- The official ETB definition differs from tt_dw's model: ETB is the average of (taught-skill bonus) and min(teaching bonus, 2 x taught bonus), capped. `/skillcost` output carries a caveat that its teach-cost numbers are tt_dw approximations.
+- `hskills` (and `hskills brief`) is the documented skill-increase feed (`X increased by N levels (and bonus B) to level L (and bonus B).`) - sanctioned fallback for goal alerts.
+- `score stats` is documented as a 3-line dot-padded table (dot counts match ours exactly); the one-line assumption needs the live check with cols/rows set.
+- `score brief` documented shape (`Hp: 913 (1040) Gp: 122(122) Xp: 36190`) has no Burden field and different paren spacing than phase-6's regex - wire-verify.
+- `skillcap` exists (>=300, multiples of 25): a capped skill's used level is the cap; parsers should note it.
+- Official: stats start at 13; `rearrange` sets 8-23 total <=65, once ever. Guild primaries tables list category entries meaning 'all children primary' - hex_skilldata stores that rule.

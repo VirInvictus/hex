@@ -88,3 +88,11 @@ New files: hex_theme (~100), hex_options_def (~90), hex_options (~200), hex_soun
 ## 9. Deferred
 
 Ambient MUD-line sound pack (data-only, once v1 ships); witch flyto destination table; priest find as a full ritual tracker; assassin/warrior features (nothing to port); a bundled sound repo (CC0 permits it later).
+
+
+## Official-docs corrections (2026-11-05 research)
+
+- Discworld documents ~250 colour names mapped onto xterm256, hex codes, ansi* override tokens, per-event/club/inform/talker colour options, and the `%^OPTION%^` usercolour grammar - raw material for hex_theme palettes or an options-colour-aligned role mapping.
+- MXP (`term mxp`) offers 24-bit colour natively; a later theme revision could adopt it.
+- Sound triggers are explicitly LEGAL per concepts/automation ('A sound trigger when your shield breaks to remind you to recast') - the announce-only design is confirmed at rule level.
+- Auto-reconnect after quit/idle-out is explicitly banned (and some clients default to it): Hex must never grow one; recorded in the options work.

@@ -2,13 +2,13 @@
 
 External materials for every phase are staged under `testing_facility/` (gitignored; symlinks to the tt_dw and blightmud clones, both databases, the CC0 sounds; a downloaded stock blightmud v5.7.1 binary for degraded-path testing; a pinned GMCP doc snapshot; live-capture scaffolding) — see [docs/testing-facility.md](docs/testing-facility.md). The converter now carries the maze `extra`/shape column (1,246 shape rows verified), unblocking Phase 5's guess design.
 
-Every phase below has an implementation-ready design document under [docs/](docs/README.md), produced by the 2026-11-04/05 exploration campaign (eight research agents; measured benchmarks, extracted formulas, wire-verification backlogs). The roadmap tracks boxes; the docs carry the designs.
+Every phase below has an implementation-ready design document under [docs/](docs/README.md), produced by the 2026-11-04/05 exploration campaign (eight research agents; measured benchmarks, extracted formulas, wire-verification backlogs). The roadmap tracks boxes; the docs carry the designs. The official Discworld documentation mirror and the research findings built from it live in [docs/discworld-docs-research.md](docs/discworld-docs-research.md) — including the automation ruling that reshaped the `/goto` walker.
 
 North star: Hex becomes the Discworld suite a Blightmud player reaches for first, the way Quow's Cow Bar is the suite a MUSHclient player reaches for first. That bar has three parts, and every phase below serves one of them: nothing essential is missing (map, vitals, data, missions, magic), nothing breaks quietly (the GMCP lesson: verify every protocol claim against the live wire), and nothing feels alien to a terminal user (one binary, text everywhere, zero dependencies).
 
 House invariants that out-rank every phase:
 
-- No autonomous MUD input. Discworld bans anything that could unidle a character; every send lives behind a user alias, and a user-asked speedwalk is the only multi-step sender Hex will ever contain.
+- No autonomous MUD input. Discworld's automation rule (concepts/automation, quoted in docs/discworld-docs-research.md) bans anything that could unidle a character without the user acting at the same time, including blank lines; every send lives behind a user alias, and the only multi-step sender Hex will ever contain is a user-asked ONE-SHOT batch speedwalk — the officially sanctioned "fast" style (all route commands queued in one go, unalterable except by the user typing `stop`; the room-by-room "slow" style is explicitly banned).
 - Third-party data is read-only: Quow's database, the tt_dw clones, the MUD's logs.
 - No third-party dependencies: Lua 5.4 stdlib and Python stdlib only.
 - Protocol claims get verified on the wire (`/hexraw`, `/hexprobe`) before features build on them.
@@ -47,10 +47,10 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [ ] `tools/convert_map.py` v2: exits gain the dir bitmask and one-way flags as queryable columns (already captured, now exercised)
 - [ ] `hex_paths`: Dijkstra over the identified-room subgraph (32,499 rooms) in pure Lua, weights from exit distance
 - [ ] `/path <search>`: resolve a target by room name, identifier prefix, or Quow room id; print the route as a readable step list (street-by-street, not just "7n 2e")
-- [ ] `/goto <target>`: the one sanctioned walker; sends the route step-per-step only because the user asked, cancellable with `/stopwalk`, every step verifies the room identifier before continuing (mismatch aborts, never re-routes blind)
+- [ ] `/goto <target>`: user-invoked ONE-SHOT batch speedwalk — every route command queued in a single burst on one user invocation (the officially sanctioned "fast" style per concepts/automation), cancellable with `stop`/`/stopwalk`; room.info drives post-hoc drift reporting only (never re-sends, never re-routes)
 - [ ] `/near <search>`: nearest match to the current room by path length
 - [ ] Quow `/item` and `/npc` results gain walk-distance and "nearest source" ordering
-- [ ] Arrival announcements and off-route detection as status chips
+- [ ] Walk drift reporting as a status chip (post-hoc: the batch queue sends once; room.info drives the step counter and drift warnings only)
 - [ ] Tests: golden routes against hand-picked city pairs; Dijkstra property tests on synthetic graphs
 
 ## Phase 3: the working character (M3)
@@ -67,6 +67,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 - [ ] TPA tracker: glow-colour parse, duration model from defensive bonus, `[T:colour%]` status chip
 - [ ] Bugshield (witches) and ritual chips (faith) on the same text-trigger pattern
 - [ ] `hex_spells`: spelldata port (static dataset), `/spellinfo <spell>` with TM suggestions ordered by skill
+- [ ] Official-doc hooks: resync via `shields` (the official command name; "check shields" appears nowhere) and `meditate upon divine protection`; the known-spells store purges on death (spells detach on death per helpdir/spells); TM framing stays informational per the automation page's trivialising clause
 - [ ] TM blacklist and cast-chance constants as config, not code
 - [ ] Broomstick charge tracking, mindspace gauge, spell sizes
 - [ ] Stat-item tracking (worn/removed chips)

@@ -12,6 +12,7 @@ Almost nothing new: by design, every phase mines the two clones already on this 
 | GMCP documentation snapshot | The protocol source of truth; the live page can drift under the designs | `gmcp-doc/gmcp-concepts.html` (fetched 2026-11-05) |
 | Live payload captures | The Phase 8 harness fixtures and Phase 5's maze survey only exist in Brandon's sessions | `captures/gmcp/` + `captures/logs/` scaffolding with the capture procedures in CONTEXT.md |
 | Recorded Quow goldens staging | Phase 8's local-only layer | `golden/recorded/` (also gitignored at `tests/golden/recorded/`) |
+| Discworld MUD official docs mirror | Every phase: the game's own docs are the source of truth (rules wording, options formats, skills/spells/rituals/missions pages) | `discworld-docs/` (crawled by `tools/mirror_discworld_docs.py`, resumable; research pass in `docs/discworld-docs-research.md`) |
 
 Everything else resolves to existing local paths and is symlinked, never copied: tt_dw scripts, the map repo, the Quow DB (18.5 MB), rooms.db, sound_files (CC0), both house CI repos, the blightmud dev clone.
 

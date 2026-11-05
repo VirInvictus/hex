@@ -78,31 +78,31 @@ Resolver tried in order (ported from `find.tin:27-61`):
 
 Route display groups consecutive same-command steps: `[3 north]`, `[1 northeast, 2 east]`, `[enter crate]`; `--full` prints every room name.
 
-## 4. The `/goto` walker — the one sanctioned multi-step sender
+## 4. The `/goto` walker — one-shot batch queue (officially sanctioned "fast" style)
 
-### 4.1 State machine (pure transitions; sends isolated as effects)
+**Correction (2026-11-05, docs/discworld-docs-research.md §1):** the original design sent each step after the previous room.info arrived, arguing that per-step verification made it "more conservative". The MUD's own `concepts/automation` page rules the opposite way: room-by-room sending is the banned "slow" speedwalk; the allowed "fast" kind sends *"all route commands ... in one go and cannot be altered afterwards (other than by manually sending 'stop')"*, with the MUD aborting queues that run past 5 minutes. The design below is the compliant shape.
 
-States `idle | walking | stalled`. `M.transition(state, event, now) -> state, effects` where effects are explicit (`{send=cmd} | {announce=...} | {chip=...}`); the blightmud-bound wrapper in main.lua is the only thing that calls `mud.send`.
+### 4.1 Mechanism
 
-- `start(route)` (from the `/goto` alias only): step 1's send is an effect of the alias call itself. Every subsequent send is an effect of a `room_verified` event.
-- `room_info(identifier, name)`: match `route[i].room_id` → verified: arrival if last step, else advance and send the next command. Mismatch → **abort to idle**, red expected-vs-found line, never re-route blind (tt_dw re-syncs with `look`, `paths.tin:31-33`; it never silently re-plans either).
-- `stall_check(now)` (UI-only timer): no room.info for >10 s → `stalled` chip ("walk stalled at step i/N — move manually or /stopwalk"). **The timer sends nothing, ever.**
-- `stop` (`/stopwalk`): idle, gray "walk stopped after N steps". A user-typed bare `stop` (input listener, port of `paths.tin:5-8`) pauses on next verified room; `/goto resume` re-runs find_route from the verified identifier — a fresh user invocation.
-- `queue_cleared` (trigger on MUD's `Removed queue.`, `events.tin:15-20`): informational in v1; Hex always has ≤1 command in flight, so a cleared queue means interference → verify-on-next-room_info, no resend.
+`/goto <target>` resolves the route, prints the step list, then — as one user invocation —
 
-Anti-idle compliance argument (ships in the spec): (1) entered only by an explicit user alias; (2) sends only while verifiably moving — every send follows the MUD's own room.info push; (3) stops permanently on anomaly, never retries; (4) no timer sends, stalls are UI-only; (5) one command in flight, never out-running the player. Strictly more conservative than tt_dw's accepted whole-path queue (`paths.tin:276-278`).
+1. sends `options personal travel = walk` (journey-safety, port of tt_dw; restore `journey` at the end if a non-walk default was observed via the `Set option personal travel` trigger),
+2. sends **every route command in one burst**, one `mud.send` per command, no waiting between them,
+3. sends the journey-restore line (if applicable).
 
-### 4.2 Verification vs duplicate identifiers
+Everything after that is the MUD's own queue executing the route. Hex sends nothing more. Abort paths: the user typing `stop` in-game (the officially named abort), or `/stopwalk`, which sends `stop` from the alias handler (sanctioned user-alias send). The MUD itself clears overlong queues ("if such a speedwalk takes more than 5 minutes, the MUD will eventually abort it due to inactivity" — routes estimated over ~4 minutes get a warning at invocation).
 
-For consecutive route rooms sharing a room_id (Terrains tiles): verification additionally requires name equality; if two vnums share both, abort as "ambiguous terrain segment". Can only ever abort, never mis-send.
+### 4.2 Verification becomes post-hoc drift reporting
 
-### 4.3 Travel mode (journey safety)
+The room.info pushes arriving during the walk are compared against the planned sequence purely for *display*: on match, the status chip advances (`» 23/119 to the Palace Gates`); on mismatch, a red line reports expected-vs-actual and the chip marks drift — **Hex never re-sends and never re-routes**. There is no stall state and no stall timer: with one burst in flight there is no per-step expectation to stall on. The `Removed queue.` line (MUD clearing an interfered queue) is reported informationally.
 
-Port tt_dw faithfully: `/goto` prepends `options personal travel = walk` (first send) and restores `journey` at the end only if Hex observed a non-walk default via the `^Set option personal travel to (\w+)\.` trigger (`journey.tin:3-8`; restore parity at `paths.tin:236, 266-268`).
+### 4.3 Compliance argument (replaces the old one)
 
-### 4.4 Walk gags (session triggers, reaped on walk end)
+This is the documented "fast" kind, verbatim in design: all route commands are sent in one go, immediately, on one user invocation; the queue cannot be altered afterwards other than by the user manually sending `stop`; Hex adds nothing to the wire after the burst except nothing at all. No timer, no trigger, no continuation ever sends. If the player disappears mid-walk, the queue runs out or the MUD aborts it at 5 minutes — exactly the behaviour the rules text describes as allowed. The travel-mode prepend/restore and the `stop` send are part of the single user-invoked operation (port of tt_dw `paths.tin:276-278`, which the rules text describes as the permitted style).
 
-`^Queued command: ` + this route's exact commands (generic cardinal form ported from `paths.tin:205`), the `options personal travel` echo lines. No `frimble` end-marker machinery: Hex knows the end from the identifier match.
+### 4.4 Walk gags
+
+`Removed queue.` gags stay informational; the queued-command echo gags port unchanged (the burst will echo each command as the MUD queue drains them — port the generic cardinal form plus this route's exact commands from `speedwalk.tin:3-17` and `paths.tin:205`).
 
 ## 5. Lost-room and unverified-room policy (v1: strictly identified-only)
 

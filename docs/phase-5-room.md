@@ -95,3 +95,12 @@ room.map fixtures (the real live payload; empty; whitespace; two-line; no-@; peo
 ## 9. Build order (each step independently shippable)
 
 1. `hex_util` helpers + minimap with the inline/toprows/tab ladder; 2. `hex_mdt` parser + `/mdt` with hex.db; 3. blorps/bookmarks; 4. journeys (display + walker branch + water); 5. maze modes + input listener; 6. guess (depends on 5's move recording); 7. live-verification pass, docs, patchnotes.
+
+
+## Official-docs corrections (2026-11-05 research)
+
+- `options output map plain = on` is officially documented (answers live-verify item 2; tt_dw's kill-the-inline-map option set still applies for our own panel).
+- `room.info` kind vocabulary officially includes `outside` (gmcp prose) alongside inside/underwater.
+- `map door text` example confirms the writtenmap 'limit of your vision' grammar; map legend symbols documented (@, +, *, -, |, $, &).
+- The journey walker branch is REMOVED: the Phase 2 walker is now a one-shot batch queue (see docs/discworld-docs-research.md), so there is no per-step expectation for a journey to break.
+- Carriage message set documented (leaves/grinding halt/has arrived/next stop); arcane transport NPCs (list/travel to/cancel, fixed price, language-gated) are a documented travel system for a future /path annotation.

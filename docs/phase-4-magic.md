@@ -114,3 +114,12 @@ TPA fixtures (plink → absorb → change → lapse → break sequence; golden d
 7. `skill_stats` coverage for `magic.spells.defensive`, `magic.spells.special`, `faith.rituals.defensive.self`, and the ~35 spellcheck method skills.
 8. prayer_beads tier-1 ambiguity (tt_dw's own comment: "can also be 2 :-(").
 9. 256-color pass-through on the user's terminal (cosmetic).
+
+
+## Official-docs corrections (2026-11-05 research)
+
+- The official shield-status command is `shields` (no 'check shields' anywhere); output includes condition lines and 'protected for at least <duration>' wording.
+- `meditate upon divine protection` officially clears all faith shields anywhere: second resync verb for hex_charm.
+- Spells detach on death (helpdir/spells); the known-spells store needs a death-purge hook.
+- `remember` documents mindspace's official dependency (magic.spells.special bonus); `spellcheck` documented (25 gp + 25/stage, accuracy vs magic.spells.special, stage verdict wording) as a sendable fallback.
+- TPA, glow percentages, mindspace +30, and the ritual-duration approximations have NO official documentation - tt_dw attribution and Phase 8 fixture verification remain the path.

@@ -6,7 +6,7 @@ Hex is a Discworld MUD plugin suite for Blightmud. It exists because Blightmud h
 
 Non-negotiable constraints, in priority order:
 
-1. **The MUD is never driven autonomously.** Discworld's automation rules allow client-triggered rendering but ban anything that could unidle a character, including blank lines. Hex contains no `mud.send` outside user-alias handlers, and no timer ever sends input. This is a spec invariant, checked by grep.
+1. **The MUD is never driven autonomously.** Discworld's automation rule (concepts/automation, quoted at the top of docs/discworld-docs-research.md) bans anything that could unidle a character without the user acting at the same time — "including blank lines" (concepts/gmcp). Hex contains no `mud.send` outside user-alias handlers, and no timer ever sends input. The sole multi-step sender is `/goto`'s ONE-SHOT batch speedwalk: every route command queued in a single burst on one user invocation, unalterable except by the user typing `stop` — the officially sanctioned "fast" style (the room-by-room "slow" style is explicitly banned and must never be implemented). This is a spec invariant, checked by grep.
 2. **Third-party data is read-only.** Quow's database and the tt_dw clones (scripts, map) are never written by Hex. Generated artifacts (the Hex room database) live in Hex's own data directory.
 3. **No third-party dependencies.** Lua 5.4 (the interpreter Blightmud embeds) and the Python standard library only.
 
