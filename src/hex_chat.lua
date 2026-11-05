@@ -258,22 +258,22 @@ function M.tab_excludes()
   return "(?i)^(" .. table.concat(parts, "|") .. ") "
 end
 
--- Idempotent tab setup: create_tab raises on an existing name, so check
--- blight.tabs() first. bind(key, callback) binds FUNCTIONS (blight.bind
--- "chat", "F2" was the v0.5.2-dbg first-run crash); switch_tab(name) is
--- the tab switcher. The whole body is pcall-wrapped: any tab-API mismatch
--- degrades to mirror mode instead of killing the plugin load.
+-- Idempotent tab setup: create_tab raises on an existing name, and the
+-- blight.tabs() listing proved unreliable on stock 5.7.1 (found live:
+-- reloads re-created the existing tab and blightmud printed [!!]). The
+-- session store flag is the primary gate — it survives /hexreload and
+-- script.reset and clears on client restart, matching the tab's own
+-- lifetime. bind(key, callback) binds FUNCTIONS; switch_tab(name) switches.
+-- The whole body is pcall-wrapped: any tab-API mismatch degrades to mirror
+-- mode instead of killing the plugin load.
 function M.setup_tab()
   if not M.has_tabs or not M.deps.config.get("chat_tab", true) then
     return
   end
+  if store.session_read("hex.chat_tab_created") then
+    return -- created earlier this session; filters are append-only
+  end
   local ok, err = pcall(function()
-    local existing = blight.tabs and blight.tabs() or {}
-    for _, name in ipairs(existing) do
-      if name == "chat" then
-        return -- already there (e.g. after a reload); filters are append-only
-      end
-    end
     blight.create_tab("chat")
     for _, include in ipairs(M.tab_includes()) do
       blight.add_tab_filter("chat", include)
@@ -288,7 +288,9 @@ function M.setup_tab()
       end)
     end
   end)
-  if not ok then
+  if ok then
+    store.session_write("hex.chat_tab_created", true)
+  else
     print(util.ansi.gray .. "[hex] chat tab unavailable (" .. tostring(err) .. "); staying in mirror mode" .. util.ansi.reset)
   end
 end

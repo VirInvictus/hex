@@ -135,8 +135,11 @@ gmcp_wire.setup({
   end,
   on_char_info = function(data)
     if type(data) == "table" and (data.capname or data.name) then
-      config.set_alt(data.capname or data.name)
-      print(util.ansi.gray .. "[hex] alt: " .. (data.capname or data.name) .. util.ansi.reset)
+      local name = data.capname or data.name
+      if config.alt() ~= name then
+        config.set_alt(name)
+        print(util.ansi.gray .. "[hex] alt: " .. name .. util.ansi.reset)
+      end
       missions.load_if_needed() -- per-alt mission state follows the alt
     end
   end,
