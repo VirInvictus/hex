@@ -1,5 +1,13 @@
 # Hex patchnotes
 
+## v0.9.0 (2026-11-05)
+
+Phase 8's first slice: continuous integration, cut before anything else ships.
+
+- GitHub Actions CI on every push and PR to main: the Lua unit suite on Lua 5.4, the Python converter suite, and a pinned-ruff (0.17.2, matching local) format+lint pass over tools/ and tests/. `HEX_GOLDEN` stays out of CI by design: the golden routes need rooms.db and the tt_dw clone, which are local fixtures (third-party data stays out of the repo).
+- Ruff brought the Python files to green on the pinned version: format normalization, the dev tools are now executable (their shebangs were always meant to be run), and the doc mirror's intentional blind catches are noqa'd with justification. convert_spelldata.py's parser block reformatted; all tools verified working end to end after the pass.
+- The test-shim slice landed early in v0.8.1 (see its notes); the remaining Phase 8 boxes are the three-layer goldens expansion and the README showcase.
+
 ## v0.8.1 (2026-11-05)
 
 The Phase 8 shim arrives early, exactly as the first live session demanded. Plus the live-session hotfixes from v0.8.0's first run on a real character.

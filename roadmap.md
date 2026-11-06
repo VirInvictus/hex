@@ -115,8 +115,8 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 
 ## Phase 8: ship as the premiere suite (M8)
 
-- [ ] CI: GitHub Actions running `lua tests/run.lua` and the Python suite on every push; green before any tag
-- [ ] Reconcile the ruff pin (local 0.17.2 vs CI 0.16.8) with a format-only commit before the first CI run
+- [x] CI: GitHub Actions running `lua tests/run.lua` and the Python suite on every push; green before any tag — shipped v0.9.0 (lua5.4 + converter suite + pinned-ruff 0.17.2 format/lint jobs; HEX_GOLDEN stays local by design; first run green)
+- [x] Reconcile the ruff pin (local 0.17.2 vs CI 0.16.8) with a format-only commit before the first CI run — the CI pin matches local 0.17.2; the format+lint pass ran first and the tools/ files are now green under it
 - [ ] Golden tests: recorded Quow query outputs asserted against the builders, so refactors cannot change semantics silently
 - [ ] A fake-GMCP harness: replay captured payload fixtures through the handler chain in plain Lua, so protocol regressions die in CI instead of at login
 - [ ] README with screenshots/asciinema of the status area, `/item`, and `/path`; install docs for `/add_plugin <url>`
