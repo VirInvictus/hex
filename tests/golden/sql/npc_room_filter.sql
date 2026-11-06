@@ -1,0 +1,1 @@
+SELECT n.npc_name || '~' || n.room_id || '~' || COALESCE(r.room_short, '') AS result FROM npc_info n LEFT JOIN rooms r ON r.room_id = n.room_id WHERE n.room_id = 'abc123' AND (n.npc_name LIKE '%it''s%') ORDER BY REPLACE (npc_name, 'an ', 'a ') LIMIT 31;

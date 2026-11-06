@@ -1,0 +1,1 @@
+SELECT item_name || '~' || dollar_value || '~' || description || '~' || appraise_text || '~' || weight AS result FROM items i WHERE (0 OR (i.item_name = 'it''s a''quote') ) ORDER BY REPLACE (item_name, 'an ', 'a ') LIMIT 31;

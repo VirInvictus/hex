@@ -13,8 +13,12 @@ lua tests/run.lua                      # unit suite (pure modules)
 HEX_GOLDEN=1 lua tests/run.lua         # + golden routes (needs ~/.local/share/hex/rooms.db)
 lua tests/bench_paths.lua              # graph build/route benchmark against the real db
 python3 -m unittest discover -s tests  # converter tests (stdlib unittest)
+python3 tools/regen_goldens.py --check --synthetic   # golden engine, the CI gate (SQL + synthetic layers)
+python3 tools/regen_goldens.py --record --synthetic  # re-author committed goldens after builder changes, then REVIEW THE DIFF
+python3 tools/regen_goldens.py --check --recorded --strict --recorded-db <quow.db>  # pre-tag ritual, local only
 python3 tools/convert_map.py           # rebuild rooms.db from the tt_dw map clone
 python3 tools/convert_spelldata.py     # regenerate src/hex_spelldata.lua from tt_dw spelldata.tin
+python3 tools/convert_mdtdata.py       # regenerate src/hex_mdtdata.lua from tt_dw mdt_adverbs.tin
 ```
 
 Run all commands from the repo root.

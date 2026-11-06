@@ -27,9 +27,14 @@ jobs:
           sudo apt-get install --no-install-recommends -y lua5.4
       - name: Unit suite
         run: lua5.4 tests/run.lua
-      # HEX_GOLDEN=1 is skipped in CI: the golden routes need rooms.db and
-      # the tt_dw clone, which are local fixtures by design (third-party
+      # Goldens (SQL + synthetic layers): the committed builder outputs and
+      # the authored-row expectations must match byte-exact. sqlite3 is
+      # preinstalled on the runner; the dump helper reuses this job's lua5.4.
+      # HEX_GOLDEN=1 (route goldens) is skipped in CI: those need rooms.db
+      # and the tt_dw clone, which are local fixtures by design (third-party
       # data stays out of the repo).
+      - name: Goldens (SQL + synthetic)
+        run: python3 tools/regen_goldens.py --check --synthetic
 
   python-tests:
     name: Python converter tests

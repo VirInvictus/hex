@@ -236,6 +236,13 @@ t("npc query: bare term has no room filter", function()
   assert(not sql:find("room_id = '", 1, true), "unexpected room filter")
 end)
 
+t("npc and sources terms escape apostrophes (found by the goldens)", function()
+  -- regression: room:abc it's produced LIKE '%it's%' (malformed SQL); the
+  -- spec says user-input single quotes double in every builder
+  assert(queries.build_npc_query("room:abc it's"):find("'%%it''s%%'", 1, false), "npc term not escaped")
+  assert(queries.build_item_sources_query("it's", "sold"):find("it''s", 1, true), "sources term not escaped")
+end)
+
 t("shop query: unions shops and vendors", function()
   local sql = queries.build_shop_query("abc")
   assert(sql:find("shop_items", 1, true) and sql:find("npc_items", 1, true), "missing union arms")
@@ -248,6 +255,7 @@ t("item sources query: price flags", function()
   local sold = queries.build_item_sources_query("sword", "sold")
   assert(sold:find("price GLOB", 1, true), "sold filter missing")
   assert(sold:find("Shonky Shop", 1, true), "Shonky exclusion missing")
+  assert(sold:find("u%.room_id NOT IN", 1, false), "room_id must be qualified (was ambiguous against r.room_id)")
   local free = queries.build_item_sources_query("sword", "free")
   assert(free:find("NOT GLOB", 1, true), "free filter missing")
   local loot = queries.build_item_sources_query("sword", "loot")

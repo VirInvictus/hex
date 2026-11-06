@@ -1,5 +1,16 @@
 # Hex patchnotes
 
+## v0.11.0 (2026-11-05)
+
+Phase 8's golden-test engine lands, and pays for itself in its first hour: the synthetic layer caught two real shipped bugs in the Quow query builders before it even left the workshop.
+
+- Three-layer goldens (docs/phase-8-engineering.md §2), built by `tools/regen_goldens.py` over `tests/golden/cases.lua`: the SQL layer pins every builder's output byte-exact (committed, 16 cases); the synthetic layer runs them against authored rows in a throwaway sqlite db through the sqlite3 CLI (deliberately the exact form production gets from `core.exec`), pinning the article-insensitive ordering, apostrophe escaping, empty fields, the sold/free/loot price filters, the Shonky Shop exclusion, and the 31/61/41 result caps; the recorded layer runs against the real Quow DB but stays LOCAL-ONLY (gitignored; Quow's compilation is third-party data) with a provenance header pinning the DB fingerprint, a staleness warning past 60 days, and `--strict` for the pre-tag ritual.
+- CI gains the golden gate: the lua job now runs `--check --synthetic` after the unit suite (sqlite3 is preinstalled on runners; the tool resolves lua5.4 itself). Cases carry a db tag (`quow` vs `hex_rooms`) because `/where` reads Hex's own rooms.db while every other builder reads Quow.
+- Bug 1 (found by the goldens, shipped since the Quow queries landed): `/npc` and `/items` never escaped apostrophes in search terms, so `it's` produced malformed SQL. Fixed in both builders and pinned by a unit regression test.
+- Bug 2 (found by the goldens, shipped since v0.3.0): `/items sold` was broken outright — the Shonky-exclusion condition's bare `room_id` was ambiguous against the joined rooms table, a parse-time error on every use. The union now carries an explicit alias and the filter is qualified.
+- Route goldens (HEX_GOLDEN's territory) remain a separate open item pending the commitment call on tt_dw-derived fixtures; the fake-GMCP harness stays next in Phase 8.
+- Tests grow to 167 (172 with the opt-in route goldens), plus 16 committed golden cases and 16 local recorded ones.
+
 ## v0.10.0 (2026-11-05)
 
 Phase 5 slice 2 opens: the written-map people tracker (MDT), the first consumer of GMCP `room.writtenmap`.

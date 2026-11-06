@@ -1,0 +1,2 @@
+an apple~2~fruit~~
+a banana~1~fruit~~

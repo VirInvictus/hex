@@ -150,7 +150,7 @@ function M.build_npc_query(input)
     conds[#conds + 1] = "n.room_id = '" .. util.sql_escape(room_id) .. "'"
   end
   for _, term in ipairs(util.split_terms(search)) do
-    local like = util.glob_wildcards(util.glob_to_like(term))
+    local like = util.sql_escape(util.glob_wildcards(util.glob_to_like(term)))
     conds[#conds + 1] = "(n.npc_name LIKE '" .. like .. "')"
   end
   if #conds == 0 then
@@ -184,16 +184,19 @@ end
 -- ported from tt_dw's item_source_query price filters; the Shonky Shop is
 -- excluded from the sold filter (it sells everything, pure noise).
 function M.build_item_sources_query(input, flag)
-  local like = util.glob_wildcards(util.glob_to_like(util.trim(input)))
-  local conds = { "iname LIKE '" .. like .. "'" }
+  local like = util.sql_escape(util.glob_wildcards(util.glob_to_like(util.trim(input))))
+  local conds = { "u.iname LIKE '" .. like .. "'" }
   if flag == "sold" then
-    conds[#conds + 1] = "price GLOB '*[0-9]*'"
-    conds[#conds + 1] = "room_id NOT IN (SELECT room_id FROM rooms WHERE room_short = 'Shonky Shop')"
+    conds[#conds + 1] = "u.price GLOB '*[0-9]*'"
+    conds[#conds + 1] = "u.room_id NOT IN (SELECT room_id FROM rooms WHERE room_short = 'Shonky Shop')"
   elseif flag == "free" then
-    conds[#conds + 1] = "price NOT GLOB '*[0-9]*' AND price != ''"
+    conds[#conds + 1] = "u.price NOT GLOB '*[0-9]*' AND u.price != ''"
   elseif flag == "loot" then
-    conds[#conds + 1] = "price = 'loot'"
+    conds[#conds + 1] = "u.price = 'loot'"
   end
+  -- the union gets an explicit alias: a bare room_id here was ambiguous
+  -- against r.room_id after the join and broke every /items sold query
+  -- (found by the synthetic goldens)
   return "SELECT kind || '~' || COALESCE(seller, '') || '~' || COALESCE(price, '') || '~' || COALESCE(r.room_short, '') AS result "
     .. "FROM ( "
     .. "SELECT 'shop' AS kind, si.room_id AS room_id, si.sale_price AS price, si.item_name AS iname, '' AS seller FROM shop_items si "
@@ -203,7 +206,7 @@ function M.build_item_sources_query(input, flag)
     .. "UNION ALL "
     .. "SELECT 'found' AS kind, '' AS room_id, i.special_find_note AS price, i.item_name AS iname, '' AS seller "
     .. "FROM items i WHERE i.special_find_note != '' "
-    .. ") LEFT JOIN rooms r ON r.room_id = room_id WHERE "
+    .. ") AS u LEFT JOIN rooms r ON r.room_id = u.room_id WHERE "
     .. table.concat(conds, " AND ")
     .. " ORDER BY result LIMIT 41;"
 end

@@ -1,0 +1,1 @@
+SELECT name || '~' || area || '~' || terrain || '~' || note FROM rooms WHERE room_id = 'it''spipe id' LIMIT 1;

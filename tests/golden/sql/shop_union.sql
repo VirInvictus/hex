@@ -1,0 +1,1 @@
+SELECT result FROM ( SELECT si.item_name || '~' || si.sale_price AS result FROM shop_items si WHERE si.room_id = 'roomA' AND si.sale_price NOT IN ('found','loot','') UNION SELECT ni.item_name || '~' || ni.sale_price AS result FROM npc_items ni JOIN npc_info n ON n.npc_id = ni.npc_id WHERE n.room_id = 'roomA' AND ni.sale_price NOT IN ('found','loot','') ) ORDER BY result LIMIT 61;

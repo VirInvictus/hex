@@ -1,0 +1,1 @@
+SELECT map_id FROM rooms WHERE room_id = 'abc123' LIMIT 1;

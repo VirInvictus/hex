@@ -1,0 +1,1 @@
+SELECT item_name || '~' || dollar_value || '~' || description || '~' || appraise_text || '~' || weight AS result FROM items i WHERE (0 OR (i.description LIKE '%shiny%') OR (i.appraise_text LIKE 'it is made of %iron%') OR (i.item_name LIKE '%drum% scabbard' OR i.description LIKE '%it could sheathe a %drum%') ) ORDER BY REPLACE (item_name, 'an ', 'a ') LIMIT 31;
