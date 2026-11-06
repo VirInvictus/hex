@@ -43,7 +43,9 @@ GOLDEN = ROOT / "tests" / "golden"
 SQL_DIR = GOLDEN / "sql"
 EXPECTED_DIR = GOLDEN / "expected"
 RECORDED_DIR = GOLDEN / "recorded"
+ROUTES_DIR = GOLDEN / "routes"
 SYNTHETIC_SQL = GOLDEN / "synthetic.sql"
+ROUTES_RUNNER = GOLDEN / "run_routes.lua"
 DUMP_HELPER = ROOT / "tools" / "dump_golden_sql.lua"
 DEFAULT_QUOW_DB = os.path.expanduser("~/.local/share/hex/quow.db")
 DEFAULT_ROOMS_DB = os.path.expanduser("~/.local/share/hex/rooms.db")
@@ -145,6 +147,11 @@ def main():
         "--recorded",
         action="store_true",
         help="include the recorded layer (local Quow DB)",
+    )
+    ap.add_argument(
+        "--routes",
+        action="store_true",
+        help="include the route layer (committed fixtures; needs rooms.db to run)",
     )
     ap.add_argument(
         "--recorded-db", default=DEFAULT_QUOW_DB, help="path to the real Quow DB"
@@ -269,6 +276,47 @@ def main():
             body_diff = diff_note(path, strip_provenance(committed), out)
             if body_diff:
                 failures.append(f"recorded output drifted: {name}\n{body_diff}")
+
+    # --- layer 4: route goldens (committed fixtures; local-only to RUN) ---
+    # rooms.db derives from tt_dw's public-domain map, so the fixtures are
+    # committable (confirmed 2026-11-06), but running them needs rooms.db,
+    # which CI does not have: this layer rides the local ritual beside the
+    # recorded one, not the CI gate.
+    if args.routes:
+        if not os.path.exists(args.rooms_db):
+            sys.exit(
+                f"route layer: rooms.db not found at {args.rooms_db} (pass --rooms-db)"
+            )
+        result = subprocess.run(
+            [lua_binary(), str(ROUTES_RUNNER), args.rooms_db],
+            check=False,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            sys.exit(f"route runner failed:\n{result.stderr}")
+        sections = {}
+        current = None
+        for line in result.stdout.splitlines():
+            if line.startswith("=== ") and line.endswith(" ==="):
+                current = line[4:-4]
+                sections[current] = []
+            elif current:
+                sections[current].append(line)
+        ROUTES_DIR.mkdir(parents=True, exist_ok=True)
+        for name, lines in sections.items():
+            path = ROUTES_DIR / f"{name}.txt"
+            out = "\n".join(lines) + "\n"
+            if args.record:
+                path.write_text(out, encoding="utf-8")
+                print(f"recorded route: {name}")
+            elif not path.exists():
+                failures.append(f"route golden missing: {path} (run --record --routes)")
+            elif path.read_text(encoding="utf-8") != out:
+                failures.append(
+                    f"route golden drifted: {name}\n{diff_note(path, path.read_text(encoding='utf-8'), out)}"
+                )
 
     if failures:
         print(f"\n{len(failures)} golden failure(s):", file=sys.stderr)

@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.12.0 (2026-11-06)
+
+The golden engine's fourth layer: route goldens, committed at last now that the licensing call is settled (rooms.db derives from tt_dw's public-domain map, so the fixtures are clean to commit; Brandon confirmed).
+
+- `tests/golden/routes.lua` pins four pairs by vnum: both directions of the known Drum-to-Djel route and the two measured unreachable pins (Bes Pelargic across the sea-chain gap, Genua with no inbound Bois edges). The reverse route is 130 steps where the forward is 129, so the fixtures pin Dijkstra tie-breaking asymmetry in both directions byte-exact.
+- `tests/golden/run_routes.lua` renders each pair through the real Phase 2 graph (rooms.db over the sqlite3 CLI, `paths.load` + `find_route` + `render`); `tools/regen_goldens.py --routes` diffs or re-records the outputs into committed files under `tests/golden/routes/`.
+- The layer rides the LOCAL ritual, not CI: the fixtures are committed, but running them needs rooms.db, which stays out of the repo. `--check --routes --recorded --strict` is the full pre-tag ritual alongside the Quow layer.
+- A converter or graph-loader change now surfaces as a reviewable route diff instead of a silent semantic shift.
+
 ## v0.11.0 (2026-11-05)
 
 Phase 8's golden-test engine lands, and pays for itself in its first hour: the synthetic layer caught two real shipped bugs in the Quow query builders before it even left the workshop.
