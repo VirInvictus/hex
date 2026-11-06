@@ -51,6 +51,10 @@ M.schema = {
     desc = "/goto may route through swim edges",
   },
   {
+    key = "mdt", type = "bool", default = true, scope = "global",
+    desc = "parse room.writtenmap for the people tracker (/mdt, /hunt)",
+  },
+  {
     key = "avoid_gates", type = "bool", default = false, scope = "global",
     desc = "/goto routes around city gates (they lock at night)",
   },

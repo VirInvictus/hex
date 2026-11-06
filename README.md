@@ -52,6 +52,8 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/chatnpc [name]` | Silence an NPC's tells (persisted; `remove <name>` undoes) |
 | `/blorp add|delete|rename|list|all|goto` | Named places, per-alt, distance-sorted; `goto` shows the route |
 | `/bookmark add <label>: comment`, `/bookmark find|goto|list` | Shared bookmarks with comments, attributed per alt |
+| `/mdt`, `/mdt list` | People in the rooms around you, parsed from the written map: arrows, score, highlights; `add`/`remove`/`category` manage your own match rows |
+| `/hunt <target>`, `/hunt list`, `/unhunt <target>` | Watch for a target in nearby rooms: alert line on sight, deduped per 10 minutes |
 | `/stats [refresh]` | Read your stats into the bonus math (from `score verbose stats`) |
 | `/hexoptions [key] [value]` | Validated options with alt/session layers; `brief`, `defaults`, `clear <key>` |
 | `/hexsay <text>` | Speak text when a TTS-enabled blightmud build is available |

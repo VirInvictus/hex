@@ -26,6 +26,7 @@ local sound = require("src.hex_sound")
 local tts_mod = require("src.hex_tts")
 local blorps = require("src.hex_blorps")
 local minimap = require("src.hex_minimap")
+local mdt = require("src.hex_mdt")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -143,6 +144,9 @@ local prev_hp = nil
 -- Hex's OWN sqlite file; user data never touches rooms.db or tt_dw.
 blorps.setup({ config = config, room = room })
 minimap.setup({ config = config })
+-- the people tracker shares hex.db (mdt_match/mdt_category) and recomputes
+-- per accepted writtenmap push; hunt alerts print + emit on the bus
+mdt.setup({ config = config, notify = notify })
 
 -- spells: spelldata queries + TM suggestions feed off the skills store
 spells.setup({ config = config, skills = skills })
@@ -211,6 +215,7 @@ gmcp_wire.setup({
   end,
   on_writtenmap = function(data)
     maps.written = map_text(data)
+    mdt.on_writtenmap(maps.written, room.id)
   end,
 })
 
@@ -281,6 +286,7 @@ commands.setup({
   tts_mod = tts_mod,
   blorps = blorps,
   minimap = minimap,
+  mdt = mdt,
   paths_cache = paths_cache,
 })
 

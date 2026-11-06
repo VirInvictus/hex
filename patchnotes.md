@@ -1,5 +1,18 @@
 # Hex patchnotes
 
+## v0.10.0 (2026-11-05)
+
+Phase 5 slice 2 opens: the written-map people tracker (MDT), the first consumer of GMCP `room.writtenmap`.
+
+- `hex_mdt`: the parser ports tt_dw's mdt.tin onto the decoded written-map payload (Hex needs neither of tt_dw's two screen-scraping capture paths). Grammar: carriage-driver rewrites, the mdt colour-pair merges ("a black and white cat" -> "black-white"), netdead and vision-limit normalizations, prose-to-comma-list, count words (one..ninety-nine) and article stripping, and the direction state machine that attributes entities to their room group.
+- Matching: `/mdt add` rows and `/hunt` targets are plain case-insensitive text (tt_dw's tintin patterns are not portable to pure Lua; documented deviation). Hunting rows match first at score 100 with alert=1, user rows shadow the Quow defaults, and categories enable/disable with per-alt vs `_default` scoping.
+- The full Quow default match table ports as structured rules (find / exact / startswith / endswith / ends-with-exclusion / prefix+noun / adjective+noun): every row from tt_dw's migration 004, including the bureaucrat-excluding rat rule and the twenty-four dead-letter targets. None dropped.
+- Display: one line per nearby room (`←  [    5] 2 guards, cat, 3 peasants`) via `/mdt`; hunt alert lines print immediately (deduped, 10-minute expiry) and emit on the notify bus (`mdt.hunt`) for the Phase 7 sound layer to pick up later. Cleanup ports tt_dw's shorthand table (city guards -> guard, horse colours, hiding strips, whirlwinds -> dust devil), the witch-title exclusion, and the ~960-entry adverb strip; the word data is generated (`tools/convert_mdtdata.py` -> `src/hex_mdtdata.lua`: 16 colours + 963 entries, verbatim from the tt_dw source).
+- Commands: `/mdt [help|add|remove|list|category|categories]`, `/hunt [target|list|stop <target>|clear]`, `/unhunt <target>`. Storage joins hex.db as `mdt_match` (global, like tt_dw) plus `mdt_category` (per-character with `_default`). The `mdt` option (default on) gates processing.
+- Deviations noted in the module header: the written-map tab surface waits for the Phase 5 screen-budget check; tt_dw's main-feed #high highlight is out of scope; the pet-adverb chain strips one prefix per pass.
+- Compat: the local Lua interpreter drifted to 5.5 (loop control variables are read-only there), so the suite now runs clean under both 5.4 (the CI pin) and 5.5.
+- Tests grow to 166 (171 with the opt-in goldens).
+
 ## v0.9.0 (2026-11-05)
 
 Phase 8's first slice: continuous integration, cut before anything else ships.

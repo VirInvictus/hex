@@ -64,8 +64,9 @@ end
 -- stray commas the same way).
 function M.split_terms(input)
   local terms = {}
-  for term in tostring(input):gmatch("[^,]+") do
-    term = M.trim(term)
+  -- Lua 5.5 makes loop control variables read-only; trim into a local
+  for raw_term in tostring(input):gmatch("[^,]+") do
+    local term = M.trim(raw_term)
     if term ~= "" then
       terms[#terms + 1] = term
     end

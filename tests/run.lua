@@ -42,6 +42,8 @@ local defs = require("hex_options_def")
 local sound_events = require("hex_sound_events")
 local blorps = require("hex_blorps")
 local minimap = require("hex_minimap")
+local mdt = require("hex_mdt")
+local mdtdata = require("hex_mdtdata")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -1608,7 +1610,7 @@ t("spec invariant: every wired module defines setup", function()
   -- main.lua calls M.setup on each of these (found live: v0.8.0 shipped
   -- sound.setup/tts_mod.setup calls with no function behind them, and the
   -- load died at the call site)
-  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_options", "hex_quota", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_mdt", "hex_options", "hex_quota", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls" }) do
     local m = require(f)
     assert(type(m.setup) == "function", f .. ".lua is wired in main.lua but defines no setup")
   end
@@ -1619,7 +1621,7 @@ t("spec invariant: no look-around constructs anywhere in src/", function()
   -- a pattern that fails there kills the whole plugin load (found live in
   -- v0.5.2-dbg's first run); Lua patterns never contain these either
   local bad = { "%(%?!", "%(%?=", "%(%?<" }
-  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_mdt", "hex_mdtdata", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -1886,6 +1888,293 @@ t("sound_events: every stem is a plausible mp3 stem", function()
     assert(mapping.sound:match("^%w+$"), "odd stem: " .. mapping.sound)
   end
 end)
+
+-- hex_mdt (written-map people tracker; design docs/phase-5-room.md §2) -----
+
+-- reset the module's session state between tests
+local function mdt_reset(deps)
+  mdt.deps = deps or {}
+  mdt.state = { matches = {}, categories = {}, rooms = {}, seen = {} }
+end
+
+LIVE_WRITTENMAP = "A door north of here and the limit of your vision is here.\n"
+
+t("mdt: parse handles the live writtenmap sample", function()
+  -- the park's real payload (capture 2026-11-05): a door segment, no people
+  local groups = mdt.parse(LIVE_WRITTENMAP)
+  eq(#groups, 0)
+end)
+
+t("mdt: normalize merges colour pairs and rewrites vision/prose", function()
+  local n = mdt.normalize("a black and white cat, the limit of your vision is west of here")
+  assert(n:find("black%-white cat", 1), "colour pair: " .. n)
+  assert(n:find("limit of your vision:", 1, true), "vision terminator: " .. n)
+  assert(not n:find("vision is", 1, true), "prose 'is' rewritten: " .. n)
+  local n2 = mdt.normalize("Agnes, driver of the Genua carriage is here")
+  assert(n2:find("Genua carriage driver", 1, true), "carriage driver: " .. n2)
+end)
+
+t("mdt: parse groups entities before their direction clause", function()
+  -- golden trace: entities accumulate until a direction, the group flushes
+  -- at the vision terminator attributed to the last direction seen
+  local groups = mdt.parse(
+    "Two city guards, a black and white cat, a door north of here, three peasants are west of here and the limit of your vision is south of here.\n")
+  eq(#groups, 1)
+  eq(groups[1].direction, "1 w")
+  eq(#groups[1].entities, 3)
+  eq(groups[1].entities[1], "2 city guards")
+  eq(groups[1].entities[2], "1 black-white cat")
+  eq(groups[1].entities[3], "3 peasants")
+end)
+
+t("mdt: parse strips count words and articles", function()
+  local groups = mdt.parse("an old woman, the shoeshine boy are east of here and the limit of your vision is here.\n")
+  eq(#groups, 1)
+  eq(groups[1].direction, "1 e")
+  eq(groups[1].entities[1], "1 old woman")
+  eq(groups[1].entities[2], "1 shoeshine boy")
+end)
+
+t("mdt: parse doors segments only suppress their own direction", function()
+  -- after a door segment the next entity re-enables direction capture
+  local groups = mdt.parse("a door north of here, two trolls are east of here and the limit of your vision is here.\n")
+  eq(#groups, 1)
+  eq(groups[1].direction, "1 e")
+  eq(groups[1].entities[1], "2 trolls")
+end)
+
+t("mdt: numbers parse digits, teens, decades and hyphen forms", function()
+  eq(mdt.parse_number("3"), 3)
+  eq(mdt.parse_number("three"), 3)
+  eq(mdt.parse_number("twelve"), 12)
+  eq(mdt.parse_number("twenty"), 20)
+  eq(mdt.parse_number("twenty-one"), 21)
+  eq(mdt.parse_number("black-white"), nil)
+  eq(mdt.is_number("nineteen"), true)
+  eq(mdt.is_number("white"), false)
+end)
+
+t("mdt: singularize ports the tt_dw chain", function()
+  eq(mdt.singularize("city guards"), "city guard")
+  eq(mdt.singularize("bureaucrats"), "bureaucrat")
+  eq(mdt.singularize("wolves"), "wolf")
+  eq(mdt.singularize("dishes"), "dish")
+  eq(mdt.singularize("houses"), "house")
+  eq(mdt.singularize("boxes"), "box")
+  eq(mdt.singularize("pennies"), "penny")
+  eq(mdt.singularize("knives"), "knife")
+  eq(mdt.singularize("women"), "woman")
+  eq(mdt.singularize("geese"), "goose")
+  eq(mdt.singularize("sheep"), "sheep")
+  eq(mdt.singularize("loaves of bread"), "loaf of bread")
+  eq(mdt.singularize("pairs of socks"), "pair of socks")
+  eq(mdt.singularize("peasants"), "peasant")
+end)
+
+t("mdt: pluralize feeds the display column", function()
+  eq(mdt.pluralize("city guard"), "city guards")
+  eq(mdt.pluralize("woman"), "women")
+  eq(mdt.pluralize("knife"), "knives")
+  eq(mdt.pluralize("wolf"), "wolves")
+  eq(mdt.pluralize("box"), "boxes")
+  eq(mdt.pluralize("goose"), "geese")
+  eq(mdt.pluralize("city"), "cities")
+end)
+
+t("mdt: sart strips articles and one-of forms", function()
+  eq(mdt.sart("a banker"), "banker")
+  eq(mdt.sart("The Duke"), "Duke")
+  eq(mdt.sart("one of the wizards"), "wizard")
+end)
+
+t("mdt: arrows expand counts and sum distance", function()
+  local a, d = mdt.arrows("1 w")
+  eq(a, "\u{2190}")
+  eq(d, 1)
+  local a2, d2 = mdt.arrows("3 n 2 ne")
+  eq(a2, "\u{2191}\u{2191}\u{2191}\u{2197}\u{2197}")
+  eq(d2, 5)
+  local a3 = mdt.arrows("")
+  eq(a3, "")
+end)
+
+t("mdt: default table integrity (ported rows, no unknown patterns)", function()
+  assert(#mdt.defaults >= 70, "default row count: " .. #mdt.defaults)
+  local kinds = { find = true, exact = true, startswith = true, endswith = true, exclude_endswith = true, contains_endswith = true, prefix_endswith = true, adj_endswith = true }
+  for _, row in ipairs(mdt.defaults) do
+    assert(kinds[row.rule.kind], "bad rule kind: " .. tostring(row.rule.kind))
+    assert(type(row.score) == "number", "score must be numeric")
+  end
+  eq(#mdt.unknown_adverb_patterns, 0) -- every adverb pattern form expanded
+  eq(#mdtdata.colors, 16)
+end)
+
+t("mdt: default rules match their tt_dw intent", function()
+  mdt_reset()
+  eq(mdt.match("giant rat").score, 0)
+  eq(mdt.match("bureaucrat").score, 1) -- the rat rule's bureauc exclusion
+  eq(mdt.match("red cloud").score, 0)
+  eq(mdt.match("merchant banker").score, 5)
+  eq(mdt.match("merchant banker").category, "loot")
+  eq(mdt.match("han sung bodyguard").score, 4) -- surname with a token before it
+  eq(mdt.match("sung bodyguard").score, 1) -- the source needs a leading token
+  eq(mdt.match("city bodyguard").score, 1)
+  eq(mdt.match("diligent student").score, 4)
+  eq(mdt.match("lazy student").score, 1)
+  eq(mdt.match("tough man (hiding)").score, 2) -- the thug row allows trailing text
+  eq(mdt.match("duke of city").score, 5)
+  eq(mdt.match("boy willie").score, 10)
+  eq(mdt.match("boy willie").category, "letters")
+  eq(mdt.match("citadel guard").score, 12)
+  eq(mdt.match("soldier").score, 4)
+end)
+
+t("mdt: user rows first-hit-wins and shadow defaults", function()
+  mdt_reset()
+  mdt.load_matches({
+    { "banker", "loot", "", 2, 0 },
+    { "soldier", "", "", 9, 0 },
+  })
+  eq(mdt.match("merchant banker").score, 2) -- user row shadows the default
+  eq(mdt.match("a wounded soldier").score, 9)
+end)
+
+t("mdt: hunting matches first at score 100 with alert", function()
+  mdt_reset()
+  mdt.load_matches({
+    { "troll", "", "", 1, 0 },
+    { "troll", "hunting", "", 100, 1 },
+  })
+  local m = mdt.match("a huge troll")
+  eq(m.score, 100)
+  eq(m.alert, true)
+  eq(m.category, "hunting")
+end)
+
+t("mdt: category disable skips user rows", function()
+  mdt_reset()
+  mdt.load_matches({ { "banker", "loot", "", 5, 0 } })
+  mdt.load_categories({ { "_default", "loot", 0 } })
+  eq(mdt.category_status("loot"), false)
+  eq(mdt.match("merchant banker").score, 1) -- disabled row skipped
+  mdt.load_categories({ { "_default", "loot", 1 }, { "Censant", "loot", 0 } })
+  mdt.deps.config = { alt = function() return "Censant" end }
+  eq(mdt.category_status("loot"), false) -- alt overrides default
+  mdt.deps.config = { alt = function() return "Otheralt" end }
+  eq(mdt.category_status("loot"), true)
+end)
+
+t("mdt: skips zero the score (config data, exact names like tt_dw's bat)", function()
+  mdt_reset()
+  mdt.deps.config = {
+    alt = function() return nil end,
+    get = function(key, default) return key == "mdt_skips" and { "Battista the giant fruitbat" } or default end,
+  }
+  local m = mdt.match("Battista the giant fruitbat")
+  eq(m.score, 0)
+  eq(m.show, false)
+  eq(mdt.match("a giant fruitbat").score, 0) -- the Quow default, not the skip
+end)
+
+t("mdt: clean shortens the shorthand table", function()
+  mdt_reset()
+  eq(mdt.clean("city guard"), "guard")
+  eq(mdt.clean("palace guard"), "guard")
+  eq(mdt.clean("bay dun horse"), "horse")
+  eq(mdt.clean("old black rat"), "rat") -- full parity now that colours are adverbs
+  eq(mdt.clean("giant rat"), "rat")
+  eq(mdt.clean("brown rat"), "rat") -- the mdt colours are strippable adverbs
+  eq(mdt.clean("harvest moon goose"), "goose") -- the moon pet family
+  eq(mdt.clean("red-haired old man"), "man") -- interleaved chain strips to fixpoint
+  eq(mdt.clean("a red cloud"), "cloud")
+  eq(mdt.clean("wounded soldier (hiding)"), "wounded soldier")
+  eq(mdt.clean("huge whirlwind of dust and debris"), "dust devil")
+  -- tt_dw's row strips the word before "mail"; the name itself survives
+  eq(mdt.clean("Tom the mail carriage driver"), "Tom carriage driver")
+  eq(mdt.clean("zombie town crier"), "town crier")
+  eq(mdt.clean("guard thief"), "guard")
+  eq(mdt.clean("Granny Weatherwax"), "Granny Weatherwax") -- witch title survives
+  eq(mdt.clean("old woman"), "woman")
+end)
+
+t("mdt: named labels colour, witch titles and forms stay excluded", function()
+  eq(mdt.named_label("Elsabeth Dahlil"), true)
+  eq(mdt.named_label("Sung bodyguard"), true)
+  eq(mdt.named_label("Granny Weatherwax"), false) -- witch title
+  eq(mdt.named_label("Genua carriage driver"), false)
+  eq(mdt.named_label("Royal Guard"), false)
+  eq(mdt.named_label("city guard"), false)
+end)
+
+t("mdt: process scores, sorts and renders the golden fixture", function()
+  mdt_reset()
+  local groups = mdt.parse("Two city guards, a black and white cat, a door north of here, three peasants are west of here and the limit of your vision is south of here.\n")
+  local result = mdt.process(groups)
+  eq(#result.rooms, 1)
+  eq(#result.alerts, 0)
+  local r = result.rooms[1]
+  eq(r.score, 5) -- 2x1 + 0 (cat) + 3x1
+  eq(r.distance, 1)
+  eq(r.show, true)
+  eq(r.arrows, "\u{2190}")
+  local lines = mdt.render(result.rooms)
+  eq(#lines, 1)
+  -- golden: cat is score 0 so dimmed and kept, guards/peasants pluralized
+  -- (compare stripped: the dimming wraps "cat" in gray ANSI)
+  local plain = util.strip_ansi(lines[1])
+  assert(plain:find("^←%s*%[%s*5%]%s*2 guards, cat, 3 peasants$"), "render: " .. plain)
+end)
+
+t("mdt: process sorts score desc then distance asc", function()
+  mdt_reset()
+  local groups = {
+    { direction = "1 w", entities = { "1 soldier" } }, -- score 4, dist 1
+    { direction = "3 n", entities = { "2 citadel guards" } }, -- score 24, dist 3
+    { direction = "2 e", entities = { "1 peasant" } }, -- score 1, dist 2
+  }
+  local result = mdt.process(groups)
+  eq(result.rooms[1].score, 24)
+  eq(result.rooms[2].score, 4)
+  eq(result.rooms[3].score, 1)
+  eq(result.rooms[1].distance, 3)
+end)
+
+t("mdt: hunt alerts surface through process", function()
+  mdt_reset()
+  mdt.load_matches({ { "troll", "hunting", "", 100, 1 } })
+  local groups = mdt.parse("two trolls are east of here and the limit of your vision is here.\n")
+  local result = mdt.process(groups)
+  eq(#result.alerts, 1)
+  eq(result.alerts[1].entity, "troll")
+  eq(result.alerts[1].arrows, "\u{2192}")
+  eq(result.rooms[1].score, 200)
+end)
+
+t("mdt: SQL builders escape and shape", function()
+  assert(mdt.match_add_sql("it's", "loot", "green", 5, true):find("'it''s'"), "match escaped")
+  assert(mdt.match_add_sql("x", "", "", 1, false):find("1, 0", 1, true), "alert bool -> int")
+  assert(mdt.match_remove_sql("it's"):find("'it''s'"), "remove escaped")
+  assert(mdt.category_set_sql("Censant", "loot", 0):find("%(character, category, status%)"), "category upsert shape")
+  assert(mdt.category_set_sql("Censant", "loot", nil):find("DELETE FROM mdt_category"), "clear deletes")
+  assert(mdt.category_set_sql("Censant", "loot", nil):find("AND category = 'loot'"), "clear scoped to the category (tt_dw deletes the whole character's rows)")
+  local init = mdt.init_sql()
+  eq(#init, 2)
+  assert(init[1]:find("PRIMARY KEY %(match%)"), "match PK is global (shared across alts)")
+  assert(init[2]:find("PRIMARY KEY %(character, category%)"), "category PK scoped")
+end)
+
+t("mdt: state loaders shape rows", function()
+  mdt_reset()
+  local rows = mdt.load_matches(util.parse_rows("troll|hunting||100|1\nbanker|loot|green|5|0\n"))
+  eq(#rows, 2)
+  eq(rows[1].alert, 1)
+  eq(rows[2].color, "green")
+  mdt.load_categories(util.parse_rows("_default|loot|0\nCensant|letters|1\n"))
+  eq(mdt.state.categories._default.loot, 0)
+  eq(mdt.state.categories.Censant.letters, 1)
+end)
+
+
 
 -- Phase 8 shim slice: main.lua loads against a stub blightmud ------------
 
