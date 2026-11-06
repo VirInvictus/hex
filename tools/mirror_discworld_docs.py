@@ -127,8 +127,16 @@ def main():
             index = json.load(fh)
 
     queue = list(dict.fromkeys(SEEDS))
-    seen = {url for url, entry in index.items() if not str(entry.get("status", "")).startswith("error")}
-    queue += [url for url, entry in index.items() if str(entry.get("status", "")).startswith("error")]
+    seen = {
+        url
+        for url, entry in index.items()
+        if not str(entry.get("status", "")).startswith("error")
+    }
+    queue += [
+        url
+        for url, entry in index.items()
+        if str(entry.get("status", "")).startswith("error")
+    ]
     done = 0
     session_log = []
 
@@ -151,8 +159,8 @@ def main():
                 try:
                     parser.feed(body.decode("utf-8", errors="replace"))
                     title = parser.title.strip()
-                except Exception:
-                    pass
+                except Exception:  # noqa: BLE001 -- best-effort: malformed pages still mirror
+                    title = ""
                 with open(path, "wb") as fh:
                     fh.write(body)
                 status = "fetched"
@@ -160,7 +168,7 @@ def main():
                     normalized = normalize(href, url)
                     if normalized and normalized not in seen:
                         queue.append(normalized)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 -- best-effort crawl: log and move on
                 status = f"error: {exc}"
             done += 1
             if done % 25 == 0:

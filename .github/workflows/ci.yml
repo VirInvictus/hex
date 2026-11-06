@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lua-tests:
+    name: Lua unit suite (5.4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.4
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y lua5.4
+      - name: Unit suite
+        run: lua5.4 tests/run.lua
+      # HEX_GOLDEN=1 is skipped in CI: the golden routes need rooms.db and
+      # the tt_dw clone, which are local fixtures by design (third-party
+      # data stays out of the repo).
+
+  python-tests:
+    name: Python converter tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Converter suite
+        run: python3 -m unittest discover -s tests -v
+
+  lint:
+    name: Ruff (format + lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.17.2"
+      - name: Format check
+        run: ruff format --check tools/ tests/
+      - name: Lint
+        run: ruff check tools/ tests/

@@ -124,11 +124,7 @@ def parse_spelldata(path):
                 elif stripped.startswith("#var spellinfos"):
                     section, depth = "spells", depth_delta(line)
                 continue
-            if (
-                stripped.startswith("#nop")
-                or stripped.startswith("#class")
-                or not stripped
-            ):
+            if stripped.startswith(("#nop", "#class")) or not stripped:
                 continue
             depth += depth_delta(line)
             fields = parse_fields(line)

@@ -9,7 +9,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
 
-import convert_map  # noqa: E402
+import convert_map
 
 SAMPLE = """V 20231
 F 1
@@ -85,7 +85,7 @@ class TestTinPairs(unittest.TestCase):
 
 class TestBuildDb(unittest.TestCase):
     def test_roundtrip(self):
-        fd, out = tempfile.mkstemp(suffix=".db")
+        _fd, out = tempfile.mkstemp(suffix=".db")
         os.unlink(out)
         rooms, exits = (
             [
