@@ -47,7 +47,7 @@ Run all commands from the repo root.
 
 1. No `mud.send` outside user-alias handlers; no timer ever sends input. Discworld bans anything that could unidle a character. `rg -n 'mud\.send' src/` must only hit alias/command callbacks.
 2. Quow's database and the tt_dw clones are read-only. Generated data goes to `~/.local/share/hex/`.
-3. No third-party dependencies: Lua 5.4 stdlib and Python stdlib only.
+3. No third-party dependencies: Lua 5.4 stdlib and Python stdlib only. The one sanctioned exception (Brandon-approved 2026-11-06): blightmud's own bundled rxi/json.lua vendored verbatim as `tests/shim-json.lua` (MIT header preserved) so the test harness runs the real decode path; it is the client's own file, not a new dependency.
 
 ## Editor support
 

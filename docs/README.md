@@ -11,7 +11,7 @@ One document per roadmap phase, produced by the 2026-11-04/05 exploration campai
 | [phase-5-room.md](phase-5-room.md) | 5 the room | exploration core shipped in v0.7.0; MDT shipped in v0.10.0; maze/guess in slice 2 | Render ladder: top rows (dev) → tab → inline (stock); maze movement is an input-listener rewrite, legal because plugin sends bypass it |
 | [phase-6-social.md](phase-6-social.md) | 6 social | shipped in v0.5.0 | One mirror-mode `chat` tab routed by Rust-side filters (colors free, no double-routing); GMCP always beats the monitor fallback |
 | [phase-7-feel.md](phase-7-feel.md) | 7 feel & options | comfort core shipped in v0.8.0 (sound/options/theme/tts); guild packs deferred | Sound off by default (no bundled files; tt_dw's CC0 set via sound_dir); options = schema-validated layers (session > alt > global > default) |
-| [phase-8-engineering.md](phase-8-engineering.md) | 8 ship | CI shipped in v0.9.0; test shim in v0.8.1; goldens shipped in v0.11.0 + v0.12.0 (routes); fake-GMCP harness + README showcase remain | CI from the house shape; three-layer goldens; a fake-GMCP shim that makes the M1 dead-vitals bug class a red CI run instead of a dead status bar |
+| [phase-8-engineering.md](phase-8-engineering.md) | 8 ship | CI shipped in v0.9.0; test shim in v0.8.1; goldens shipped in v0.11.0 + v0.12.0 (routes); fake-GMCP harness shipped in v0.13.0; README showcase remains | CI from the house shape; three-layer goldens; a fake-GMCP shim that makes the M1 dead-vitals bug class a red CI run instead of a dead status bar |
 
 ## Cross-phase shared infrastructure (build once, consumed everywhere)
 

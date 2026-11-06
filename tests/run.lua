@@ -2437,6 +2437,117 @@ t("capture: counters fold out/prompt/gmcp/rooms into the summary", function()
   assert(joined:find("gmcp: char.vitals=1 room.info=3 room.writtenmap=1"), "gmcp line: " .. joined)
 end)
 
+-- Phase 8 harness: replay recorded fixtures through the handler chain -----
+
+local shim = dofile(root .. "tests/shim.lua") -- one module instance; load_main resets its recordings
+
+local function load_fixture(name)
+  return dofile(root .. "tests/fixtures/gmcp/" .. name .. ".lua")
+end
+
+local function replay(steps)
+  for _, step in ipairs(steps) do
+    if step.event == "on_ready" then
+      for _, cb in ipairs(shim.on_ready_cbs) do
+        cb()
+      end
+    elseif step.event == "receive" then
+      for _, cb in ipairs(shim.receive_cbs[step.name] or {}) do
+        cb(step.raw)
+      end
+    elseif step.event == "tick" then
+      shim.clock = shim.clock + (step.seconds or 0)
+    end
+  end
+end
+
+t("harness: the login fixture replays clean end to end", function()
+  local ok, err = shim.load_main(root .. "main.lua")
+  assert(ok, "main.lua failed under the shim: " .. tostring(err))
+  -- fire the login fixture (provenance in the fixture header)
+  replay(load_fixture("login"))
+  -- handshake: two sends, hello (with the real version) then supports.set
+  -- naming all six commands lowercase
+  eq(#shim.gmcp_sent, 2)
+  assert(shim.gmcp_sent[1]:find("core.hello", 1, true), "hello first: " .. shim.gmcp_sent[1])
+  assert(shim.gmcp_sent[1]:find('"version": "' .. version .. '"', 1, true), "hello carries the release version: " .. shim.gmcp_sent[1])
+  assert(shim.gmcp_sent[2]:find("core.supports.set", 1, true), "supports second")
+  for _, name in ipairs({ "char.login", "char.info", "char.vitals", "room.info", "room.map", "room.writtenmap" }) do
+    assert(shim.gmcp_sent[2]:find('"' .. name .. '"', 1, true), "supports missing " .. name)
+  end
+  -- vitals landed coerced into the status bar row (blightmud rows are 0-based)
+  assert(shim.status[0]:find("500/500", 1, true), "bar row: " .. tostring(shim.status[0]))
+  -- room name + burden in the room row
+  assert(shim.status[1]:find("Combat Crib", 1, true) and shim.status[1]:find("burden 9%%", 1, false), "room row: " .. tostring(shim.status[1]))
+  -- the driven clock + the xp delta produce the rate in the summary row (8300/hour)
+  assert(shim.status[2]:find("8,300", 1, true), "summary row: " .. tostring(shim.status[2]))
+  -- the anti-idle invariant at runtime: a full login replay sends nothing
+  eq(#shim.mud_sent, 0)
+end)
+
+t("harness: gmcp.register is a hard tripwire", function()
+  local env = shim.environment()
+  local ok, err = pcall(env.gmcp.register, "char.vitals")
+  eq(ok, false)
+  assert(tostring(err):find("forbidden", 1, true), "tripwire message: " .. tostring(err))
+end)
+
+t("harness: a second load does not double the fleet (the reload fixture)", function()
+  local ok1, err1, c1 = shim.load_main(root .. "main.lua")
+  assert(ok1, tostring(err1))
+  local first_aliases, first_triggers = #c1.alias, #c1.trigger
+  local ok2, err2, c2 = shim.load_main(root .. "main.lua")
+  assert(ok2, tostring(err2))
+  eq(#c2.alias, first_aliases)
+  eq(#c2.trigger, first_triggers)
+  assert(first_aliases >= 30, "alias fleet size: " .. first_aliases)
+end)
+
+t("harness: the password line is skip-logged exactly through the chain", function()
+  shim.load_main(root .. "main.lua")
+  local password_trigger = nil
+  for _, t in ipairs(shim.calls.trigger) do
+    if t.re == "^Enter password:" then
+      password_trigger = t
+    end
+  end
+  assert(password_trigger and password_trigger.cb, "password trigger registered")
+  password_trigger.cb() -- arm
+  assert(#shim.input_listeners > 0, "input listener registered")
+  local line = shim.make_line("hunter2")
+  for _, listener in ipairs(shim.input_listeners) do
+    listener(line)
+  end
+  eq(line._skip_log, true)
+end)
+
+t("harness: trailing-empty Quow rows survive the /item alias (cabbage class)", function()
+  shim.load_main(root .. "main.lua")
+  -- the db answer carries a trailing empty field, the original crash shape
+  table.insert(shim.exec_responses, "cabbage~1~~~\n")
+  local item_trigger = nil
+  for _, t in ipairs(shim.calls.trigger) do
+    -- aliases and triggers share the registry list shape; find /item
+    if t.re == "^/item\\s+(.+)$" then
+      item_trigger = t
+    end
+  end
+  -- aliases are recorded under calls.alias; search there too
+  if not item_trigger then
+    for _, a in ipairs(shim.calls.alias) do
+      if a.re == "^/item\\s+(.+)$" then
+        item_trigger = a
+      end
+    end
+  end
+  assert(item_trigger and item_trigger.cb, "/item alias registered")
+  local ok, err = pcall(item_trigger.cb, { "/item cabbage", "cabbage" })
+  assert(ok, "cabbage row crashed the render: " .. tostring(err))
+  local joined = table.concat(shim.prints, "\n")
+  assert(joined:find("cabbage", 1, true), "item rendered: " .. joined)
+end)
+
+
 -- Phase 8 shim slice: main.lua loads against a stub blightmud ------------
 
 t("shim: main.lua loads against the stub blightmud and registers the fleet", function()

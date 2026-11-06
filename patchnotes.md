@@ -1,5 +1,17 @@
 # Hex patchnotes
 
+## v0.13.0 (2026-11-06)
+
+Phase 8's core engineering piece: the fake-GMCP harness. The dead-vitals bug class is now a red CI run instead of a dead status bar at login.
+
+- The shim grows replay hooks: `gmcp.on_ready`/`gmcp.receive`/`core.subneg_recv` record their callbacks, `mud.add_input_listener`/`on_connect` record too, `core.exec` pops a test response queue, `print` and the status lines are recorded, `os.time` sits behind a controllable clock, and a Line stub carries skip_log/gag/replace. `gmcp.register` is a hard tripwire that errors on use (Discworld ignores Core.Supports.Add; Hex sends raw) — the M1 lesson enforced at runtime.
+- blightmud's bundled rxi/json.lua ships vendored verbatim as `tests/shim-json.lua` (MIT header preserved; Brandon approved the vendor): the replay exercises the REAL decode path, including room.map's double-encoded ANSI string. The old stub-json's `__raw` placeholder is gone.
+- The login fixture replays the confirmed wire payloads (verbatim from the 2026-11-06 00:31 capture) through main.lua's whole chain: handshake shape (two sends, hello carrying the release version, supports.set naming all six commands lowercase), vitals landing coerced into the status bar row, room name + burden in the room row, a clock-driven second push producing the xp rate in the summary row, and the anti-idle invariant asserted at runtime: a full login replay sends nothing.
+- Four more batteries: the reload fixture (a second load registers exactly the same fleet), the password fixture (skip_log set through the real trigger + input-listener chain), the emptyfields fixture (a trailing-empty Quow row through the real /item alias callback — the cabbage-crash class), and the tripwire test.
+- Wire-pending payloads are marked in the fixture itself: char.login/char.info carry the DOCUMENTED shape only (no capture has ever contained them; the guild-pack lane still holds).
+- The capture lane stays (it comes out when Brandon's current verification pass lands its data); this release is tests-only plus the version bump.
+- Tests grow to 182 (187 with the opt-in route goldens).
+
 ## v0.12.2-dbg (2026-11-06)
 
 The debug lane's mobile phase: Brandon is out in the real world, so the verification commands grow legs.
