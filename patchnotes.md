@@ -8,6 +8,7 @@ The Phase 8 shim arrives early, exactly as the first live session demanded. Plus
 - Regression invariant: every module wired into main.lua must define `setup` (found live: `sound.setup` and `tts.setup` were called from main.lua with no function behind them, which killed the load at the call site and left the alias fleet unregistered while the GMCP handlers stayed live).
 - The minimap top-rows call and the chat-tab session flag hit blightmud API type rules on the same first run: `add_top_row` takes ONE opts table (`{name, body, bar_char, prefix, visible}`; body is a single string), not a bare name, and store values must be strings, never booleans. Net effect: the minimap renders in an on-screen top row on stock 5.7.1 (the API exists there, correcting the design's dev-tree-only assumption), and the chat-tab gate persists correctly.
 - `/hexsound test` plays each mapped stem once.
+- `/map` joins the on-demand views (same render as `/dwmap`; the auto minimap ladder covers top rows and the map tab).
 - Tests grow to 143 (148 with the opt-in goldens).
 
 ## v0.8.0 (2026-11-05)
