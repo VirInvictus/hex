@@ -284,7 +284,7 @@ function M.setup_tab()
   if not M.has_tabs or not M.deps.config.get("chat_tab", true) then
     return
   end
-  if store.session_read("hex.chat_tab_created") then
+  if store.session_read("hex.chat_tab_created") == "1" then
     return -- created earlier this session; filters are append-only
   end
   local ok, err = pcall(function()
@@ -303,7 +303,9 @@ function M.setup_tab()
     end
   end)
   if ok then
-    store.session_write("hex.chat_tab_created", true)
+    -- store values are strings (blightmud session_write rejects booleans;
+    -- found live in v0.8.0's first run)
+    store.session_write("hex.chat_tab_created", "1")
   else
     print(util.ansi.gray .. "[hex] chat tab unavailable (" .. tostring(err) .. "); staying in mirror mode" .. util.ansi.reset)
   end

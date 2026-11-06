@@ -84,7 +84,7 @@ The enabling fact from the M1 research: the MUD's 40-hex room identifier is the 
 
 ## Phase 5: the room (M5) — mapper v2
 
-- [x] ASCII minimap panel from GMCP `room.map` (already stored; now rendered beside the status area or in a dev-tab, feature-detected) — shipped v0.7.0 as the render ladder: toprows (dev trees) → `map` tab (stock 5.7.1; tabs proven live) → inline (`/dwmap` stays the fallback); deduped per room push, empty payloads noted, no-@ vision hint, `hex.map_panel` override; MUD colors are dropped on the tab path (output_to joins fresh lines) so it renders stripped
+- [x] ASCII minimap panel from GMCP `room.map` (already stored; now rendered beside the status area or in a dev-tab, feature-detected) — shipped v0.7.0 as the render ladder: toprows → `map` tab (stock 5.7.1; tabs proven live) → inline (`/dwmap` stays the fallback). Wire correction from live play (v0.8.1): stock 5.7.1 HAS the toprows API (add_top_row takes one opts table with name/body), so the minimap renders on-screen on the shipping client; deduped per room push, empty payloads noted, no-@ vision hint, `hex.map_panel` override; MUD colors are dropped on the tab path (output_to joins fresh lines) so it renders stripped
 - [ ] Written-map people tracker (MDT) parsing `room.writtenmap`
 - [ ] Lost-room matching by name/area when the identifier is unknown (tt_dw's guess logic, identifier-keyed)
 - [ ] Library (UU/Shades/AoA) and maze movement modes; shared-instance identifiers disambiguated by room name

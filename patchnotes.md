@@ -19,6 +19,7 @@ Phase 7's comfort core: theme, a real options engine, and sound, all defaults-pr
 - TTS: `/hexsay <text>` speaks whenever a TTS-enabled blightmud build is available; option-gated event speech shares the sound event table. Every tts call except is_available() is availability-gated (ungated calls spam errors on non-TTS builds).
 - `/hexsound test` plays each mapped stem once.
 - First-live-session hotfix: `sound.setup` and `tts.setup` were called from main.lua with no function behind them (the load died at the call site the way the v0.5.2-dbg look-ahead did); both added, and a new suite invariant requires every module wired into main.lua to define setup.
+- Second first-run hotfix pair: the minimap's top-rows call and the chat-tab session flag both hit blightmud API type rules — `add_top_row` takes ONE opts table (`{name, body}`), not `(name)` alone, and store values must be strings, never booleans. Net effect: the minimap now renders in an on-screen top row on stock 5.7.1 (the API exists there, correcting the design's dev-tree-only assumption), and the chat-tab gate persists correctly. Both failures were caught without killing the plugin load (the minimap's pcall ladder and the gate's separate call site held).
 - Tests grow to 143 (148 with the opt-in goldens): classic palette byte-golden, 24-bit shape, role paint/unknown-role, schema well-formedness, alias canonicalization, validation errors with choices/ranges, damage-word thresholds, template rendering.
 
 ## v0.7.0 (2026-11-05)

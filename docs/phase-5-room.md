@@ -16,7 +16,7 @@ Design doc. Status: exploration core implemented in v0.7.0 (§1 minimap render l
 | **Dev tab** ("map" pane: minimap + MDT + room detail, `history_lines` bounded) | **Secondary**; snapshots append (no clear API) |
 | **Inline print** | **Fallback** (stock v5.7.1); the existing `/dwmap`, on-demand only |
 
-Not the status area (5-row cap, 3 already used). Not inline-per-room (scrollback spam). **Feature-detect ladder**: `blight.add_top_row → "toprows"`, else `blight.create_tab → "tab"`, else `"inline"`; option override `hex.map_panel`.
+Not the status area (5-row cap, 3 already used). Not inline-per-room (scrollback spam). **Feature-detect ladder**: `blight.add_top_row → "toprows"`, else `blight.create_tab → "tab"`, else `"inline"`; option override `hex.map_panel`. LIVE CORRECTION (v0.8.1 first run): stock 5.7.1 HAS the toprows API — `add_top_row` takes ONE opts table (`{name, body, bar_char, prefix, visible}`; body is a single string with embedded newlines, empty string clears), and `session_write` values must be strings (booleans are rejected). The chat-tab session flag hit the same store rule.
 
 Refresh semantics: on `on_map`, deduped by (payload, room_id) — the MUD pushes on look *and* enter, so re-looking the same room must not re-render. Stale marking when the identifier changes without a map push (edge-case guard; they arrive in one burst per move). Empty/whitespace payloads hide the panel (`[no map — you can't see anything here]` in the tab); maps without `@` render with a `(no @ — vision?)` hint. Open question: whether `set_top_row` bodies render embedded SGR — verify live; if stripped, toprows falls back to strip mode and the tab keeps color.
 

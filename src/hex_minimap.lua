@@ -67,7 +67,7 @@ end
 -- The map tab: created once per session (the session-store gate is the
 -- same pattern that fixed the chat tab's reload re-create).
 function M.ensure_tab()
-  if store.session_read("hex.map_tab_created") then
+  if store.session_read("hex.map_tab_created") == "1" then
     return
   end
   local ok, err = pcall(function()
@@ -79,7 +79,7 @@ function M.ensure_tab()
     end
   end)
   if ok then
-    store.session_write("hex.map_tab_created", true)
+    store.session_write("hex.map_tab_created", "1") -- store values are strings
   else
     M.mode = "inline"
     print(gray("[hex] map tab unavailable (" .. tostring(err) .. "); /dwmap stays the view"))
@@ -87,10 +87,10 @@ function M.ensure_tab()
 end
 
 function M.ensure_toprows()
+  -- wire-verified Rust signature: add_top_row takes ONE opts TABLE
+  -- ({name = ..., body = ...}); a bare string errors
   local ok, err = pcall(function()
-    for i = 1, 5 do
-      blight.add_top_row("minimap" .. i)
-    end
+    blight.add_top_row({ name = "minimap" })
   end)
   if not ok then
     M.mode = "tab"
@@ -131,10 +131,10 @@ function M.on_map(raw, room_id)
 end
 
 function M.render_toprows(lines)
+  -- body is a single STRING (embedded newlines; the renderer splits them)
+  local text = table.concat(lines, "\n")
   pcall(function()
-    for i = 1, 5 do
-      blight.set_top_row("minimap" .. i, { lines[i] or "" })
-    end
+    blight.set_top_row("minimap", { body = text })
   end)
 end
 
