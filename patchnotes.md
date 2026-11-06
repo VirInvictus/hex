@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.8.1 (2026-11-05)
+
+The Phase 8 shim arrives early, exactly as the first live session demanded.
+
+- `tests/shim.lua`: a stub blightmud environment (registry, triggers, aliases, timers, store, json, core.exec, mud/gmcp/blight/audio/tts surfaces) that loads the REAL main.lua in the suite. The first run caught a missing stub (`blight.on_dimensions_change`) and proved the harness earns its keep; two suite invariants now pin the load: main.lua must load cleanly under the shim registering 30+ aliases including `/hexreload`, and it must send nothing to the MUD at load time.
+- Regression invariant: every module wired into main.lua must define `setup` (the v0.8.0 first-load crash: `sound.setup`/`tts.setup` were called but never defined).
+- The reload passivity mystery from the live session: `sound.setup` missing killed main.lua at the call site, which left the alias fleet unregistered while GMCP handlers (registered earlier in the chunk) stayed live. That is exactly the half-loaded signature the shim now catches in tests.
+- No MUD-facing changes: the fixed setup functions return the same behavior the modules already documented. Tests grow to 141 (146 with the opt-in goldens).
+
 ## v0.8.0 (2026-11-05)
 
 Phase 7's comfort core: theme, a real options engine, and sound, all defaults-preserving and notify-driven (sound triggers are explicitly legal per concepts/automation).
