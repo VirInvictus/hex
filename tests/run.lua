@@ -1902,31 +1902,6 @@ t("shim: main.lua loads against the stub blightmud and registers the fleet", fun
   end
   assert(reload_found, "/hexreload alias registered")
   eq(calls.send and #calls.send or 0, 0) -- loading must never send anything to the MUD
-end)
-
-t("shim: a wired-but-missing setup function fails the load, not the login", function()
-  -- regression for v0.8.0's first live load (sound.setup was called but
-  -- never defined): the shim turns that class into a suite failure
-  local shim = dofile(root .. "tests/shim.lua")
-  local ok, err = shim.load_main(root .. "main.lua")
-  assert(ok, tostring(err))
-end)
-
--- Phase 8 shim slice: main.lua loads against a stub blightmud ------------
-
-t("shim: main.lua loads against the stub blightmud and registers the fleet", function()
-  local shim = dofile(root .. "tests/shim.lua")
-  local ok, err, calls = shim.load_main(root .. "main.lua")
-  assert(ok, "main.lua failed under the shim: " .. tostring(err))
-  assert(#calls.alias > 30, "alias count: " .. #calls.alias)
-  local reload_found = false
-  for _, a in ipairs(calls.alias) do
-    if a.re == "^/hexreload$" then
-      reload_found = true
-    end
-  end
-  assert(reload_found, "/hexreload alias registered")
-  eq(calls.send and #calls.send or 0, 0) -- loading must never send anything to the MUD
   assert(calls.timers == nil or #calls.timers == 0, "no timers at load")
 end)
 

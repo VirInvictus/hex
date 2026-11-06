@@ -19,7 +19,7 @@ Phase 7's comfort core: theme, a real options engine, and sound, all defaults-pr
 - TTS: `/hexsay <text>` speaks whenever a TTS-enabled blightmud build is available; option-gated event speech shares the sound event table. Every tts call except is_available() is availability-gated (ungated calls spam errors on non-TTS builds).
 - `/hexsound test` plays each mapped stem once.
 - First-live-session hotfix: `sound.setup` and `tts.setup` were called from main.lua with no function behind them (the load died at the call site the way the v0.5.2-dbg look-ahead did); both added, and a new suite invariant requires every module wired into main.lua to define setup.
-- Tests grow to 141 (146 with the opt-in goldens): classic palette byte-golden, 24-bit shape, role paint/unknown-role, schema well-formedness, alias canonicalization, validation errors with choices/ranges, damage-word thresholds, template rendering.
+- Tests grow to 143 (148 with the opt-in goldens): classic palette byte-golden, 24-bit shape, role paint/unknown-role, schema well-formedness, alias canonicalization, validation errors with choices/ranges, damage-word thresholds, template rendering.
 
 ## v0.7.0 (2026-11-05)
 
