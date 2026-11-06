@@ -4,9 +4,9 @@
 
 A live-found fix from Brandon's first walk in Ankh-Morpork: `/near market` from God Street listed five unreachable strangers in Genua and Ephebe while AM's own Job Market rooms never appeared.
 
-- Cause: the name-search candidate cap (LIMIT 15, `ORDER BY name`) ran BEFORE the distance sort, so `/near` only ever saw the alphabetically-first 15 matches — Genua's "Carrefour" and Ephebe's "Dockside" beat AM's "Job Market" to the cut, and the whole reachable set was invisible.
+- Cause: the name-search candidate cap (LIMIT 15, `ORDER BY name`) ran BEFORE the distance sort, so `/near` only ever saw the alphabetically-first 15 matches: Genua's "Carrefour" and Ephebe's "Dockside" beat AM's "Job Market" to the cut, and the whole reachable set was invisible.
 - Fix: `/near` now resolves with the cap dropped (all 263 "market" matches go through the one multi-target Dijkstra) and the top five are picked after sorting. `/path` and `/goto` keep the cap for their candidate lists, where it is the point.
-- Found while orienting: the Assassins' Guild interior is not in the public map data (only 12 rooftop tiles are), so `/goto guild of assassins` has nothing to match — the doorstep is Filigree Street, and `/goto filigree` is the way there.
+- Found while orienting: the Assassins' Guild interior is not in the public map data (only 12 rooftop tiles are), so `/goto guild of assassins` has nothing to match; the doorstep is Filigree Street, and `/goto filigree` is the way there.
 - Tests grow to 183 (188 with the opt-in route goldens).
 
 ## v0.13.0 (2026-11-06)
