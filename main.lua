@@ -27,6 +27,8 @@ local tts_mod = require("src.hex_tts")
 local blorps = require("src.hex_blorps")
 local minimap = require("src.hex_minimap")
 local mdt = require("src.hex_mdt")
+local capture = require("src.hex_capture")
+local doctor = require("src.hex_doctor")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -147,6 +149,27 @@ minimap.setup({ config = config })
 -- the people tracker shares hex.db (mdt_match/mdt_category) and recomputes
 -- per accepted writtenmap push; hunt alerts print + emit on the bus
 mdt.setup({ config = config, notify = notify })
+
+-- v0.12.1-dbg debug lane: the capture harness is TEMPORARY (comes out of the
+-- next feature release; /doctor stays). Passive while armed: the user's own
+-- keystrokes drive everything it records.
+capture.setup({ gmcp = gmcp_wire })
+mud.add_output_listener(capture.listener)
+
+-- /doctor: the in-client self-test (permanent). last_vitals_at feeds the
+-- GMCP freshness check.
+doctor.setup({
+  config = config,
+  vitals = vitals,
+  room = room,
+  maps = maps,
+  gmcp = gmcp_wire,
+  data = data,
+  mdt = mdt,
+  minimap = minimap,
+  sound = sound,
+  tts_mod = tts_mod,
+})
 
 -- spells: spelldata queries + TM suggestions feed off the skills store
 spells.setup({ config = config, skills = skills })
@@ -287,6 +310,8 @@ commands.setup({
   blorps = blorps,
   minimap = minimap,
   mdt = mdt,
+  capture = capture,
+  doctor = doctor,
   paths_cache = paths_cache,
 })
 

@@ -44,6 +44,8 @@ local blorps = require("hex_blorps")
 local minimap = require("hex_minimap")
 local mdt = require("hex_mdt")
 local mdtdata = require("hex_mdtdata")
+local capture = require("hex_capture")
+local doctor = require("hex_doctor")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -1618,7 +1620,7 @@ t("spec invariant: every wired module defines setup", function()
   -- main.lua calls M.setup on each of these (found live: v0.8.0 shipped
   -- sound.setup/tts_mod.setup calls with no function behind them, and the
   -- load died at the call site)
-  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_mdt", "hex_options", "hex_quota", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_mdt", "hex_options", "hex_quota", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls", "hex_capture", "hex_doctor" }) do
     local m = require(f)
     assert(type(m.setup) == "function", f .. ".lua is wired in main.lua but defines no setup")
   end
@@ -1629,7 +1631,7 @@ t("spec invariant: no look-around constructs anywhere in src/", function()
   -- a pattern that fails there kills the whole plugin load (found live in
   -- v0.5.2-dbg's first run); Lua patterns never contain these either
   local bad = { "%(%?!", "%(%?=", "%(%?<" }
-  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_mdt", "hex_mdtdata", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_capture", "hex_doctor", "hex_mdt", "hex_mdtdata", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -1646,7 +1648,7 @@ t("spec invariant: registration literals carry no Lua classes or bad escapes", f
   -- alias/trigger/Regex literals go to the RUST engine: %s matches literal
   -- "%s" there (found live: 22 commands passed through to the MUD), and a
   -- single backslash + letter is an invalid Lua escape that stops parsing
-  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture_removed", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp", "hex_stats" }) do
+  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture_removed", "hex_capture", "hex_doctor", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp", "hex_stats" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -2180,6 +2182,158 @@ t("mdt: state loaders shape rows", function()
   mdt.load_categories(util.parse_rows("_default|loot|0\nCensant|letters|1\n"))
   eq(mdt.state.categories._default.loot, 0)
   eq(mdt.state.categories.Censant.letters, 1)
+end)
+
+
+
+-- hex_capture (v0.12.1-dbg debug lane) --------------------------------------
+
+t("capture: path_for stamps the capture dir", function()
+  capture.setup({ captures_dir = "/tmp/hex-capture-test" })
+  eq(capture.path_for("20261106-120000"), "/tmp/hex-capture-test/hex-capture-20261106-120000.log")
+end)
+
+t("capture: arm/disarm round-trip writes and closes the transcript", function()
+  local tmp = os.tmpname() -- reserve a name, then use it as a directory seed
+  os.remove(tmp)
+  os.execute("mkdir -p " .. tmp) -- the in-client mkdir goes through core.exec
+  capture.setup({ captures_dir = tmp })
+  capture.arm()
+  assert(capture.active, "armed")
+  assert(capture.file, "transcript open")
+  capture.disarm()
+  eq(capture.active, false)
+  eq(capture.file, nil)
+  -- arm again with a gmcp sink: the hook must be set while armed, cleared after
+  capture.setup({ captures_dir = tmp })
+  local gmcp_stub = {}
+  capture.deps.gmcp = gmcp_stub
+  capture.arm()
+  assert(gmcp_stub.sink ~= nil, "sink installed while armed")
+  gmcp_stub.sink("room.info {}")
+  capture.disarm()
+  eq(gmcp_stub.sink, nil)
+  os.execute("rm -rf " .. tmp)
+end)
+
+t("capture: listener mirrors lines only while armed", function()
+  local tmp = os.tmpname()
+  os.remove(tmp)
+  os.execute("mkdir -p " .. tmp)
+  capture.setup({ captures_dir = tmp })
+  local line_stub = {
+    line = function()
+      return "You attack the pumpkin."
+    end,
+    prompt = function()
+      return false
+    end,
+  }
+  capture.listener(line_stub) -- disarmed: no file, no crash
+  capture.arm()
+  capture.listener(line_stub)
+  capture.disarm()
+  local files = {}
+  local p = io.popen("ls " .. tmp)
+  for f in p:read("*a"):gmatch("%S+") do
+    files[#files + 1] = f
+  end
+  p:close()
+  eq(#files, 1)
+  local body = io.open(tmp .. "/" .. files[1], "r"):read("*a")
+  assert(body:find("You attack the pumpkin%.", 1), "line mirrored: " .. body)
+  assert(body:find("session end", 1, true), "session end marker")
+  os.execute("rm -rf " .. tmp)
+end)
+
+-- hex_doctor (the permanent self-test) ---------------------------------------
+
+t("doctor: the battery runs clean against self-test deps", function()
+  local vitals_mod_t = require("hex_vitals")
+  local vt = vitals_mod_t.new()
+  vitals_mod_t.apply(vt, { hp = 500, maxhp = 500, gp = 50, maxgp = 50, xp = 5356, burden = 3 })
+  vt.last_gmcp = os.time()
+  local rm = require("hex_rooms").new()
+  require("hex_rooms").update(rm, { identifier = string.rep("a", 40), name = "Combat Crib", kind = "inside" })
+  doctor.setup({
+    self_test = true,
+    config = { get = function(key, default) return default end, explicit = function() return nil end, alt = function() return "Censant" end },
+    vitals = vt,
+    room = rm,
+    maps = { written = "x", ascii = "y" },
+    gmcp = { handshake_done = true },
+    data = { hex_dir = function() return "/tmp" end, owned_quow = function() return "" end, legacy_quow = function() return "" end },
+    mdt = mdt,
+    minimap = { mode = "toprows" },
+    sound = {},
+    tts_mod = { available = function() return false end },
+  })
+  local results = doctor.run_checks()
+  local statuses = {}
+  for _, r in ipairs(results) do
+    statuses[r.status] = (statuses[r.status] or 0) + 1
+    assert(r.status == "ok" or r.status == "warn" or r.status == "fail" or r.status == "skip",
+      "invalid status: " .. tostring(r.status) .. " on " .. r.name)
+  end
+  assert(#results >= 25, "battery size: " .. #results)
+  assert(statuses.skip >= 5, "db/file/command checks must skip in the suite: " .. tostring(statuses.skip))
+  -- the parser mini-suite must be all-green in the suite
+  for _, r in ipairs(results) do
+    if r.group == "parsers" then
+      eq(r.status, "ok")
+    end
+  end
+  -- live gmcp state reflects the stubs
+  for _, r in ipairs(results) do
+    if r.name == "handshake" then
+      eq(r.status, "ok")
+    end
+    if r.name == "room feed" then
+      eq(r.status, "ok")
+    end
+  end
+end)
+
+t("doctor: failures surface with the right statuses", function()
+  doctor.setup({
+    self_test = true,
+    config = { get = function(key, default) return default end, explicit = function() return nil end, alt = function() return nil end },
+    vitals = require("hex_vitals").new(), -- no vitals: feed check must fail
+    room = {},
+    maps = {},
+    gmcp = {}, -- no handshake: must fail (the M1 bug class)
+    data = { hex_dir = function() return "/tmp" end },
+    mdt = mdt,
+    minimap = {},
+    sound = {},
+    tts_mod = { available = function() return false end },
+  })
+  local results = doctor.run_checks()
+  local seen_fail = {}
+  for _, r in ipairs(results) do
+    seen_fail[r.name] = r.status
+  end
+  eq(seen_fail["handshake"], "fail")
+  eq(seen_fail["vitals feed"], "fail")
+  eq(seen_fail["room feed"], "fail")
+end)
+
+t("doctor: run prints a summary line (self-test writes no report file)", function()
+  doctor.setup({
+    self_test = true,
+    config = { get = function(key, default) return default end, explicit = function() return nil end, alt = function() return nil end },
+    vitals = require("hex_vitals").new(),
+    room = {},
+    maps = {},
+    gmcp = {},
+    data = { hex_dir = function() return "/tmp" end },
+    mdt = mdt,
+    minimap = {},
+    sound = {},
+    tts_mod = { available = function() return false end },
+  })
+  local results = doctor.run() -- prints; self_test blocks the report write
+  assert(#results >= 25, "results")
 end)
 
 

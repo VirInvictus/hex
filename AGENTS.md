@@ -40,7 +40,7 @@ Run all commands from the repo root.
 - Command aliases must match the leading slash themselves (`"^/item\\s+"`): blightmud passes unmatched lines (slash included) straight to the MUD.
 - `script.reset` does NOT clear `package.loaded`: after editing plugin files, `/load_plugin` re-executes main.lua but cached modules stay stale. Restart the client for a clean reload (learned live in the probe).
 - **Wire facts (capture-verified 2026-11-05, `~/.local/share/hex/captures/`)**: GMCP identifiers are 40-hex and match rooms.db verbatim; `glance` and `look` both push info+map+writtenmap; `score brief` = `Hp: N(N)  Gp: N(N)  Xp: N  Burden: N%`; stats = TWO dot-padded lines (`Constitution ...` / `Dexterity ...`), not the documented 3-line, and the same pair tails `score verbose`; guild parses from score verbose's `level N in the X Guild` clause; `hskills brief` uses the plain-parens shape; `options set output brief exits on` is INVALID (bare `brief exits` works); `options terminal automatic rows = off` is REJECTED under blightmud's NAWS (not sent by /hexsetup).
-- **DEBUG LANE history**: `src/hex_capture.lua` shipped in v0.5.2-dbg and was REMOVED in v0.6.0 per plan; its transcripts live in `~/.local/share/hex/captures/` and remain the wire-shape reference.
+- **DEBUG LANE history**: `src/hex_capture.lua` shipped in v0.5.2-dbg, was REMOVED in v0.6.0 per plan, and RESURRECTED in v0.12.1-dbg (asked-for) for the combat-monitor pass; it comes out of the next feature release while `/doctor` (v0.12.1-dbg, permanent) is the in-client self-test. Transcripts live in `~/.local/share/hex/captures/` and remain the wire-shape reference; doctor reports land in `~/.local/share/hex/doctor-<stamp>.log`.
 
 ## Hard constraints (spec.md carries the details)
 

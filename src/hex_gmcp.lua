@@ -41,6 +41,12 @@ local ROUTES = {
 local probe_on = false
 local recent = {} -- last raw incoming GMCP subnegs, newest last
 
+-- sink: set by hex_capture while armed so raw payloads mirror into the
+-- transcript; nil when disarmed. handshake/last_subneg feed /doctor.
+M.sink = nil
+M.handshake_done = false
+M.last_subneg_at = nil
+
 function M.probe()
   probe_on = not probe_on
   gmcp.echo(probe_on)
@@ -56,15 +62,20 @@ function M.setup(handlers)
   gmcp.on_ready(function()
     gmcp.send(HELLO)
     gmcp.send(SUPPORTS)
+    M.handshake_done = true
   end)
 
-  -- raw tap on telnet option 201 (GMCP) for /hexraw
+  -- raw tap on telnet option 201 (GMCP) for /hexraw (and the capture sink)
   core.subneg_recv(function(proto, bytes)
     if proto == 201 then
       local text = bytes_to_string(bytes)
       recent[#recent + 1] = text
       if #recent > 12 then
         table.remove(recent, 1)
+      end
+      M.last_subneg_at = os.time()
+      if M.sink then
+        M.sink(text)
       end
     end
   end)

@@ -109,7 +109,9 @@ function M.item_test(term, exact)
     return "(i.item_name = '" .. util.sql_escape(search) .. "')"
   end
 
-  local like = util.glob_wildcards(util.glob_to_like(search))
+  -- found by the doctor battery: the LIKE paths never escaped either (the
+  -- goldens only exercised npc/sources; plain /item it's was malformed too)
+  local like = util.sql_escape(util.glob_wildcards(util.glob_to_like(search)))
   if kind == "describe" then
     return "(i.description LIKE '" .. like .. "')"
   elseif kind == "appraise" then

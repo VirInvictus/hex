@@ -58,6 +58,7 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/hexoptions [key] [value]` | Validated options with alt/session layers; `brief`, `defaults`, `clear <key>` |
 | `/hexsay <text>` | Speak text when a TTS-enabled blightmud build is available |
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
+| `/doctor` | Self-test everything: GMCP liveness, databases, data modules, parser fixtures, wiring, feature detection; writes a report file |
 | `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
 | `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |
 | `/hexgag`, `/gaglog` | List and add your own gags as data (`/hexgag [-i] <pattern> [-> <substitution>]`) |
