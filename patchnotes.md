@@ -8,7 +8,9 @@ Phase 7's comfort core: theme, a real options engine, and sound, all defaults-pr
 - Theme: `hex_theme` re-skins the whole suite from one place: classic (byte-identical to today's ANSI, golden-tested) and dragon (Kanagawa 24-bit); `/hexoptions theme dragon` flips it live. Mechanism: use() mutates the shared hex_util.ansi table in place, the single table every module already reads, so re-skinning needs zero call-site migration (the design's delete-and-migrate simplified away).
 - Sound: `hex_sound_events` maps notify-bus events to the CC0 mp3 stems (`/hexupdate` already copied them): connect/disconnect, tells, mission-ready, damage. Defaults OFF (a terminal client is frequently SSH'd or at work); `/hexoptions sound on` runs a preflight (Hex's own copy of the set is detected first, tt_dw fallback). Damage words are verbatim tt_dw thresholds (-200/-400/-500) and debounced 2s so fight bursts don't stack.
 - TTS: `/hexsay <text>` speaks whenever a TTS-enabled blightmud build is available; option-gated event speech shares the sound event table. Every tts call except is_available() is availability-gated (ungated calls spam errors on non-TTS builds).
-- `/hexsound test` plays each mapped stem once. Tests grow to 140 (145 with the opt-in goldens): classic palette byte-golden, 24-bit shape, role paint/unknown-role, schema well-formedness, alias canonicalization, validation errors with choices/ranges, damage-word thresholds, template rendering.
+- `/hexsound test` plays each mapped stem once.
+- First-live-session hotfix: `sound.setup` and `tts.setup` were called from main.lua with no function behind them (the load died at the call site the way the v0.5.2-dbg look-ahead did); both added, and a new suite invariant requires every module wired into main.lua to define setup.
+- Tests grow to 141 (146 with the opt-in goldens): classic palette byte-golden, 24-bit shape, role paint/unknown-role, schema well-formedness, alias canonicalization, validation errors with choices/ranges, damage-word thresholds, template rendering.
 
 ## v0.7.0 (2026-11-05)
 
