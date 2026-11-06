@@ -29,6 +29,10 @@ local function speak(text)
   return true
 end
 
+function M.setup(deps)
+  M.deps = deps
+end
+
 -- subscribe the same event table; per event: availability gate -> option
 -- gate -> template render -> speak
 function M.register(subscribe)

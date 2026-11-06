@@ -82,6 +82,10 @@ function M.play(stem)
   return true
 end
 
+function M.setup(deps)
+  M.deps = deps
+end
+
 -- subscribe every event in the table; handlers no-op when sound is off
 -- (the notify bus contract: never sends, millisecond-scale)
 function M.register(subscribe)

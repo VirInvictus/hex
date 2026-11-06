@@ -1604,6 +1604,16 @@ end)
 
 -- wire-verified invariants (2026-11-05 capture) ---------------------------
 
+t("spec invariant: every wired module defines setup", function()
+  -- main.lua calls M.setup on each of these (found live: v0.8.0 shipped
+  -- sound.setup/tts_mod.setup calls with no function behind them, and the
+  -- load died at the call site)
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_options", "hex_quota", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls" }) do
+    local m = require(f)
+    assert(type(m.setup) == "function", f .. ".lua is wired in main.lua but defines no setup")
+  end
+end)
+
 t("spec invariant: no look-around constructs anywhere in src/", function()
   -- the Rust regex engine rejects (?!( (?= and (?< at Regex.new time, and
   -- a pattern that fails there kills the whole plugin load (found live in
