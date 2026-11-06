@@ -1,5 +1,16 @@
 # Hex patchnotes
 
+## v0.12.2-dbg (2026-11-06)
+
+The debug lane's mobile phase: Brandon is out in the real world, so the verification commands grow legs.
+
+- Every capture now ends with a SUMMARY: output/prompt line counts, GMCP payloads by type, distinct rooms visited (with a per-room push count), symbolic identifiers flagged, EMPTY identifiers called out loudly (the Phase 5 maze question), journey arrivals, and drift lines. `/hexcapture summary` prints it mid-capture too. The summary exists so a transcript answers "what did we actually see" without me re-reading it line by line.
+- `/hexdebug walk <target>`: arms the capture and runs the REAL `/goto` path unchanged (the verification must exercise the shipped feature, not a debug copy), then reminds you the disarm summary counts rooms, drift and journey lines. This is the walker's live-verification pass: the batch send, the frimble marker, the drift reporting and the completion summary all land in one transcript.
+- `/hexdebug queries`: smoke-tests the Quow builders against the real database in-client (item/npc/sources sold/free/loot, plus the shop and npc queries for your current room). Read-only counts; the freshly fixed escaping and alias bugs get their live smoke.
+- `/hexdebug` bare prints the debug menu plus the worth-running-for-real checklist (/stats refresh, /skills refresh, /blorp, /bookmark, /mdt in a busy street, /path, /near, a real fight).
+- One suite invariant did its job on my own code mid-slice: the new /hexcapture literal briefly carried a Lua `%S` class into a Rust registration and the registration-literal test refused it.
+- Tests grow to 178 (183 with the opt-in route goldens). The lane still comes out with v0.13.0.
+
 ## v0.12.1-dbg (2026-11-06)
 
 A debug release in the v0.5.2-dbg tradition: the capture lane comes back for one specific verification pass (the combat-monitor parse has never seen a real wire line), and `/doctor` ships as the new permanent fixture.

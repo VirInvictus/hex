@@ -2409,6 +2409,36 @@ end)
 
 
 
+t("capture: counters fold out/prompt/gmcp/rooms into the summary", function()
+  local stats = { out = 0, prompt = 0, gmcp = {}, rooms = {}, symbolic_ids = {}, empty_ids = 0, journey_arrivals = 0, drift_lines = 0 }
+  capture.count(stats, "out", "You hit the pumpkin in the flesh with an uppercut.")
+  capture.count(stats, "prompt", ">")
+  capture.count(stats, "out", "You arrive after having journeyed 2 miles west.")
+  capture.count(stats, "out", "[hex] DRIFT at step 3/129: expected x, saw y")
+  capture.count(stats, "gmcp", 'char.vitals {"hp":500,"maxhp":500}')
+  capture.count(stats, "gmcp", 'room.info {"identifier":"' .. string.rep("a", 40) .. '","name":" somewhere"}')
+  capture.count(stats, "gmcp", 'room.info {"identifier":"UULibrary","name":" the library"}')
+  capture.count(stats, "gmcp", 'room.info {"identifier":"","name":" dark"}')
+  capture.count(stats, "gmcp", 'room.writtenmap "A door north of here."')
+  eq(stats.out, 3)
+  eq(stats.prompt, 1)
+  eq(stats.gmcp["char.vitals"], 1)
+  eq(stats.gmcp["room.info"], 3)
+  eq(stats.journey_arrivals, 1)
+  eq(stats.drift_lines, 1)
+  eq(stats.empty_ids, 1)
+  eq(#stats.symbolic_ids, 1)
+  eq(stats.rooms[string.rep("a", 40)], 1)
+  local lines = capture.summary_lines(stats)
+  local joined = table.concat(lines, "\n")
+  assert(joined:find("distinct rooms: 2", 1, true), "rooms line: " .. joined)
+  assert(joined:find("UULibrary%s+%(symbolic%)"), "symbolic tag: " .. joined)
+  assert(joined:find("EMPTY identifiers seen: 1", 1, true), "empty flag: " .. joined)
+  assert(joined:find("gmcp: char.vitals=1 room.info=3 room.writtenmap=1"), "gmcp line: " .. joined)
+end)
+
+-- Phase 8 shim slice: main.lua loads against a stub blightmud ------------
+
 t("shim: main.lua loads against the stub blightmud and registers the fleet", function()
   local shim = dofile(root .. "tests/shim.lua")
   local ok, err, calls = shim.load_main(root .. "main.lua")
