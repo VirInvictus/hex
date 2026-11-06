@@ -538,6 +538,13 @@ t("targets: builders escape and shape SQL", function()
   assert(not targets.build_name_query("drum", nil):find("AND area", 1, true), "unexpected area scope")
 end)
 
+t("targets: /near's all-matches query drops the cap (the Job Market bug)", function()
+  -- found live 2026-11-06: the alphabetical LIMIT 15 cut AM's "Job Market"
+  -- rooms out of /near market, leaving five unreachable Genua/Ephebe rows
+  assert(not targets.build_name_query("market", nil, true):find("LIMIT", 1, true), "all-matches must not cap")
+  assert(targets.build_name_query("market", nil):find("LIMIT 15", 1, true), "capped default retained")
+end)
+
 -- hex_paths -----------------------------------------------------------------
 
 -- synthetic dump rows in the parse_rows shape (arrays of field arrays)

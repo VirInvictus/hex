@@ -87,11 +87,17 @@ function M.build_origin_room_query(room_name, area)
     :format(CAND, util.sql_escape(room_name), util.sql_escape(util.glob_wildcards(area)), IDENTIFIED)
 end
 
-function M.build_name_query(term, area)
+-- all: true drops the LIMIT (cmd_near must distance-sort EVERY match --
+-- the alphabetical cap once hid Ankh-Morpork's "Job Market" behind Genua's
+-- "Carrefour" and left /near showing five unreachable strangers).
+function M.build_name_query(term, area, all)
   local pattern = util.glob_to_like(util.glob_wildcards(util.trim(term)))
   local sql = ("SELECT %s FROM rooms WHERE %s AND name LIKE '%s'"):format(CAND, IDENTIFIED, util.sql_escape(pattern))
   if area and area ~= "" then
     sql = sql .. (" AND area LIKE '%s'"):format(util.sql_escape(util.glob_to_like(util.glob_wildcards(area))))
+  end
+  if all then
+    return sql .. " ORDER BY name"
   end
   return sql .. (" ORDER BY name LIMIT %d"):format(M.NAME_LIMIT)
 end

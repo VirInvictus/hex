@@ -230,7 +230,7 @@ end
 
 -- Run the resolution plan from hex_targets; returns a candidate list
 -- (possibly empty) or nil + reason.
-local function resolve_targets(input, g)
+local function resolve_targets(input, g, opts)
   local cache = M.deps.paths_cache
   local plan = targets.parse(input)
   if not plan then
@@ -258,7 +258,9 @@ local function resolve_targets(input, g)
         end
       end
     elseif step.kind == "name" then
-      local r = rows(db, targets.build_name_query(step.term, step.area))
+      -- /near drops the candidate cap: distance-sorting must see every
+      -- match (the alphabetical 15 once hid AM's Job Market entirely)
+      local r = rows(db, targets.build_name_query(step.term, step.area, opts and opts.all_matches))
       if r and #r > 0 then
         local cands = {}
         for _, f in ipairs(r) do
@@ -437,7 +439,7 @@ local function cmd_near(args)
   if not g then
     return
   end
-  local cands, err = resolve_targets(args, g)
+  local cands, err = resolve_targets(args, g, { all_matches = true })
   if not cands then
     print(a("gray", "[hex] " .. err))
     return
