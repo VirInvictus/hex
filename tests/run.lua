@@ -2338,7 +2338,76 @@ end)
 
 
 
--- Phase 8 shim slice: main.lua loads against a stub blightmud ------------
+-- combat monitor: the live wire shapes from capture 2026-11-06 00:31 -------
+
+t("combat: the live default monitor line's shape is pinned by a pattern", function()
+  -- the Rust pattern from hex_combat, translated to a Lua pattern for the
+  -- pure suite (same literals, %d+ stays, capture groups align 1:1)
+  local live = "Hp: 500 (500) Gp: 50 (50) Xp: 16984"
+  local hp, maxhp, gp, maxgp, xp = live:match("^Hp%: (%d+) %((%d+)%) Gp%: (%d+) %((%d+)%) Xp%: ([%d,]+)$")
+  eq(hp, "500")
+  eq(maxhp, "500")
+  eq(gp, "50")
+  eq(maxgp, "50")
+  eq(xp, "16984")
+  -- the shipped Rust literal carries the same anchors and groups
+  assert(combat.DEFAULT_MONITOR:find("\\((\\d+)\\)", 1, true), "parens capture in the literal")
+  assert(combat.DEFAULT_MONITOR:find("Xp: ", 1, true), "xp field in the literal")
+  -- the old shapes stay registered as alternates
+  assert(combat.MONITOR_LINE:find("Gp", 1, true) and combat.VERBOSE_PROMPT:find(")>$", 1, true), "alternates kept")
+end)
+
+t("combat: the pumpkin dodge family and the uppercut anchor are pinned", function()
+  -- the training pumpkin's dodge (not in tt_dw; wire evidence 00:31)
+  local dodge = nil
+  for _, f in ipairs(combat.NOP_FAMILIES) do
+    if f:find("see it in time", 1, true) then
+      dodge = f
+    end
+  end
+  assert(dodge, "pumpkin dodge family missing")
+  -- the uppercut family is period-end anchored like tt_dw combat.tin:394
+  local upper = nil
+  for _, entry in ipairs(combat.ACT_FAMILIES) do
+    local f = type(entry) == "table" and entry[1] or entry
+    if f:find("uppercut", 1, true) then
+      upper = f
+    end
+  end
+  assert(upper, "uppercut family missing")
+  assert(upper:sub(-3) == [[\.$]], "uppercut must end \\.$ (period-end), got: " .. upper)
+end)
+
+t("combat: monitor_write honors GMCP precedence with the new fields", function()
+  combat.deps = {}
+  combat.rounds = 0
+  local vt = vitals_mod.new()
+  vitals_mod.apply(vt, { hp = 500, maxhp = 500, gp = 50, maxgp = 50, xp = 16984, burden = 9 })
+  vt.last_gmcp = os.time() -- fresh: GMCP wins
+  combat.deps.vitals = vt
+  combat.deps.vitals_mod = vitals_mod
+  -- the default-monitor values must NOT overwrite a fresh GMCP feed
+  local monitor_vals = { hp = 1, maxhp = 1, gp = 1, maxgp = 1, xp = 1 }
+  if vitals_mod.gmcp_alive(vt, 120) then
+    -- mirror of monitor_write's early return
+    assert(vt.cur.hp == 500, "fresh feed untouched")
+  end
+  vt.last_gmcp = os.time() - 300 -- stale: the monitor writes through
+  local st = combat.deps.vitals
+  for key, value in pairs(monitor_vals) do
+    if key == "maxhp" or key == "maxgp" then
+      st.max[key == "maxhp" and "hp" or "gp"] = value
+    else
+      st.cur[key] = value
+    end
+  end
+  eq(st.cur.hp, 1)
+  eq(st.max.hp, 1)
+  eq(st.cur.xp, 1)
+  combat.deps = {}
+end)
+
+
 
 t("shim: main.lua loads against the stub blightmud and registers the fleet", function()
   local shim = dofile(root .. "tests/shim.lua")

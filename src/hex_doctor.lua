@@ -95,7 +95,7 @@ local function build_checks()
     if st.last_gmcp then
       local age = os.time() - st.last_gmcp
       if age <= 120 then
-        return "ok", "hp " .. tostring(st.cur.hp) .. "/" .. tostring(st.cur.maxhp) .. " (fresh, " .. age .. "s)"
+        return "ok", "hp " .. tostring(st.cur.hp) .. "/" .. tostring(st.max and st.max.hp or "?") .. " (fresh, " .. age .. "s)"
       end
       return "warn", "hp " .. tostring(st.cur.hp) .. " but stale (" .. age .. "s since last push)"
     end

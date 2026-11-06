@@ -43,6 +43,9 @@ M.LEVEL_GAGS = {
 M.NOP_FAMILIES = {
   "but you (?:deftly |just |easily )?(?:block|parry) the blow with .+",
   "but you (?:deftly |just |easily )?dodge out of the way",
+  -- the Combat Crib training pumpkin's dodge (wire: capture 2026-11-06
+  -- 00:31; tt_dw has no "see it in time" family -- it never fights dummies)
+  "but you see it in time and manage to dodge it",
   "but, although unable to defend, you",
   "your floating .+ swoops in and absorbs (?:all|most)",
   "but your (?:flaming barrier|.+ flames) absorbs? (?:all|most|some)",
@@ -58,7 +61,9 @@ local HURT_VERBS = "bruise|smashe|poke|chop|jab|scratche|boot|kick|hit|tickle|ha
 
 M.ACT_FAMILIES = {
   { "^\\w+ou (?:viciously |messily |barely |neatly )?(?:" .. HIT_VERBS .. ") " },
-  { "^\\w+ou (?:gently |barely )?(?:slice at|run .+ through|make a kebab of|beat|hit .+ with a{n|} (?:vicious |)(?:hook|cross|kick|uppercut)) " },
+  -- tt_dw combat.tin:394 anchors with period+end; the port's trailing space
+  -- never matched the live "with an uppercut." form (found by the 00:31 capture)
+  { "^\\w+ou (?:gently |barely )?(?:slice at|run .+ through|make a kebab of|beat|hit .+ with a{n|} (?:vicious |)(?:hook|cross|kick|uppercut))\\.$" },
   { " (?:viciously |messily |barely |neatly )?(?:" .. HURT_VERBS .. ")s ", moon_dragon = true },
   { " runs you through the " },
   { " hitting you on the " },
@@ -73,7 +78,13 @@ M.ACT_FAMILIES = {
 }
 
 -- The combat-monitor strings installed by /hexsetup (doc/mud_settings.md).
+-- Wire truth (capture 2026-11-06 00:31): the MUD actually sends its DEFAULT
+-- monitor format per combat round -- "Hp: N (N) Gp: N (N) Xp: N" (single
+-- spaces, parenthesised maxima, no burden, no prompt tail) -- and a bare
+-- ">" prompt; the customised prompt/monitor shapes below stay registered
+-- for when the /hexsetup strings take effect on a character.
 M.MONITOR_LINE = "^Hp: (%d+)   Gp: (%d+)$"
+M.DEFAULT_MONITOR = "^Hp: (\\d+) \\((\\d+)\\) Gp: (\\d+) \\((\\d+)\\) Xp: (\\d+(?:,\\d{3})*)$"
 M.VERBOSE_PROMPT = "^Hp: (%d+) %((%d+)%)  Gp: (%d+) %((%d+)%)  Xp: (\\d+(?:,\\d{3})*)   \\(([^,]+), (.+)\\)>$"
 M.SCORE_BRIEF = "^Hp: (%d+)\\((%d+)\\)  Gp: (%d+)\\((%d+)\\)  Xp: (\\d+(?:,\\d{3})*)  Burden: (\\d+)%%$"
 
@@ -209,6 +220,17 @@ function M.register(trigger_add, Regex)
   trigger_add(Regex.new(M.MONITOR_LINE, { gag = true }), {}, function(matches)
     M.rounds = M.rounds + 1
     monitor_write({ hp = tonumber(matches[2]), gp = tonumber(matches[3]) })
+  end)
+  -- the default format the MUD actually sends per round (wire-verified)
+  trigger_add(Regex.new(M.DEFAULT_MONITOR, { gag = true }), {}, function(matches)
+    M.rounds = M.rounds + 1
+    monitor_write({
+      hp = tonumber(matches[2]),
+      maxhp = tonumber(matches[3]),
+      gp = tonumber(matches[4]),
+      maxgp = tonumber(matches[5]),
+      xp = tonumber((matches[6]:gsub(",", ""))),
+    })
   end)
   trigger_add(Regex.new(M.VERBOSE_PROMPT, { gag = true }), {}, function(matches)
     M.rounds = M.rounds + 1
