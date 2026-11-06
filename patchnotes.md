@@ -2,12 +2,13 @@
 
 ## v0.8.1 (2026-11-05)
 
-The Phase 8 shim arrives early, exactly as the first live session demanded.
+The Phase 8 shim arrives early, exactly as the first live session demanded. Plus the live-session hotfixes from v0.8.0's first run on a real character.
 
 - `tests/shim.lua`: a stub blightmud environment (registry, triggers, aliases, timers, store, json, core.exec, mud/gmcp/blight/audio/tts surfaces) that loads the REAL main.lua in the suite. The first run caught a missing stub (`blight.on_dimensions_change`) and proved the harness earns its keep; two suite invariants now pin the load: main.lua must load cleanly under the shim registering 30+ aliases including `/hexreload`, and it must send nothing to the MUD at load time.
-- Regression invariant: every module wired into main.lua must define `setup` (the v0.8.0 first-load crash: `sound.setup`/`tts.setup` were called but never defined).
-- The reload passivity mystery from the live session: `sound.setup` missing killed main.lua at the call site, which left the alias fleet unregistered while GMCP handlers (registered earlier in the chunk) stayed live. That is exactly the half-loaded signature the shim now catches in tests.
-- No MUD-facing changes: the fixed setup functions return the same behavior the modules already documented. Tests grow to 141 (146 with the opt-in goldens).
+- Regression invariant: every module wired into main.lua must define `setup` (found live: `sound.setup` and `tts.setup` were called from main.lua with no function behind them, which killed the load at the call site and left the alias fleet unregistered while the GMCP handlers stayed live).
+- The minimap top-rows call and the chat-tab session flag hit blightmud API type rules on the same first run: `add_top_row` takes ONE opts table (`{name, body, bar_char, prefix, visible}`; body is a single string), not a bare name, and store values must be strings, never booleans. Net effect: the minimap renders in an on-screen top row on stock 5.7.1 (the API exists there, correcting the design's dev-tree-only assumption), and the chat-tab gate persists correctly.
+- `/hexsound test` plays each mapped stem once.
+- Tests grow to 143 (148 with the opt-in goldens).
 
 ## v0.8.0 (2026-11-05)
 
@@ -17,10 +18,7 @@ Phase 7's comfort core: theme, a real options engine, and sound, all defaults-pr
 - Theme: `hex_theme` re-skins the whole suite from one place: classic (byte-identical to today's ANSI, golden-tested) and dragon (Kanagawa 24-bit); `/hexoptions theme dragon` flips it live. Mechanism: use() mutates the shared hex_util.ansi table in place, the single table every module already reads, so re-skinning needs zero call-site migration (the design's delete-and-migrate simplified away).
 - Sound: `hex_sound_events` maps notify-bus events to the CC0 mp3 stems (`/hexupdate` already copied them): connect/disconnect, tells, mission-ready, damage. Defaults OFF (a terminal client is frequently SSH'd or at work); `/hexoptions sound on` runs a preflight (Hex's own copy of the set is detected first, tt_dw fallback). Damage words are verbatim tt_dw thresholds (-200/-400/-500) and debounced 2s so fight bursts don't stack.
 - TTS: `/hexsay <text>` speaks whenever a TTS-enabled blightmud build is available; option-gated event speech shares the sound event table. Every tts call except is_available() is availability-gated (ungated calls spam errors on non-TTS builds).
-- `/hexsound test` plays each mapped stem once.
-- First-live-session hotfix: `sound.setup` and `tts.setup` were called from main.lua with no function behind them (the load died at the call site the way the v0.5.2-dbg look-ahead did); both added, and a new suite invariant requires every module wired into main.lua to define setup.
-- Second first-run hotfix pair: the minimap's top-rows call and the chat-tab session flag both hit blightmud API type rules — `add_top_row` takes ONE opts table (`{name, body}`), not `(name)` alone, and store values must be strings, never booleans. Net effect: the minimap now renders in an on-screen top row on stock 5.7.1 (the API exists there, correcting the design's dev-tree-only assumption), and the chat-tab gate persists correctly. Both failures were caught without killing the plugin load (the minimap's pcall ladder and the gate's separate call site held).
-- Tests grow to 143 (148 with the opt-in goldens): classic palette byte-golden, 24-bit shape, role paint/unknown-role, schema well-formedness, alias canonicalization, validation errors with choices/ranges, damage-word thresholds, template rendering.
+- Tests grow to 140 (145 with the opt-in goldens): classic palette byte-golden, 24-bit shape, role paint/unknown-role, schema well-formedness, alias canonicalization, validation errors with choices/ranges, damage-word thresholds, template rendering.
 
 ## v0.7.0 (2026-11-05)
 
