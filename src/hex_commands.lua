@@ -897,7 +897,7 @@ local function cmd_hexdebug(args)
   local action, rest = args:match("^(%S+)%s*(.*)$")
   action = action or ""
   if action == "" then
-    print(a("bold", "Hex debug lane") .. a("gray", "  (temporary; comes out with v0.13.0)"))
+    print(a("bold", "Hex debug lane") .. a("gray", "  (temporary; comes out once your verification captures land)"))
     print(a("gray", "/hexdebug walk <target>   arms the capture, then runs the real /goto"))
     print(a("gray", "/hexdebug queries         smoke-tests the Quow builders against the real db"))
     print(a("gray", "/hexdebug summary         the capture counters so far"))
