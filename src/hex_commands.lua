@@ -342,8 +342,8 @@ local function resolve_single(args, g, start, allow)
   return c
 end
 
-local function route_or_message(g, start, c, allow, exclude_swim, avoid_gates)
-  local route, rerr = paths.find_route(g, { start }, c.vnum, { allow_avoid = allow, exclude_swim = exclude_swim, avoid_gates = avoid_gates })
+local function route_or_message(g, start, c, allow, exclude_swim, avoid_gates, exclude_climb)
+  local route, rerr = paths.find_route(g, { start }, c.vnum, { allow_avoid = allow, exclude_swim = exclude_swim, avoid_gates = avoid_gates, exclude_climb = exclude_climb })
   if not route then
     if rerr:find("avoid", 1, true) then
       print(a("gray", "[hex] " .. c.name .. ": " .. rerr))
@@ -422,7 +422,10 @@ local function cmd_goto(args)
     return
   end
   local exclude_swim = not (M.deps.config.get("allow_swim", false) or (M.deps.room.terrain == "underwater"))
-  local route = route_or_message(g, start, c, false, exclude_swim, M.deps.config.get("avoid_gates", false))
+  -- climbs are opt-in: night + untrained + rooftops stranded the first player
+  -- who trusted a route (v0.17.0); ground routes are longer but survivable
+  local exclude_climb = not M.deps.config.get("allow_climb", false)
+  local route = route_or_message(g, start, c, false, exclude_swim, M.deps.config.get("avoid_gates", false), exclude_climb)
   if not route then
     return
   end

@@ -1910,6 +1910,39 @@ t("paths: avoid_gates routes around gate edges", function()
   eq(r2.path[1].cmd, "north")
 end)
 
+t("paths: exclude_climb keeps rooftop routes out of /goto (the ledge incident)", function()
+  -- found live 2026-11-08: the dorm wing connects over the rooftops via
+  -- climb-window shortcuts; a level-4 student followed one into the night,
+  -- failed the climb, and stranded on a ledge with [none] exits
+  local nodes = { node_row(1), node_row(2), node_row(3), node_row(5), node_row(6), node_row(7), node_row(8) }
+  local edges = {
+    -- the rooftop shortcut: 1 climb window -> 2 climb d -> 5, 2 steps
+    edge_row(1, { edge(2, "climb window", 0, 1) }),
+    edge_row(2, { edge(5, "climb d", 0, 1) }),
+    -- the safe ground route: 1 -> 6 -> 7 -> 8 -> 5, 4 steps
+    edge_row(1, { edge(6, "south", 0, 1) }),
+    edge_row(6, { edge(7, "south", 0, 1) }),
+    edge_row(7, { edge(8, "south", 0, 1) }),
+    edge_row(8, { edge(5, "north", 0, 1) }),
+    edge_row(2, {}),
+    edge_row(3, {}),
+    edge_row(5, {}),
+    edge_row(6, {}),
+    edge_row(7, {}),
+    edge_row(8, {}),
+  }
+  local g = paths.load(nodes, edges)
+  local shortcut = paths.find_route(g, { 1 }, 5)
+  eq(shortcut.steps, 2)
+  assert(shortcut.path[1].cmd:find("^climb"), "shortcut uses the climb edge")
+  local safe = paths.find_route(g, { 1 }, 5, { exclude_climb = true })
+  assert(safe, "ground route must exist with climbs excluded")
+  eq(safe.steps, 4)
+  for _, st in ipairs(safe.path) do
+    assert(not st.cmd:find("^climb"), "climb leaked into the safe route")
+  end
+end)
+
 t("paths: exclude_swim keeps water out of goto routes", function()
   local nodes = { node_row(1), node_row(2), node_row(3) }
   local edges = {

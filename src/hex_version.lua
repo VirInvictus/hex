@@ -2,4 +2,4 @@
 -- Kept in sync with the VERSION file at the repo root by the release flow
 -- (tests/run.lua asserts the two agree; consumers: the GMCP core.hello and
 -- the /hexupdate User-Agent).
-return "0.16.1"
+return "0.17.0"

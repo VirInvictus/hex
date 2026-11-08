@@ -51,6 +51,10 @@ M.schema = {
     desc = "/goto may route through swim edges",
   },
   {
+    key = "allow_climb", type = "bool", default = false, scope = "global",
+    desc = "/goto may route through climb edges (night and untrained = stranded)",
+  },
+  {
     key = "mdt", type = "bool", default = true, scope = "global",
     desc = "parse room.writtenmap for the people tracker (/mdt, /hunt)",
   },

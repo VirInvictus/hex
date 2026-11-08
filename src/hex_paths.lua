@@ -171,6 +171,13 @@ function M.is_swim(cmd)
   return tostring(cmd):find("^swim") ~= nil
 end
 
+-- climb edges (guild dorm wings connect to the ground floor over the
+-- rooftops via "climb window" / "climb d"): night-fatal in the dark and
+-- skill-gated, so /goto keeps them out of routes unless allowed
+function M.is_climb(cmd)
+  return tostring(cmd):find("^climb") ~= nil
+end
+
 -- Binary min-heap over (dist, dense) with deterministic tie-break on the
 -- dense index; parallel arrays, stale entries skipped by the caller.
 local function heap_less(H, i, j)
@@ -259,6 +266,9 @@ local function dijkstra(graph, starts, opts)
             local cmd = graph.e_cmd[k]
             if opts.exclude_swim and cmd:find("^swim") then
               -- swim edges stay out of /goto routes unless allowed or wet
+            elseif opts.exclude_climb and cmd:find("^climb") then
+              -- climb edges stay out of /goto routes unless allowed: an
+              -- untrained student on a night rooftop found this the hard way
             elseif opts.avoid_gates and graph.gates and graph.gates[tostring(graph.vnum[x]) .. "|" .. cmd] then
               -- city gates lock at night; /goto avoids when asked
             else
@@ -387,7 +397,7 @@ function M.render(route, graph, full)
     if last and last.cmd == st.cmd and not last.journey then
       last.n = last.n + 1
     else
-      parts[#parts + 1] = { cmd = st.cmd, dir = st.dir, n = 1, journey = st.cmd:find("^journey ") ~= nil, swim = st.cmd:find("^swim") ~= nil, dist = st.dist }
+      parts[#parts + 1] = { cmd = st.cmd, dir = st.dir, n = 1, journey = st.cmd:find("^journey ") ~= nil, swim = st.cmd:find("^swim") ~= nil, climb = st.cmd:find("^climb") ~= nil, dist = st.dist }
     end
   end
   local out = {}
@@ -401,6 +411,8 @@ function M.render(route, graph, full)
       piece = "[" .. sg.cmd .. "]"
     elseif sg.swim then
       piece = "[~ " .. sg.n .. " " .. sg.cmd .. "]"
+    elseif sg.climb then
+      piece = "[^ " .. sg.n .. " " .. sg.cmd .. "]"
     else
       piece = "[" .. sg.n .. " " .. sg.cmd .. "]"
     end

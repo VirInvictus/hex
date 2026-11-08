@@ -1,5 +1,15 @@
 # Hex patchnotes
 
+## v0.17.0 (2026-11-08)
+
+Found live, twice in one night: `/goto` happily routes through climb-window shortcuts (the guild dorm wings connect to the ground floor over the rooftops), and an untrained level-4 student who follows one at spindlewinter night ends up stranded on a ledge with `[none]` exits, a burnt torch, and a full queue of "What?".
+
+- `/goto` now EXCLUDES climb edges by default: ground routes are longer but survivable. The new `allow_climb` option (`/hexset allow_climb on` or `/hexoptions`) restores the shortcuts for trained climbers with a light source.
+- `/path` renders climb steps with a `[^ ...]` marker (the swim route's `~` sibling), so informational routes show exactly where the climbing starts.
+- The exclusion mirrors the existing swim-edge machinery (same Dijkstra skip, same option shape, same render marker pattern).
+- Also visible in the incident report: `stop` + the "Removed queue." catch-all behaved correctly mid-walk, and `/where` identified the stranded ledge; the recovery tooling did its job.
+- Tests grow to 184 (190 with the opt-in route goldens), including a regression test where the climb shortcut must win without the option and must vanish with it.
+
 ## v0.16.1 (2026-11-08)
 
 Two walker bugs from the first live night walk (a 32-step route over the guild rooftops, in the dark, on spindlewinter night; Brandon's Hex life is hard):
