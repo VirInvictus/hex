@@ -64,7 +64,9 @@ end
 -- is M.on_room below). Returns an event table:
 --   { kind = "advance"|"milestone"|"mismatch"|"drifted"|"complete", ... }
 -- "drifted" = a mismatch already happened, later rooms are counted silently
--- so one wrong turn does not spam the whole tail of the route.
+-- so one wrong turn does not spam the whole tail of the route. Every event
+-- carries total: the mismatch print concatenates it, and the field's absence
+-- crashed the first live walk (found 2026-11-08, night rooftop walk).
 function M.transition(state, id)
   if state.complete then
     return { kind = "idle" }
@@ -73,7 +75,7 @@ function M.transition(state, id)
   local expected = state.ids[state.index]
   if state.index >= state.total and (expected == id or state.drifted_at) then
     state.complete = true
-    return { kind = "complete", index = state.index, total = state.total, drifted_at = state.drifted_at }
+    return { kind = "complete", index = state.index, total = state.total, drifted_at = state.drifted_at, early = false }
   end
   if expected == id then
     if state.index % 25 == 0 then
@@ -82,19 +84,29 @@ function M.transition(state, id)
     return { kind = "advance", index = state.index, total = state.total }
   end
   if state.drifted_at then
-    return { kind = "drifted", index = state.index, expected = expected, actual = id }
+    return { kind = "drifted", index = state.index, total = state.total, expected = expected, actual = id }
   end
   state.drifted_at = state.index
-  return { kind = "mismatch", index = state.index, expected = expected, actual = id }
+  return { kind = "mismatch", index = state.index, total = state.total, expected = expected, actual = id }
 end
 
--- The frimble marker can also arrive after a drift: the queue still drains.
+-- The frimble marker can arrive after a drift, or early: failed commands
+-- drain the queue much faster than the route assumed (found live: night
+-- climbs on a dark rooftop failed, the queue emptied, and the marker made
+-- the finish print "arrived" three steps into a 32-step walk). An early
+-- marker reports honestly instead.
 function M.on_done_line(state)
   if state.complete then
     return { kind = "idle" }
   end
   state.complete = true
-  return { kind = "complete", index = state.index, total = state.total, drifted_at = state.drifted_at }
+  return {
+    kind = "complete",
+    index = state.index,
+    total = state.total,
+    drifted_at = state.drifted_at,
+    early = state.index < state.total,
+  }
 end
 
 -- --- runtime glue (blightmud globals below this line) ---
@@ -129,6 +141,9 @@ local function finish(event)
     if event.drifted_at then
       print(red("[hex] walk finished with drift at step " .. event.drifted_at .. "/" .. event.total .. ": " .. state.label))
       print(gray("[hex] the queue was never altered; check where you ended up with /where"))
+    elseif event.early then
+      print(red("[hex] walk ended early at step " .. (event.index or "?") .. "/" .. (event.total or "?") .. ": " .. state.label))
+      print(gray("[hex] the queue drained before the route finished (failed commands drain fast); /where shows where you are"))
     else
       print(gray("[hex] arrived: " .. state.label .. " (" .. event.index .. " steps)"))
     end

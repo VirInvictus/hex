@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.16.1 (2026-11-08)
+
+Two walker bugs from the first live night walk (a 32-step route over the guild rooftops, in the dark, on spindlewinter night — Brandon's Hex life is hard):
+
+- **The drift report crashed the walk script.** The mismatch print concatenates `event.total`, but mismatch/drifted events never carried that field: the first live drift died on "attempt to concatenate a nil value". Every transition event now carries total, and the drift report itself worked as designed once the script survived (screenshot 2 shows it firing honestly: "walk finished with drift at step 1/8").
+- **The "arrived" lie.** Failed commands drain the MUD queue much faster than a route assumes: night climbs failed, the queue emptied, the frimble marker arrived three steps into a 32-step walk, and the finish printed "arrived: Secretary's office (3 steps)" while Brandon stood on a rooftop. An early marker now reports "walk ended early at step X/Y" with the /where nudge.
+- Also documented for the player: climb-window routes (the guild dorm wing connects to the ground floor over the rooftops) are night-fatal without a light source — `light torch` first; the inventory carries two lightable torches for exactly this.
+- Tests grow to 183 (189 with the opt-in route goldens).
+
 ## v0.16.0 (2026-11-08)
 
 The chat capture finally met a real talker: Brandon joined the Conlegium Sicariorum and its wooden bracelet started chattering. The classification held (the talker shape matches the live lines verbatim, now a fixture), but the delivery was tt_dw's opposite: club chatter MIRRORED in the main feed instead of moving to the chat tab.

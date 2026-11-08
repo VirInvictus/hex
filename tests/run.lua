@@ -915,6 +915,36 @@ t("walk: mismatch reports once then counts silently", function()
   eq(done.drifted_at, 2)
 end)
 
+t("walk: mismatch and drifted events carry total (the live crash)", function()
+  -- found 2026-11-08: the mismatch print concatenates event.total, but the
+  -- event never carried it -- the first live drift crashed the walk script
+  local route = chain_route(4) -- 1->4 is 3 steps, so total is 3
+  local state = walk.new_state(route, "target")
+  eq(walk.transition(state, route.path[1].room_id).kind, "advance")
+  local ev = walk.transition(state, string.rep("f", 40))
+  eq(ev.kind, "mismatch")
+  eq(ev.total, 3)
+  eq(walk.transition(state, string.rep("f", 40)).total, 3)
+end)
+
+t("walk: an early frimble marker reports honestly instead of arriving", function()
+  -- found live: night climbs failed, the queue drained, and the marker made
+  -- the finish print "arrived" 3 steps into a 32-step walk
+  local route = chain_route(6) -- 1->6 is 5 steps
+  local state = walk.new_state(route, "target")
+  eq(walk.transition(state, route.path[1].room_id).kind, "advance")
+  local done = walk.on_done_line(state)
+  eq(done.kind, "complete")
+  eq(done.early, true)
+  eq(done.index, 1)
+  eq(done.total, 5)
+  -- a full walk's marker is not early
+  local state2 = walk.new_state(chain_route(3), "x")
+  walk.transition(state2, route.path[1].room_id) -- warm-up push, will drift; fine
+  local done2 = walk.on_done_line(state2)
+  eq(done2.kind, "complete")
+end)
+
 t("walk: completion via the frimble marker", function()
   local state = walk.new_state(chain_route(3), "x")
   assert(walk.is_done_marker("hex: walk done"), "marker must match")
