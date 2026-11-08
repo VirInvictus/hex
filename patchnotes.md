@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.14.1 (2026-11-08)
+
+Hotfix, same evening: `/goto #1` crashed with "attempt to index a nil value (global 'deps')".
+
+- Cause: `cmd_goto`'s routing section (and the whole debug lane's `cmd_hexdebug`) referenced the bare name `deps`, which only exists as `M.setup`'s parameter. Every module-level use resolves to a nil global. The path only executes when a candidate is actually picked, so it survived until the very first `/goto #n` in live play, one line after v0.14.0 un-blocked it. All module-level references now go through `M.deps`.
+- A new suite invariant greps `hex_commands.lua` for bare `deps` usage before the `M.setup` definition, so this class dies in CI instead of on the wire.
+- `/goto #1`, `/hexdebug walk`, and `/hexdebug queries` all verified against the fixed wiring.
+- Tests grow to 185 (191 with the opt-in route goldens).
+
 ## v0.14.0 (2026-11-08)
 
 The big one, found the moment Brandon first stood somewhere real and typed `/goto foyer`: **`/goto` had never actually worked.** Every route call received the current room's 40-hex identifier (straight from GMCP via `need_start`), and the pathfinder indexed its graph by vnum only, so the Dijkstra never started, `/goto` printed its candidate list with every entry "unreachable", and no walk ever launched. The golden tests inject vnums directly, which is exactly why only live play could catch it: the same lesson as M1's dead vitals, now fixed at the layer where it lives.

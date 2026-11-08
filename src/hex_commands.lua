@@ -421,8 +421,8 @@ local function cmd_goto(args)
   if not c then
     return
   end
-  local exclude_swim = not (deps.config.get("allow_swim", false) or (deps.room.terrain == "underwater"))
-  local route = route_or_message(g, start, c, false, exclude_swim, deps.config.get("avoid_gates", false))
+  local exclude_swim = not (M.deps.config.get("allow_swim", false) or (M.deps.room.terrain == "underwater"))
+  local route = route_or_message(g, start, c, false, exclude_swim, M.deps.config.get("avoid_gates", false))
   if not route then
     return
   end
@@ -914,12 +914,12 @@ local function cmd_hexdebug(args)
       print(a("gray", "usage: /hexdebug walk <target>"))
       return
     end
-    deps.capture.arm()
+    M.deps.capture.arm()
     cmd_goto(rest)
     print(a("gray", "[hexdebug] the disarm summary counts rooms visited, drift and journey lines"))
   elseif action == "queries" then
-    local db = deps.config.get("quow_db")
-    if not db or not deps.data or not deps.data.hex_dir then
+    local db = M.deps.config.get("quow_db")
+    if not db or not M.deps.data or not M.deps.data.hex_dir then
       print(a("gray", "[hexdebug] no Quow database resolved"))
       return
     end
@@ -930,9 +930,9 @@ local function cmd_hexdebug(args)
       { "sources_free", queries.build_item_sources_query("apple", "free") },
       { "sources_loot", queries.build_item_sources_query("apple", "loot") },
     }
-    if deps.room and deps.room.id then
-      probes[#probes + 1] = { "shop_here", queries.build_shop_query(deps.room.id) }
-      probes[#probes + 1] = { "npc_here", queries.build_npc_query("room:" .. deps.room.id) }
+    if M.deps.room and M.deps.room.id then
+      probes[#probes + 1] = { "shop_here", queries.build_shop_query(M.deps.room.id) }
+      probes[#probes + 1] = { "npc_here", queries.build_npc_query("room:" .. M.deps.room.id) }
     end
     for _, probe in ipairs(probes) do
       local result = rows(db, probe[2])
@@ -943,7 +943,7 @@ local function cmd_hexdebug(args)
       end
     end
   elseif action == "summary" then
-    deps.capture.summary()
+    M.deps.capture.summary()
   else
     print(a("gray", "usage: /hexdebug [walk <target>|queries|summary]"))
   end

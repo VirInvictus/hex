@@ -1664,6 +1664,25 @@ t("spec invariant: no look-around constructs anywhere in src/", function()
   end
 end)
 
+t("spec invariant: hex_commands module-level functions use M.deps (cmd_goto live crash)", function()
+  -- found live 2026-11-08: /goto #1 crashed on a global deps at line 424;
+  -- bare `deps` only exists as M.setup's parameter, so every module-level
+  -- function must reach it through M.deps. M.setup's own closures keep the
+  -- parameter form and sit after the setup definition.
+  local fh = io.open(root .. "src/hex_commands.lua", "r")
+  local body = fh:read("*a")
+  fh:close()
+  local setup_at = assert(body:find("function M.setup(", 1, true), "no M.setup found")
+  local prefix = body:sub(1, setup_at - 1)
+  for line in prefix:gmatch("[^\n]+") do
+    local code = line:gsub("%-%-.*$", "")
+    code = code:gsub("M%.deps", "")
+    if code:find("%f[%w]deps%.[a-z_]", 1, false) then
+      error("module-level bare deps: " .. line)
+    end
+  end
+end)
+
 t("spec invariant: registration literals carry no Lua classes or bad escapes", function()
   -- alias/trigger/Regex literals go to the RUST engine: %s matches literal
   -- "%s" there (found live: 22 commands passed through to the MUD), and a
