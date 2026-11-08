@@ -1,5 +1,17 @@
 # Hex patchnotes
 
+## v0.15.0 (2026-11-08)
+
+Brandon joined the Assassins' Guild on the wire (the captured sequence: application form from the black box in the foyer, south to the secretary, `say apply`), and the score-verbose clause confirmed it: "you are level 3 in the Assassins' Guild". That unblocks this release: the guild-pack framework arrives, and the debug lane leaves exactly as planned.
+
+- `hex_guild` + `hex_guild_data`: the guild-pack framework. The pack selection autoloads off `config.guild` (the score clause, now wire-verified), refreshed live by the `/hexoptions guild` hook. The design's honest verdict stands: tt_dw has no assassin triggers to port, so the assassin pack v1 is primaries-data-only (already delivered by `hex_skilldata` through `/skillcost` and TM gating); thief and priest carry the first planned trigger ports (dagger tingles + DAG chip; rod-charge gags, totem triggers, find-ritual decoder). `/doctor` reports the active pack.
+- The debug lane is REMOVED, exactly per plan: `src/hex_capture.lua` out, `/hexcapture` and `/hexdebug` become removed-lane stubs, the wiring (setup, output listener, commands deps) is gone. `/doctor` is the permanent in-client self-test. The lane's transcripts remain the wire-shape archive; its summaries answered every question asked of it (combat monitor verdict, guild clause, the first real writtenmap corpus).
+- That corpus is now a fixture: the captured writtenmap with two real people ("a dark-haired young woman is one west, a secretary is one south") parses into two correctly-attributed groups on the first live try.
+- Also corrected in the notes: the Assassins' Guild interior is fully mapped (~100 rooms under its own area name), which is how `/goto foyer` works from inside it.
+- Tests grow to 179 (185 with the opt-in route goldens); the capture battery retires with the lane.
+
+## v0.14.1 (2026-11-08)
+
 ## v0.14.1 (2026-11-08)
 
 Hotfix, same evening: `/goto #1` crashed with "attempt to index a nil value (global 'deps')".

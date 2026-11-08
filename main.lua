@@ -27,8 +27,8 @@ local tts_mod = require("src.hex_tts")
 local blorps = require("src.hex_blorps")
 local minimap = require("src.hex_minimap")
 local mdt = require("src.hex_mdt")
-local capture = require("src.hex_capture")
 local doctor = require("src.hex_doctor")
+local guild = require("src.hex_guild")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -117,6 +117,7 @@ options.hooks = {
   theme = function(value) theme.use(value) end,
   sound = function() sound.preflight() end,
   chat_tab = function() end, -- applies at next start
+  guild = function() guild.refresh() end,
 }
 sound.setup({
   config = config,
@@ -150,11 +151,13 @@ minimap.setup({ config = config })
 -- per accepted writtenmap push; hunt alerts print + emit on the bus
 mdt.setup({ config = config, notify = notify })
 
--- v0.12.1-dbg debug lane: the capture harness is TEMPORARY (comes out of the
--- next feature release; /doctor stays). Passive while armed: the user's own
--- keystrokes drive everything it records.
-capture.setup({ gmcp = gmcp_wire })
-mud.add_output_listener(capture.listener)
+-- v0.12.x debug lane REMOVED in v0.15.0 (transcripts consumed: combat
+-- monitor verdict, guild clause, the first real writtenmap corpus);
+-- /doctor is the permanent in-client self-test.
+
+-- the guild pack (v0.15.0): autoloads off config.guild (the score-verbose
+-- clause); /hexoptions guild re-runs the refresh through the options hook
+guild.setup({ config = config })
 
 -- /doctor: the in-client self-test (permanent). last_vitals_at feeds the
 -- GMCP freshness check.
@@ -169,6 +172,7 @@ doctor.setup({
   minimap = minimap,
   sound = sound,
   tts_mod = tts_mod,
+  guild = guild,
 })
 
 -- spells: spelldata queries + TM suggestions feed off the skills store
@@ -310,8 +314,8 @@ commands.setup({
   blorps = blorps,
   minimap = minimap,
   mdt = mdt,
-  capture = capture,
   doctor = doctor,
+  guild = guild,
   paths_cache = paths_cache,
 })
 

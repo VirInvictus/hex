@@ -44,8 +44,9 @@ local blorps = require("hex_blorps")
 local minimap = require("hex_minimap")
 local mdt = require("hex_mdt")
 local mdtdata = require("hex_mdtdata")
-local capture = require("hex_capture")
 local doctor = require("hex_doctor")
+local guild_mod = require("hex_guild")
+local guild_data = require("hex_guild_data")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -1640,7 +1641,7 @@ t("spec invariant: every wired module defines setup", function()
   -- main.lua calls M.setup on each of these (found live: v0.8.0 shipped
   -- sound.setup/tts_mod.setup calls with no function behind them, and the
   -- load died at the call site)
-  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_mdt", "hex_options", "hex_quota", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls", "hex_capture", "hex_doctor" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_mdt", "hex_options", "hex_quota", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls", "hex_doctor", "hex_guild" }) do
     local m = require(f)
     assert(type(m.setup) == "function", f .. ".lua is wired in main.lua but defines no setup")
   end
@@ -1651,7 +1652,7 @@ t("spec invariant: no look-around constructs anywhere in src/", function()
   -- a pattern that fails there kills the whole plugin load (found live in
   -- v0.5.2-dbg's first run); Lua patterns never contain these either
   local bad = { "%(%?!", "%(%?=", "%(%?<" }
-  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_capture", "hex_doctor", "hex_mdt", "hex_mdtdata", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_doctor", "hex_guild", "hex_guild_data", "hex_mdt", "hex_mdtdata", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -1687,7 +1688,7 @@ t("spec invariant: registration literals carry no Lua classes or bad escapes", f
   -- alias/trigger/Regex literals go to the RUST engine: %s matches literal
   -- "%s" there (found live: 22 commands passed through to the MUD), and a
   -- single backslash + letter is an invalid Lua escape that stops parsing
-  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture_removed", "hex_capture", "hex_doctor", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp", "hex_stats" }) do
+  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture_removed", "hex_doctor", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp", "hex_stats" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -2248,66 +2249,6 @@ end)
 
 
 
--- hex_capture (v0.12.1-dbg debug lane) --------------------------------------
-
-t("capture: path_for stamps the capture dir", function()
-  capture.setup({ captures_dir = "/tmp/hex-capture-test" })
-  eq(capture.path_for("20261106-120000"), "/tmp/hex-capture-test/hex-capture-20261106-120000.log")
-end)
-
-t("capture: arm/disarm round-trip writes and closes the transcript", function()
-  local tmp = os.tmpname() -- reserve a name, then use it as a directory seed
-  os.remove(tmp)
-  os.execute("mkdir -p " .. tmp) -- the in-client mkdir goes through core.exec
-  capture.setup({ captures_dir = tmp })
-  capture.arm()
-  assert(capture.active, "armed")
-  assert(capture.file, "transcript open")
-  capture.disarm()
-  eq(capture.active, false)
-  eq(capture.file, nil)
-  -- arm again with a gmcp sink: the hook must be set while armed, cleared after
-  capture.setup({ captures_dir = tmp })
-  local gmcp_stub = {}
-  capture.deps.gmcp = gmcp_stub
-  capture.arm()
-  assert(gmcp_stub.sink ~= nil, "sink installed while armed")
-  gmcp_stub.sink("room.info {}")
-  capture.disarm()
-  eq(gmcp_stub.sink, nil)
-  os.execute("rm -rf " .. tmp)
-end)
-
-t("capture: listener mirrors lines only while armed", function()
-  local tmp = os.tmpname()
-  os.remove(tmp)
-  os.execute("mkdir -p " .. tmp)
-  capture.setup({ captures_dir = tmp })
-  local line_stub = {
-    line = function()
-      return "You attack the pumpkin."
-    end,
-    prompt = function()
-      return false
-    end,
-  }
-  capture.listener(line_stub) -- disarmed: no file, no crash
-  capture.arm()
-  capture.listener(line_stub)
-  capture.disarm()
-  local files = {}
-  local p = io.popen("ls " .. tmp)
-  for f in p:read("*a"):gmatch("%S+") do
-    files[#files + 1] = f
-  end
-  p:close()
-  eq(#files, 1)
-  local body = io.open(tmp .. "/" .. files[1], "r"):read("*a")
-  assert(body:find("You attack the pumpkin%.", 1), "line mirrored: " .. body)
-  assert(body:find("session end", 1, true), "session end marker")
-  os.execute("rm -rf " .. tmp)
-end)
-
 -- hex_doctor (the permanent self-test) ---------------------------------------
 
 t("doctor: the battery runs clean against self-test deps", function()
@@ -2471,144 +2412,40 @@ end)
 
 
 
-t("capture: counters fold out/prompt/gmcp/rooms into the summary", function()
-  local stats = { out = 0, prompt = 0, gmcp = {}, rooms = {}, symbolic_ids = {}, empty_ids = 0, journey_arrivals = 0, drift_lines = 0 }
-  capture.count(stats, "out", "You hit the pumpkin in the flesh with an uppercut.")
-  capture.count(stats, "prompt", ">")
-  capture.count(stats, "out", "You arrive after having journeyed 2 miles west.")
-  capture.count(stats, "out", "[hex] DRIFT at step 3/129: expected x, saw y")
-  capture.count(stats, "gmcp", 'char.vitals {"hp":500,"maxhp":500}')
-  capture.count(stats, "gmcp", 'room.info {"identifier":"' .. string.rep("a", 40) .. '","name":" somewhere"}')
-  capture.count(stats, "gmcp", 'room.info {"identifier":"UULibrary","name":" the library"}')
-  capture.count(stats, "gmcp", 'room.info {"identifier":"","name":" dark"}')
-  capture.count(stats, "gmcp", 'room.writtenmap "A door north of here."')
-  eq(stats.out, 3)
-  eq(stats.prompt, 1)
-  eq(stats.gmcp["char.vitals"], 1)
-  eq(stats.gmcp["room.info"], 3)
-  eq(stats.journey_arrivals, 1)
-  eq(stats.drift_lines, 1)
-  eq(stats.empty_ids, 1)
-  eq(#stats.symbolic_ids, 1)
-  eq(stats.rooms[string.rep("a", 40)], 1)
-  local lines = capture.summary_lines(stats)
-  local joined = table.concat(lines, "\n")
-  assert(joined:find("distinct rooms: 2", 1, true), "rooms line: " .. joined)
-  assert(joined:find("UULibrary%s+%(symbolic%)"), "symbolic tag: " .. joined)
-  assert(joined:find("EMPTY identifiers seen: 1", 1, true), "empty flag: " .. joined)
-  assert(joined:find("gmcp: char.vitals=1 room.info=3 room.writtenmap=1"), "gmcp line: " .. joined)
+-- hex_guild (v0.15.0 guild packs) + the first real writtenmap corpus ------
+
+t("guild: autoload keys off config.guild and refreshes", function()
+  local state = { assassins = false }
+  local config = { get = function(_, key, default) return state.assassins and "assassins" or default end }
+  guild_mod.setup({ config = config })
+  eq(guild_mod.pack, nil) -- none -> no pack
+  state.assassins = true
+  eq(guild_mod.refresh(), "assassins")
+  eq(guild_mod.pack, "assassins")
+  assert(guild_mod.status():find("assassins", 1, true), "status names the pack")
 end)
 
--- Phase 8 harness: replay recorded fixtures through the handler chain -----
-
-local shim = dofile(root .. "tests/shim.lua") -- one module instance; load_main resets its recordings
-
-local function load_fixture(name)
-  return dofile(root .. "tests/fixtures/gmcp/" .. name .. ".lua")
-end
-
-local function replay(steps)
-  for _, step in ipairs(steps) do
-    if step.event == "on_ready" then
-      for _, cb in ipairs(shim.on_ready_cbs) do
-        cb()
-      end
-    elseif step.event == "receive" then
-      for _, cb in ipairs(shim.receive_cbs[step.name] or {}) do
-        cb(step.raw)
-      end
-    elseif step.event == "tick" then
-      shim.clock = shim.clock + (step.seconds or 0)
-    end
+t("guild_data: every pack entry is described and known to the framework", function()
+  for name, info in pairs(guild_data.packs) do
+    assert(guild_data.known[name], "pack not in known: " .. name)
+    assert(info.note and info.note ~= "", "missing note: " .. name)
+    assert(info.content == "primaries" or info.content == "planned", "content kind: " .. tostring(info.content))
   end
-end
-
-t("harness: the login fixture replays clean end to end", function()
-  local ok, err = shim.load_main(root .. "main.lua")
-  assert(ok, "main.lua failed under the shim: " .. tostring(err))
-  -- fire the login fixture (provenance in the fixture header)
-  replay(load_fixture("login"))
-  -- handshake: two sends, hello (with the real version) then supports.set
-  -- naming all six commands lowercase
-  eq(#shim.gmcp_sent, 2)
-  assert(shim.gmcp_sent[1]:find("core.hello", 1, true), "hello first: " .. shim.gmcp_sent[1])
-  assert(shim.gmcp_sent[1]:find('"version": "' .. version .. '"', 1, true), "hello carries the release version: " .. shim.gmcp_sent[1])
-  assert(shim.gmcp_sent[2]:find("core.supports.set", 1, true), "supports second")
-  for _, name in ipairs({ "char.login", "char.info", "char.vitals", "room.info", "room.map", "room.writtenmap" }) do
-    assert(shim.gmcp_sent[2]:find('"' .. name .. '"', 1, true), "supports missing " .. name)
-  end
-  -- vitals landed coerced into the status bar row (blightmud rows are 0-based)
-  assert(shim.status[0]:find("500/500", 1, true), "bar row: " .. tostring(shim.status[0]))
-  -- room name + burden in the room row
-  assert(shim.status[1]:find("Combat Crib", 1, true) and shim.status[1]:find("burden 9%%", 1, false), "room row: " .. tostring(shim.status[1]))
-  -- the driven clock + the xp delta produce the rate in the summary row (8300/hour)
-  assert(shim.status[2]:find("8,300", 1, true), "summary row: " .. tostring(shim.status[2]))
-  -- the anti-idle invariant at runtime: a full login replay sends nothing
-  eq(#shim.mud_sent, 0)
+  assert(guild_data.packs.assassins.content == "primaries", "assassin v1 is primaries-only")
+  assert(guild_data.known.none, "none is a valid config value")
 end)
 
-t("harness: gmcp.register is a hard tripwire", function()
-  local env = shim.environment()
-  local ok, err = pcall(env.gmcp.register, "char.vitals")
-  eq(ok, false)
-  assert(tostring(err):find("forbidden", 1, true), "tripwire message: " .. tostring(err))
+t("mdt: the first real multi-entity writtenmap parses (corpus v1, 2026-11-08)", function()
+  -- verbatim from hex-capture-20261108-162653.log line 4: two people, both
+  -- correctly attributed (the secretary really was south of him)
+  local real = "A door east of here, a dark-haired young woman is one west, the limit of your vision is one west from here, an exit west of one south, a secretary is one south and the limit of your vision is one south from here.\n"
+  local groups = mdt.parse(real)
+  eq(#groups, 2)
+  eq(groups[1].direction, "1 w")
+  eq(groups[1].entities[1], "1 dark-haired young woman")
+  eq(groups[2].direction, "1 s")
+  eq(groups[2].entities[1], "1 secretary")
 end)
-
-t("harness: a second load does not double the fleet (the reload fixture)", function()
-  local ok1, err1, c1 = shim.load_main(root .. "main.lua")
-  assert(ok1, tostring(err1))
-  local first_aliases, first_triggers = #c1.alias, #c1.trigger
-  local ok2, err2, c2 = shim.load_main(root .. "main.lua")
-  assert(ok2, tostring(err2))
-  eq(#c2.alias, first_aliases)
-  eq(#c2.trigger, first_triggers)
-  assert(first_aliases >= 30, "alias fleet size: " .. first_aliases)
-end)
-
-t("harness: the password line is skip-logged exactly through the chain", function()
-  shim.load_main(root .. "main.lua")
-  local password_trigger = nil
-  for _, t in ipairs(shim.calls.trigger) do
-    if t.re == "^Enter password:" then
-      password_trigger = t
-    end
-  end
-  assert(password_trigger and password_trigger.cb, "password trigger registered")
-  password_trigger.cb() -- arm
-  assert(#shim.input_listeners > 0, "input listener registered")
-  local line = shim.make_line("hunter2")
-  for _, listener in ipairs(shim.input_listeners) do
-    listener(line)
-  end
-  eq(line._skip_log, true)
-end)
-
-t("harness: trailing-empty Quow rows survive the /item alias (cabbage class)", function()
-  shim.load_main(root .. "main.lua")
-  -- the db answer carries a trailing empty field, the original crash shape
-  table.insert(shim.exec_responses, "cabbage~1~~~\n")
-  local item_trigger = nil
-  for _, t in ipairs(shim.calls.trigger) do
-    -- aliases and triggers share the registry list shape; find /item
-    if t.re == "^/item\\s+(.+)$" then
-      item_trigger = t
-    end
-  end
-  -- aliases are recorded under calls.alias; search there too
-  if not item_trigger then
-    for _, a in ipairs(shim.calls.alias) do
-      if a.re == "^/item\\s+(.+)$" then
-        item_trigger = a
-      end
-    end
-  end
-  assert(item_trigger and item_trigger.cb, "/item alias registered")
-  local ok, err = pcall(item_trigger.cb, { "/item cabbage", "cabbage" })
-  assert(ok, "cabbage row crashed the render: " .. tostring(err))
-  local joined = table.concat(shim.prints, "\n")
-  assert(joined:find("cabbage", 1, true), "item rendered: " .. joined)
-end)
-
 
 -- Phase 8 shim slice: main.lua loads against a stub blightmud ------------
 

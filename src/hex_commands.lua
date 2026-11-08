@@ -889,66 +889,6 @@ local function cmd_gag_remove(args)
   print(a("gray", "[hex] removed " .. removed .. " user gag(s); live now, saved to " .. tostring(gf.state.path)))
 end
 
--- /hexdebug: the debug lane's mobile-phase commands (v0.12.2-dbg; the whole
--- lane comes out with the next feature release). Sends stay behind this
--- user-alias handler; `walk` reuses the real /goto path unchanged so the
--- verification exercises the shipped feature, not a debug copy.
-local function cmd_hexdebug(args)
-  local action, rest = args:match("^(%S+)%s*(.*)$")
-  action = action or ""
-  if action == "" then
-    print(a("bold", "Hex debug lane") .. a("gray", "  (temporary; comes out once your verification captures land)"))
-    print(a("gray", "/hexdebug walk <target>   arms the capture, then runs the real /goto"))
-    print(a("gray", "/hexdebug queries         smoke-tests the Quow builders against the real db"))
-    print(a("gray", "/hexdebug summary         the capture counters so far"))
-    print(a("gray", "/hexcapture               toggles the output+GMCP transcript"))
-    print(a("gray", "worth running for real while out there:"))
-    print(a("gray", "  /stats refresh          score-verbose stats parse (your real stats)"))
-    print(a("gray", "  /skills refresh         the branched listing round-trip"))
-    print(a("gray", "  /blorp add <label>      /bookmark add <label>: note   (then goto/list)"))
-    print(a("gray", "  /mdt                    in a busy street (the parser has only seen an empty park)"))
-    print(a("gray", "  /path <name>, /near <name>, /items sold <thing> in a shop street"))
-    print(a("gray", "  any real fight          (combat lines + the fixed monitor fallback)"))
-  elseif action == "walk" then
-    if util.trim(rest) == "" then
-      print(a("gray", "usage: /hexdebug walk <target>"))
-      return
-    end
-    M.deps.capture.arm()
-    cmd_goto(rest)
-    print(a("gray", "[hexdebug] the disarm summary counts rooms visited, drift and journey lines"))
-  elseif action == "queries" then
-    local db = M.deps.config.get("quow_db")
-    if not db or not M.deps.data or not M.deps.data.hex_dir then
-      print(a("gray", "[hexdebug] no Quow database resolved"))
-      return
-    end
-    local probes = {
-      { "item_plain", queries.build_item_query("sword") },
-      { "npc_term", queries.build_npc_query("guard") },
-      { "sources_sold", queries.build_item_sources_query("apple", "sold") },
-      { "sources_free", queries.build_item_sources_query("apple", "free") },
-      { "sources_loot", queries.build_item_sources_query("apple", "loot") },
-    }
-    if M.deps.room and M.deps.room.id then
-      probes[#probes + 1] = { "shop_here", queries.build_shop_query(M.deps.room.id) }
-      probes[#probes + 1] = { "npc_here", queries.build_npc_query("room:" .. M.deps.room.id) }
-    end
-    for _, probe in ipairs(probes) do
-      local result = rows(db, probe[2])
-      if result == nil then
-        print(a("red", "[hexdebug] " .. probe[1] .. ": query FAILED"))
-      else
-        print(a("gray", "[hexdebug] " .. probe[1] .. ": " .. #result .. " rows"))
-      end
-    end
-  elseif action == "summary" then
-    M.deps.capture.summary()
-  else
-    print(a("gray", "usage: /hexdebug [walk <target>|queries|summary]"))
-  end
-end
-
 function M.setup(deps)
   M.deps = deps
   -- every alias goes through the registry so /hexreload can reap exactly
@@ -1101,15 +1041,11 @@ function M.setup(deps)
   alias_add("^/unhunt\\s+(.+)$", function(matches)
     deps.mdt.cmd_unhunt(matches[2])
   end)
-  alias_add("^/hexcapture\\s*(\\S*)$", function(matches)
-    if matches[2] == "summary" then
-      deps.capture.summary()
-    else
-      deps.capture.toggle()
-    end
+  alias_add("^/hexcapture\\s*(\\S*)$", function()
+    print(a("gray", "[hex] the debug capture lane was removed in v0.15.0 (transcripts consumed); /doctor remains"))
   end)
-  alias_add("^/hexdebug\\s*(.*)$", function(matches)
-    cmd_hexdebug(matches[2])
+  alias_add("^/hexdebug\\s*(.*)$", function()
+    print(a("gray", "[hex] the debug lane was removed in v0.15.0; /doctor remains"))
   end)
   alias_add("^/doctor$", function()
     deps.doctor.run()
