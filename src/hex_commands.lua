@@ -296,7 +296,10 @@ end
 -- outcome itself (multi-match candidate list, refusals, no-match). Returns
 -- the candidate or nil. allow = /path any (route through avoid/water rooms).
 local function resolve_single(args, g, start, allow)
-  local cands, err = resolve_targets(args, g)
+  -- all matches, distance-ranked: the alphabetical cap once buried the real
+  -- target ("foyer of the Assassins Guild" lost a 15-way lottery to three
+  -- identical "foyer (Ankh-Morpork)" rows). Reachable sorts first.
+  local cands, err = resolve_targets(args, g, { all_matches = true })
   if not cands then
     print(a("gray", "[hex] " .. err))
     return nil
@@ -306,14 +309,25 @@ local function resolve_single(args, g, start, allow)
     return nil
   end
   if #cands > 1 then
-    M.deps.paths_cache.candidates = cands
     local vnums = {}
     for _, c in ipairs(cands) do
       vnums[#vnums + 1] = c.vnum
     end
     local dists = paths.distances(g, start, vnums, { allow_avoid = allow })
-    print(a("bold", #cands .. " matches") .. a("gray", "  (/path #<n> or /goto #<n> routes one)"))
+    table.sort(cands, function(x, y)
+      local dx, dy = dists[x.vnum], dists[y.vnum]
+      if dx and dy then
+        return dx < dy
+      end
+      return dx ~= nil
+    end)
+    M.deps.paths_cache.candidates = cands
+    print(a("bold", #cands .. " matches") .. a("gray", "  (/path #<n> or /goto #<n> routes one; nearest first)"))
     for i, c in ipairs(cands) do
+      if i > 15 then
+        print(a("gray", "  ... (" .. #cands - 15 .. " more, nearest first; /goto #<n> still routes any)"))
+        break
+      end
       local d = dists[c.vnum]
       print((" %2d. %s (%s)%s"):format(i, c.name, c.area, d and a("gray", "  " .. d .. " steps") or a("gray", "  unreachable")))
     end

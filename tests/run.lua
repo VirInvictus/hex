@@ -809,6 +809,19 @@ if os.getenv("HEX_GOLDEN") == "1" then
     eq(r.steps, 129)
   end)
 
+  t("golden: find_route and distances accept a 40-hex room_id start", function()
+    -- the live bug (2026-11-08): /goto passed room.id strings into idx
+    -- lookups and never started; the goldens injected vnums so only play
+    -- could catch it. Pin both entry points with the real Drum id.
+    local drum_id = util.trim(gold_sql("SELECT room_id FROM rooms WHERE vnum = 4659 LIMIT 1"))
+    assert(targets.is_room_id(drum_id), "drum id lookup failed")
+    local r = paths.find_route(gold_graph_lazy(), { drum_id }, 12472)
+    assert(r, "id-string start killed find_route")
+    eq(r.steps, 129)
+    local d = paths.distances(gold_graph_lazy(), drum_id, { 12472 })
+    eq(d[12472], 129)
+  end)
+
   t("golden: BP palace gates are unreachable from AM (sea-chain gap)", function()
     -- The identified-only subgraph does not connect the two coasts: the
     -- open-sea swim chain between the Terrains and Tuna Bay passes through
@@ -1767,6 +1780,29 @@ t("paths: journey steps render miles; swim steps get the marker", function()
   assert(joined:find("%[journey: 3 miles e%]"), "journey render: " .. joined)
   assert(joined:find("%[~ 1 swim n%]"), "swim render: " .. joined)
   assert(joined:find("%[1 north%]"), "plain render: " .. joined)
+end)
+
+t("paths: find_route and distances accept a 40-hex room_id start", function()
+  -- the /goto live bug: callers hand room.id straight from GMCP; the graph
+  -- must translate ids through by_id (the goldens inject vnums, so this
+  -- needs a unit-level pin on a pure graph)
+  local nodes = { node_row(1), node_row(2), node_row(3), node_row(4) }
+  local edges = {
+    edge_row(1, { edge(2, "north", 0, 1) }),
+    edge_row(2, { edge(3, "north", 0, 1) }),
+    edge_row(3, { edge(4, "north", 0, 1) }),
+    edge_row(2, {}),
+    edge_row(3, {}),
+    edge_row(4, {}),
+  }
+  local g = paths.load(nodes, edges)
+  local id1 = hexid(1)
+  eq(g.by_id[id1] ~= nil, true)
+  local r = paths.find_route(g, { id1 }, 4)
+  assert(r, "id-string start killed find_route")
+  eq(r.steps, 3)
+  local d = paths.distances(g, id1, { 4 })
+  eq(d[4], 3)
 end)
 
 t("paths: attach_gates keys vnum|command", function()

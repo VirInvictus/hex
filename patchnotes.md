@@ -1,5 +1,15 @@
 # Hex patchnotes
 
+## v0.14.0 (2026-11-08)
+
+The big one, found the moment Brandon first stood somewhere real and typed `/goto foyer`: **`/goto` had never actually worked.** Every route call received the current room's 40-hex identifier (straight from GMCP via `need_start`), and the pathfinder indexed its graph by vnum only, so the Dijkstra never started, `/goto` printed its candidate list with every entry "unreachable", and no walk ever launched. The golden tests inject vnums directly, which is exactly why only live play could catch it: the same lesson as M1's dead vitals, now fixed at the layer where it lives.
+
+- `find_route` and `distances` accept **both** vnums and 40-hex room ids (the graph already carried a `by_id` map; the entry points now use it). Every caller (`/goto`, `/near`, `/path`, `/blorp goto`) starts working from the room you actually stand in.
+- The `/goto` and `/path` candidate lists resolve ALL matches and rank them nearest-first (reachable before unreachable), showing the closest 15 with step counts. The alphabetical cap had buried real targets: "foyer of the Assassins Guild" lost a 15-way lottery to three identical "foyer (Ankh-Morpork)" rows while Brandon stood 46 steps from it. `#<n>` still routes any candidate, even past the display cut.
+- Verified against the real rooms.db in a new golden test: a 40-hex start routes the full 129-step Drum-to-Djel walk. Plus a pure-graph unit pin and the live walk that started it all.
+- Also learned and documented by the same walk: the Assassins' Guild interior IS in the map data (its own area, ~100 rooms: classrooms, the climbing wall, house dormitories, the Inhumation Office); an earlier note here undercounted it as 12 rooftops.
+- Tests grow to 184 (190 with the opt-in route goldens). The debug lane stays until Brandon's verification pass lands its captures.
+
 ## v0.13.1 (2026-11-06)
 
 A live-found fix from Brandon's first walk in Ankh-Morpork: `/near market` from God Street listed five unreachable strangers in Genua and Ephebe while AM's own Job Market rooms never appeared.

@@ -278,13 +278,24 @@ local function dijkstra(graph, starts, opts)
   return dist, prev, prev_edge, closed
 end
 
+-- Accepts a vnum OR a 40-hex room_id (the callers hand room.id straight
+-- from GMCP); returns the dense node index or nil. Found live 2026-11-08:
+-- every /goto ever run passed an id string into idx lookups and silently
+-- never started (the goldens inject vnums, so only live play could catch it).
+local function to_node(graph, v)
+  if type(v) == "number" then
+    return graph.idx[v]
+  end
+  return graph.by_id[v]
+end
+
 -- find_route(graph, start_vnums, target_vnum, opts) -> route | nil, reason.
 -- route = { steps, from, to, dist, path = { {from,to,cmd,dir,eflag,room_id,name,area} } }
 function M.find_route(graph, start_vnums, target_vnum, opts)
   opts = opts or {}
   local starts = {}
   for _, v in ipairs(start_vnums or {}) do
-    local sd = graph.idx[v]
+    local sd = to_node(graph, v)
     if sd then
       starts[#starts + 1] = sd
     end
@@ -292,7 +303,7 @@ function M.find_route(graph, start_vnums, target_vnum, opts)
   if #starts == 0 then
     return nil, "start is not in the routable graph"
   end
-  local t = graph.idx[target_vnum]
+  local t = to_node(graph, target_vnum)
   if not t then
     return nil, "target is not in the routable graph"
   end
@@ -334,12 +345,12 @@ end
 -- that were reached (missing = unreachable). opts.allow_avoid passthrough.
 function M.distances(graph, start_vnum, target_vnums, opts)
   local targets, starts = {}, {}
-  local sd = graph.idx[start_vnum]
+  local sd = to_node(graph, start_vnum)
   if sd then
     starts[1] = sd
   end
   for _, v in ipairs(target_vnums or {}) do
-    local d = graph.idx[v]
+    local d = to_node(graph, v)
     if d then
       targets[d] = true
     end
