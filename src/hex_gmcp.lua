@@ -41,9 +41,8 @@ local ROUTES = {
 local probe_on = false
 local recent = {} -- last raw incoming GMCP subnegs, newest last
 
--- sink: set by hex_capture while armed so raw payloads mirror into the
--- transcript; nil when disarmed. handshake/last_subneg feed /doctor.
-M.sink = nil
+-- handshake/last_subneg feed /doctor's liveness checks (the debug lane's
+-- sink hook left with the lane in v0.15.0).
 M.handshake_done = false
 M.last_subneg_at = nil
 
@@ -65,7 +64,7 @@ function M.setup(handlers)
     M.handshake_done = true
   end)
 
-  -- raw tap on telnet option 201 (GMCP) for /hexraw (and the capture sink)
+  -- raw tap on telnet option 201 (GMCP) for /hexraw
   core.subneg_recv(function(proto, bytes)
     if proto == 201 then
       local text = bytes_to_string(bytes)
@@ -74,9 +73,6 @@ function M.setup(handlers)
         table.remove(recent, 1)
       end
       M.last_subneg_at = os.time()
-      if M.sink then
-        M.sink(text)
-      end
     end
   end)
 

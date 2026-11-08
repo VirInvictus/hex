@@ -6,7 +6,7 @@ Every phase below has an implementation-ready design document under [docs/](docs
 
 **Position (2026-11-05): Hex is Brandon's primary Discworld client** — the TinTin++/tt_dw setup was declined; the tt_dw clone stays as the porting source, and since v0.2.0 `/hexupdate` owns the Quow database and sound copies in Hex's data directory (the tt_dw copy is only a fallback until the first `/hexupdate` run).
 
-**Debug lane (v0.5.2-dbg → REMOVED in v0.6.0 → RESURRECTED in v0.12.1-dbg)**: `/hexcapture` shipped in v0.5.2-dbg, fed the wire-verification backlog (transcripts archived at `~/.local/share/hex/captures/`), and was cut out of v0.6.0 entirely as planned. Reintroduced in v0.12.1-dbg (asked-for) for the combat-monitor verification pass; it comes out of the next feature release, while `/doctor` (same release) is the permanent in-client self-test.
+**Debug lane (v0.5.2-dbg → REMOVED in v0.6.0 → RESURRECTED in v0.12.1-dbg)**: `/hexcapture` shipped in v0.5.2-dbg, fed the wire-verification backlog (transcripts archived at `~/.local/share/hex/captures/`), and was cut out of v0.6.0 entirely as planned. Reintroduced in v0.12.1-dbg (asked-for) for the combat-monitor verification pass; REMOVED again in v0.15.0 (its captures landed), while `/doctor` is the permanent in-client self-test.
 
 North star: Hex becomes the Discworld suite a Blightmud player reaches for first, the way Quow's Cow Bar is the suite a MUSHclient player reaches for first. That bar has three parts, and every phase below serves one of them: nothing essential is missing (map, vitals, data, missions, magic), nothing breaks quietly (the GMCP lesson: verify every protocol claim against the live wire), and nothing feels alien to a terminal user (one binary, text everywhere, zero dependencies).
 

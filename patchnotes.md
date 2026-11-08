@@ -12,8 +12,6 @@ Brandon joined the Assassins' Guild on the wire (the captured sequence: applicat
 
 ## v0.14.1 (2026-11-08)
 
-## v0.14.1 (2026-11-08)
-
 Hotfix, same evening: `/goto #1` crashed with "attempt to index a nil value (global 'deps')".
 
 - Cause: `cmd_goto`'s routing section (and the whole debug lane's `cmd_hexdebug`) referenced the bare name `deps`, which only exists as `M.setup`'s parameter. Every module-level use resolves to a nil global. The path only executes when a candidate is actually picked, so it survived until the very first `/goto #n` in live play, one line after v0.14.0 un-blocked it. All module-level references now go through `M.deps`.
