@@ -1421,6 +1421,31 @@ t("chat: clubs, groups, talkers (both shapes), shouts", function()
   eq(e.text, "MEEP")
 end)
 
+t("chat: the live Conlegium bracelet lines classify (corpus v1, 2026-11-08)", function()
+  -- verbatim from hex-capture-20261108-162653.log (the wooden bracelet is
+  -- the Conlegium Sicariorum talker item; the secretary's voice is the
+  -- club's welcome bot)
+  local fam, e = chat.classify("(Assassins) Secretary's wispy voice comes from the wooden bracelet, saying: Joining the Conlegium Sicariorum")
+  eq(fam, "talker")
+  eq(e.channel, "Assassins")
+  eq(e.name, "Secretary")
+  fam, e = chat.classify("(ConlegiumSicariorum) Secretary's wispy voice comes from the wooden bracelet, saying: Please join myself and")
+  eq(fam, "talker")
+  eq(e.channel, "ConlegiumSicariorum")
+end)
+
+t("chat: hide-from-main defaults and config override (tells never hide)", function()
+  chat.deps = { config = { get = function(_, key, default) return default end } }
+  eq(chat.hide("club"), true)
+  eq(chat.hide("talker"), true)
+  eq(chat.hide("group"), true)
+  eq(chat.hide("system"), true)
+  eq(chat.hide("tell"), false) -- the awareness rule
+  chat.deps = { config = { get = function(key, default) return key == "chat_hide" and { club = false } or default end } }
+  eq(chat.hide("club"), false)
+  eq(chat.hide("talker"), true) -- others keep the default
+end)
+
 t("chat: room says and souls are not captured", function()
   eq(chat.classify("Brandon says: hello"), nil)
   eq(chat.classify("Brandon bows politely."), nil)

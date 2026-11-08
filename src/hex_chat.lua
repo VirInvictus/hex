@@ -241,6 +241,23 @@ function M.family_on(family)
   return families[family] ~= false
 end
 
+-- Hide-from-main (tt_dw semantics: club/talker/group/system chatter moves
+-- to the tab; tells NEVER hide — the awareness rule keeps them readable in
+-- the main feed no matter what). Config: the chat_hide map, default on for
+-- the four, and /chatset <family> hide|mirror toggles it.
+M.HIDE_DEFAULT = { club = true, group = true, talker = true, system = true, tell = false }
+
+function M.hide(family)
+  if family == "tell" then
+    return false
+  end
+  local map = M.deps.config.get("chat_hide", M.HIDE_DEFAULT)
+  if type(map) == "table" and map[family] ~= nil then
+    return map[family] ~= false
+  end
+  return M.HIDE_DEFAULT[family] or false
+end
+
 -- The tab's include filters, one per enabled family (design §1.4).
 function M.tab_includes()
   local includes = {}
@@ -312,8 +329,11 @@ function M.setup_tab()
 end
 
 function M.register(trigger_add, Regex)
-  -- one trigger per family + own tells (mirror mode: no gag, no output_to);
-  -- capture + notify only, the tab (if any) routes by its own filters
+  -- one trigger per family + own tells. The classify-confirmed family
+  -- decides hiding: club/group/talker/system chatter gags from main (the
+  -- tab's filters carry it), tells never do (the awareness rule). The Rust
+  -- patterns are broader than classify, so the gag fires only after the
+  -- Lua-side family confirmation.
   local specs = {
     { M.PATTERNS.tell, true },
     { M.PATTERNS.own, false },
@@ -324,7 +344,10 @@ function M.register(trigger_add, Regex)
   }
   for _, spec in ipairs(specs) do
     trigger_add(Regex.new(spec[1], spec[2] and { case_insensitive = true } or nil), {}, function(matches, line)
-      M.capture(line)
+      local family = M.capture(line)
+      if family and M.hide(family) and type(line) == "table" and line.gag then
+        pcall(line.gag, line, true)
+      end
       return line
     end)
   end
@@ -426,9 +449,26 @@ end
 -- /chatset <family> on|off: config now; tab filter rebuild when the API
 -- allows it (filters are append-only, so a rebuild needs tab removal).
 function M.cmd_chatset(args)
-  local family, state = args:match("^(%a+)%s+(on|off)$")
+  -- two verbs: <family> on|off (capture) and <family> hide|mirror
+  -- (hide-from-main; tells are exempt from hiding by the awareness rule)
+  local family, state = args:match("^(%a+)%s+(on|off|hide|mirror)$")
   if not family or not M.rings[family] then
-    print(util.ansi.gray .. "usage: /chatset <tell|club|group|talker|system> <on|off>" .. util.ansi.reset)
+    print(util.ansi.gray .. "usage: /chatset <tell|club|group|talker|system> <on|off|hide|mirror>" .. util.ansi.reset)
+    print(util.ansi.gray .. "  on/off captures the family; hide moves it out of the main feed (mirror keeps both)" .. util.ansi.reset)
+    return
+  end
+  if state == "hide" or state == "mirror" then
+    if family == "tell" then
+      print(util.ansi.gray .. "[hex] tells always stay in the main feed (the awareness rule)" .. util.ansi.reset)
+      return
+    end
+    local map = M.deps.config.get("chat_hide", M.HIDE_DEFAULT)
+    if type(map) ~= "table" then
+      map = {}
+    end
+    map[family] = state == "hide"
+    M.deps.config.set("chat_hide", map)
+    print(util.ansi.gray .. "[hex] " .. family .. " chatter now " .. (state == "hide" and "moved to the chat tab (hidden from main)" or "mirrored in the main feed") .. util.ansi.reset)
     return
   end
   local families = M.deps.config.get("chat_families", { tell = true, club = true, group = true, talker = true, system = true })

@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.16.0 (2026-11-08)
+
+The chat capture finally met a real talker: Brandon joined the Conlegium Sicariorum and its wooden bracelet started chattering. The classification held (the talker shape matches the live lines verbatim, now a fixture), but the delivery was tt_dw's opposite: club chatter MIRRORED in the main feed instead of moving to the chat tab.
+
+- The chat triggers gained per-family hide-from-main: club, group, talker and system chatter now moves to the chat tab (gagged in the main feed), while tells NEVER hide (the awareness rule, enforced in code: the tell family cannot be set to hide). The gag fires only after the Lua-side classify confirms the family, so the broader Rust patterns can never mute a room description.
+- `/chatset <family> hide|mirror` toggles each family between moved-to-tab and mirrored-in-main; `/chatset tell hide` is refused by name.
+- Also shipped: the MDT fixture grew the first real multi-entity writtenmap corpus (two people, correctly attributed, verbatim from Brandon's guild capture).
+- Tests grow to 181 (187 with the opt-in route goldens).
+
 ## v0.15.0 (2026-11-08)
 
 Brandon joined the Assassins' Guild on the wire (the captured sequence: application form from the black box in the foyer, south to the secretary, `say apply`), and the score-verbose clause confirmed it: "you are level 3 in the Assassins' Guild". That unblocks this release: the guild-pack framework arrives, and the debug lane leaves exactly as planned.
