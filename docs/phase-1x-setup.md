@@ -2,7 +2,7 @@
 
 Design doc for the 1.x hotfix lane. Everything cites `file:line` against `~/.gitrepos/hex` and `~/.gitrepos/tt_dw`. Status: A1-A5 implemented and shipped in v0.2.0 (2026-11-05); `/hexcheck` Tier-2 and the wire refinements (`brief exits` idempotency, `options output` parser shape) wait on live verification.
 
-## A1. `/hexsetup` — the game-side options, sanctioned
+## A1. `/hexsetup`: the game-side options, sanctioned
 
 ### The verbatim strings
 
@@ -13,7 +13,7 @@ Prompt (MS:13, SC:42):
 prompt "$hurtcolour$Hp: %^BOLD%^$hp$%^RESET%^$hurtcolour$ ($maxhp$)  Gp: $gp$ ($maxgp$)  Xp: $xp$   ($align$, $temp$)%^RESET%^>"
 ```
 
-Combat monitor (MS:15, SC:43) — note the three spaces between HP and Gp:
+Combat monitor (MS:15, SC:43); note the three spaces between HP and Gp:
 ```
 monitor $hurtcolour$Hp: %^BOLD%^$hp$%^RESET%^$hurtcolour$   Gp: $gp$%^RESET%^
 ```
@@ -47,7 +47,7 @@ MS:27-28 documents a fourth alias (`alias k kill <safe_targets_in_this_room>`) t
 | `brief exits` | Phase 5 lost-room/maze text parsing; clean room text | Send, but it is a bare toggle, not idempotent: after wire verification prefer `options set output brief exits on` if accepted |
 | `options terminal automatic rows = off` | Stops "Rows changed" spam at the source (better than the existing gag) | Send |
 | `rows 999` | Phase 3 skills listings; any long listing | Send |
-| `alias afterinventory gp brief;shields;inventory;score brief` | Phase 4 reads `shields` output; user types `afterinventory` themselves — Hex never runs it | Send (define only) |
+| `alias afterinventory gp brief;shields;inventory;score brief` | Phase 4 reads `shields` output; user types `afterinventory` themselves; Hex never runs it | Send (define only) |
 | `alias sn/hw/k`, `alias login mailinfo`, `screenreader set defaults` | tt_dw parser/numpad/speech peripherals; blightmud has native bindings and TTS | Skip |
 
 ### `/hexsetup` surface
@@ -72,7 +72,7 @@ tt_dw's `/check_setup` (SC:89-199) checks local files only. Hex does two tiers:
 - **Tier 1, local**: `quow_db` exists + age (feeds A3), `rooms_db` exists + row count, GMCP handshake confirmed by scanning `hex_gmcp.recent()` for a `char.vitals` payload since connect.
 - **Tier 2, MUD-side**: sends `options output`, a registry-wrapped temporary trigger collects `^(%w[%w %.]*)%s*=%s*(.+)$` lines into a table (the same parser shape Phase 3's skills listing needs), a client-side display-only timer prints the checklist ~2 s later. Whether `prompt`/`monitor` appear in `options output` is a live-verification item; if absent, those rows print "check manually" with the reference strings.
 
-## A2. Gag registry file — user gags as data
+## A2. Gag registry file: user gags as data
 
 - Path: `~/.local/share/hex/gags.lua` (configurable, `/hexset gags_file <path>`), loaded additively after `hex_gags.M.patterns` (built-ins first; a user `sub` wins by registration order since `line:replace` overwrites). Re-application on `/hexreload` is automatic via the registry.
 - Load via `dofile` in `pcall`: blightmud creates the Lua state with `Lua::unsafe_new()` (`src/lua/lua_script.rs:149`), which loads the full standard library including io/os. Guard `if io == nil` so a future safe-state switch degrades to "gags work, /hexgag write disabled".
@@ -112,9 +112,9 @@ tt_dw has no staleness warning of its own (`bash/update.sh` has only `-q`); this
 
 ## A4. `room.map` ANSI handling
 
-`hex_util.strip_ansi(s)`: `return (tostring(s):gsub("\27%[[%d;]*%a", ""))` — covers `\x1b[39;49m`, `\x1b[0m`, `\x1b[31m`, and other CSI final letters. Config `hex.map_ansi` = `ansi | strip`. Scope note: this doc's `strip` default governs the 1.x `/dwmap` inline print; Phase 5's panel owns the full ANSI path and defaults `ansi` there (`hex.map_ansi` is one key read by both surfaces — Phase 5 resolves the per-surface default when it lands) (a stray unclosed color fragment is what makes raw output look broken). Strip at **render** time in `/dwmap`, not at store time (`maps.ascii` stays raw so Phase 5's panel keeps colors). Phase 5 owns the full `ansi` rendering path.
+`hex_util.strip_ansi(s)`: `return (tostring(s):gsub("\27%[[%d;]*%a", ""))`, which covers `\x1b[39;49m`, `\x1b[0m`, `\x1b[31m`, and other CSI final letters. Config `hex.map_ansi` = `ansi | strip`. Scope note: this doc's `strip` default governs the 1.x `/dwmap` inline print; Phase 5's panel owns the full ANSI path and defaults `ansi` there (`hex.map_ansi` is one key read by both surfaces; Phase 5 resolves the per-surface default when it lands) (a stray unclosed color fragment is what makes raw output look broken). Strip at **render** time in `/dwmap`, not at store time (`maps.ascii` stays raw so Phase 5's panel keeps colors). Phase 5 owns the full `ansi` rendering path.
 
-## A5. Hex owns its data — `/hexupdate` and the `quow_db` move
+## A5. Hex owns its data: `/hexupdate` and the `quow_db` move
 
 Goal: daily play stops depending on the tt_dw clone. Quow's database downloads straight from Quow into Hex's data directory; the CC0 sound set copies over once. Decisions taken 2026-11-05 (Brandon): detached spawn + re-check for the download, sounds copied from the local tt_dw clone, fallback-ladder migration.
 

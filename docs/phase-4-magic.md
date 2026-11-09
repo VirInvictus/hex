@@ -1,4 +1,4 @@
-# Phase 4: magic & faith — TPA, charms, spells, broom, stat items
+# Phase 4: magic & faith: TPA, charms, spells, broom, stat items
 
 Design doc. Status: §4's data lane implemented 2026-11-05 (v0.5.1: hex_spelldata committed dataset via tools/convert_spelldata.py, hex_spells TM/spellinfo/search; known-spells store deferred to the trackers batch). §2-3, §5-6 (TPA, charm, broom, stat items) stay designed-not-implemented, wire-gated on capture session #2. Measured source sizes: `magic/tpa.tin` 223 lines, `bugshield.tin` 99, `spellinfo.tin` 788, `spelldata.tin` 2,179 (117 spells), `spellsizes.tin` 138, `broomstick.tin` 92, `faith/*` 468, `items/*` 9 files. All paths relative to `~/.gitrepos/tt_dw/scripts/` unless `hex:`.
 
@@ -33,7 +33,7 @@ Own-shield triggers (Rust regex, registry-wrapped), with `tpa.tin` line cites: t
 
 `set_tpa` logic (port of `:97-131`): start anchoring rules, transition line `* <prev> -> <new> (<perc>%)` with `*` borders when the percentage dropped. `break_tpa` (`:133-168`): three-line banner with hit count, elapsed, and the expectation comparison.
 
-**Duration prediction — the actual arithmetic**: `guess = bonus("magic.spells.defensive", "current") * 10` (`tpa.tin:82,150` — "duration based on guessed duration (bonus*10s)"); `left = guess - (now - start)`. The bonus comes from Phase 3's `hex_skills.bonus` (floor(raw_level_bonus × multiplicator)). Active-duration color bands (`:84-92`): <60s bold red, <300 red, <600 orange, <900 yellow. Break-time comparison (`:149-162`): guess > actual+600 bold red; +300 red; < actual−600 bold green; −300 green; prints `(expected: @dur{guess})`.
+**Duration prediction, the actual arithmetic**: `guess = bonus("magic.spells.defensive", "current") * 10` (`tpa.tin:82,150`; "duration based on guessed duration (bonus*10s)"); `left = guess - (now - start)`. The bonus comes from Phase 3's `hex_skills.bonus` (floor(raw_level_bonus × multiplicator)). Active-duration color bands (`:84-92`): <60s bold red, <300 red, <600 orange, <900 yellow. Break-time comparison (`:149-162`): guess > actual+600 bold red; +300 red; < actual−600 bold green; −300 green; prints `(expected: @dur{guess})`.
 
 Announce-on-expiry: on cast and every re-colour implying remaining time, cancel and re-arm a one-shot `timer.add(max(left,1), 1, cb)`; the callback prints and refreshes status, never sends. On break, cancel (the break line is authoritative). Registry-recorded. Without `hex_skills`: no timer, chip shows elapsed only (silent degradation).
 
@@ -41,13 +41,13 @@ Chip (port of `:6-35`): hidden when broken >30 min ago; `[T:<colour><perc>% <hit
 
 Others' shields: v1 ports only the green highlight and trivial look-line annotations; inline `(tpa: colour%)` annotations for other players deferred.
 
-## 3. hex_charm — bugshield, faith, FTF
+## 3. hex_charm: bugshield, faith, FTF
 
 One module, submodules by table; each with `handle(line, state)`, `chip(state)`.
 
 **Bugshield** (port of `bugshield.tin:7-35`; tt_dw matches unanchored, Hex anchors on determiners): orbit/hover/buzz/circle/web/cluster/flutter variants → up(size, bugs); hasty-retreat variant; look parse; warn/gone/down lines with their `***` banners. Shorteners (`:41-55`): strip "swarm"/" insects"/" bugs"/" beetles"/"praying "/"winged "/"flying ". Chip: up green, warn red, down bold red, gone yellow.
 
-**Faith rituals**: Divine Ire set/clear with lasted duration (`faith.tin:21-35` — tt_dw's `#delay 0` exists only so the sub can read the duration first; Hex computes before clearing); Dark Sight set/clear; Cool/Warm set/clear lines; chip `[DS]`/`[DI]`/`[Cool]`/`[Warm]`.
+**Faith rituals**: Divine Ire set/clear with lasted duration (`faith.tin:21-35`; tt_dw's `#delay 0` exists only so the sub can read the duration first; Hex computes before clearing); Dark Sight set/clear; Cool/Warm set/clear lines; chip `[DS]`/`[DI]`/`[Cool]`/`[Warm]`.
 
 **Major shield** (port of `faith/major.tin`): duration formula `duration = round(bonus("faith.rituals.defensive.self","current") - 10)` seconds (the dwwiki log formula approximated linearly upstream, `major.tin:16-22`); stacking `end = (end == nil) and now+duration or end + duration` (`:49-58`); gain/shift/weakening/expiry trigger lines (`:62-71, 52-55`); `check shields` range words → [min,max] pairs (`:75-123`); chip `[S: <colour>@dur{left}]` with 30/60/90/120/600s bands (`:23-37`). No expiry timer (tt_dw has none).
 
@@ -55,7 +55,7 @@ One module, submodules by table; each with `handle(line, state)`, `chip(state)`.
 
 **FTF** (`magic/ftf.tin`): float start/end triggers, `[FTF:<dur>]` chip. No pathfinding needed.
 
-v1 vs deferred: CCC, EFF (needs Phase 6 combat stats), obbk, gfr, klein color chips, rod substitutions (pure `line:replace` data), find-ritual decoder (Phase 7 guild pack), PFG damage bands — all quoted in the exploration and cheap to add later.
+v1 vs deferred: CCC, EFF (needs Phase 6 combat stats), obbk, gfr, klein color chips, rod substitutions (pure `line:replace` data), find-ritual decoder (Phase 7 guild pack), PFG damage bands, all quoted in the exploration and cheap to add later.
 
 Resync: `^Arcane protection status\.$` clears TPA + bugshield state (port of `magic.tin:22-28`).
 
@@ -63,13 +63,13 @@ Resync: `^Arcane protection status\.$` clears TPA + bugshield state (port of `ma
 
 **Dataset shape (measured)**: 117 spells; every spell carries name/nick/description/gp/size/components/type/spellcheck (117 each), octogram 93, tome 93 (wizards), learnt_at 25 (witches, plus one "Sold by Jorodin"). Every `spellcheck` stage has exactly 10 ascending bonus thresholds (5th = 50% point; 1st = fail, 10th = success). Skill shorthand map `spellskills` = 35 entries; `spellprimaries` = 8 wizard colors + witches.
 
-**Port strategy**: `tools/convert_spelldata.py` (stdlib, dev-time) parses `#var spellinfos` from the read-only clone and emits a **committed** `src/hex_spelldata.lua` (~120-140 KB) — committed because `/add_plugin` installs must work without a tt_dw clone (static shipped data is source, not runtime data; runtime data like rooms.db stays in `~/.local/share/hex`). Converter validates: 117 spells; 10 ascending checks per stage; every shorthand resolves; type ∈ {Offensive, Defensive, Miscellaneous}. Attribution header kept verbatim ("Spell info grabbed from the wiki; Spellcheck skills pilfered from Quow's plugin" — public domain).
+**Port strategy**: `tools/convert_spelldata.py` (stdlib, dev-time) parses `#var spellinfos` from the read-only clone and emits a **committed** `src/hex_spelldata.lua` (~120-140 KB), committed because `/add_plugin` installs must work without a tt_dw clone (static shipped data is source, not runtime data; runtime data like rooms.db stays in `~/.local/share/hex`). Converter validates: 117 spells; 10 ascending checks per stage; every shorthand resolves; type ∈ {Offensive, Defensive, Miscellaneous}. Attribution header kept verbatim ("Spell info grabbed from the wiki; Spellcheck skills pilfered from Quow's plugin"; public domain).
 
-**TM constants as config** (`spellinfo.tin:6-12`): `tm_blacklist` (24-spell default list, quoted in the exploration), `tm_cast_chance` 30, `tm_cutoff` 9 — via `/hexset`.
+**TM constants as config** (`spellinfo.tin:6-12`): `tm_blacklist` (24-spell default list, quoted in the exploration), `tm_cast_chance` 30, `tm_cutoff` 9, all via `/hexset`.
 
 **TM algorithm (extracted, deterministic)**:
 1. Stage chance: count thresholds passed ascending, **breaking at the first failure** (`:699-704`); `stage_chance = passed * 10`.
-2. `spell_tm_chance` (`:743-768`): relative chance — for each stage with the method, `p = clamp(stage_chance,1,99)/100`, `tm = p*(1-p)`, `notm *= (1-tm)`; result `round((1-notm)*100)`. Comment quoted: "gives *relative* TM chance for sorting, real chance is way lower".
+2. `spell_tm_chance` (`:743-768`): relative chance: for each stage with the method, `p = clamp(stage_chance,1,99)/100`, `tm = p*(1-p)`, `notm *= (1-tm)`; result `round((1-notm)*100)`. Comment quoted: "gives *relative* TM chance for sorting, real chance is way lower".
 3. `spell_cast_chance` (`:708-723`): product over ALL stages; "(Probably) not the actual chance, so don't show this to users".
 4. `spell_skills_50` (`:662-679`): the 5th threshold per stage.
 5. Ordering: descending tm_chance; **stable** sort with spelldata-order tie-break, asserted by test.
@@ -79,7 +79,7 @@ Resync: `^Arcane protection status\.$` clears TPA + bugshield state (port of `ma
 
 Player skill inputs come from Phase 3's store; primaries stars from `spellprimaries` + guild.
 
-**Commands**: `/spellinfo <nick|name>` (full card: type-colored bold name with known-`*`, gp/size, components, octogram/tome/learnt_at lines, the spellcheck table with Fail/Maybe/Success columns and per-stage chance/level/bonus/hint using Phase 3's `level_for_bonus`), `/spellcheck <nick>`, `/spells [list|long|<method>|<text>]`, `/tm <method>` (Hex convenience — tt_dw embeds the suggestion in `/spell <method>`; no `/tm` upstream).
+**Commands**: `/spellinfo <nick|name>` (full card: type-colored bold name with known-`*`, gp/size, components, octogram/tome/learnt_at lines, the spellcheck table with Fail/Maybe/Success columns and per-stage chance/level/bonus/hint using Phase 3's `level_for_bonus`), `/spellcheck <nick>`, `/spells [list|long|<method>|<text>]`, `/tm <method>` (Hex convenience; tt_dw embeds the suggestion in `/spell <method>`; no `/tm` upstream).
 
 **Known spells + sizes + mindspace** (port of `spellsizes.tin`): the `You know the following (offensive|defensive|misc) magic spells:` listing mode scanned with bounded `string.find` against the 117 canonical names (replaces tt_dw's 117 priority-9 actions); `You successfully remember X` adds; forget/do-not-know lines remove; persisted per-alt. `Total spell size: X/Y` where mindspace = `bonus("magic.spells.special","raw") + 30` (`spellsizes.tin:125-132`), red/green colored; wizard/witch note gated on guild.
 
@@ -95,9 +95,9 @@ Tracked set (`items.tin:5-7`): bronze_helm, dex_gloves, flat_cap, gp_light, klei
 
 **Netting math** (finalizing Phase 3's reserved contract): on the `score verbose stats` parse, `raw = current - shown_boost`; `stored_boost = shown_boost - statitems.effect(stat, burden)`; display `current = raw + effect + stored_boost`. `type=raw` uses raw alone (matches tt_dw `@stat{con;raw}` in the multiplicator). Self-healing if an item fires before a parse. Chip set: `[Helm] [Cap] [Str.G] [Dex.G] [T-dag] [Klein+n] [Beads] [Glow]` in fixed order with upstream's colors.
 
-## 7. Travel files — brief, deferred
+## 7. Travel files (brief, deferred)
 
-`flyto.tin` (211 lines): per-area broomstick destination tables; the `where` field is prose, not a room key — resolving it needs Phase 2; tables port as pure data later. `pfg.tin`: six damage-word annotations, pure subs, v1-optional. No OCC file exists upstream.
+`flyto.tin` (211 lines): per-area broomstick destination tables; the `where` field is prose, not a room key; resolving it needs Phase 2; tables port as pure data later. `pfg.tin`: six damage-word annotations, pure subs, v1-optional. No OCC file exists upstream.
 
 ## 8. Test plan
 
