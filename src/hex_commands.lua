@@ -1085,7 +1085,58 @@ function M.setup(deps)
     deps.spells.cmd_spellinfo(matches[2])
   end)
   alias_add("^/spellcheck\\s+(.+)$", function(matches)
-    deps.spells.cmd_spellcheck(matches[2])
+    local nick, live = matches[2]:match("^(%S+)%s+live$")
+    if nick then
+      deps.spells.cmd_spellcheck_live(nick)
+    else
+      deps.spells.cmd_spellcheck(matches[2])
+    end
+  end)
+  alias_add("^/shields$", function()
+    -- the documented status probe; hex_spells's triggers print the block
+    mud.send("shields")
+    print(a("gray", "[hex] sent: shields"))
+  end)
+  alias_add("^/hexwimpy\\s*(\\d*)$", function(matches)
+    local n = matches[2]
+    if n == "" then
+      print(a("gray", "usage: /hexwimpy <0-100>   flee at that hp percent; 0 = never flee"))
+      print(a("gray", "documented: even with wimpy you can still die; higher wimpy = less xp per kill"))
+      return
+    end
+    mud.send("wimpy " .. n)
+    print(a("gray", "[hex] sent: wimpy " .. n))
+  end)
+  alias_add("^/hextactics\\s+(\\a+)$", function(matches)
+    local presets = {
+      safe = { "options combat tactics attitude = defensive", "options combat tactics response = dodge" },
+      neutral = { "options combat tactics attitude = neutral", "options combat tactics response = neutral" },
+      aggro = { "options combat tactics attitude = offensive", "options combat tactics response = neutral" },
+    }
+    local cmds = presets[matches[2]]
+    if not cmds then
+      print(a("gray", "usage: /hextactics safe|neutral|aggro   (documented attitudes and responses)"))
+      return
+    end
+    for _, cmd in ipairs(cmds) do
+      print(a("gray", "[hex] send: " .. cmd))
+      mud.send(cmd)
+    end
+  end)
+  alias_add("^/hexkill\\s+(.+)$", function(matches)
+    -- the documented living-adjective trick: never hit the corpse instead
+    mud.send("kill living " .. matches[2])
+    print(a("gray", "[hex] sent: kill living " .. matches[2]))
+  end)
+  alias_add("^/hexloot$", function()
+    -- the documented corpse-recovery pair from the dying page
+    mud.send("get all from corpse")
+    mud.send("equip")
+    print(a("gray", "[hex] sent: get all from corpse; equip"))
+  end)
+  alias_add("^/hexbandage$", function()
+    mud.send("bandage me")
+    print(a("gray", "[hex] sent: bandage me"))
   end)
   alias_add("^/tm\\s+(.+)$", function(matches)
     local method, limit = matches[2]:match("^(%S+)%s*(%d*)$")
@@ -1216,7 +1267,8 @@ function M.setup(deps)
     print("  /chat [family] [n]        /chatset <family> on|off   /chattab on|off")
     print("  /chatnpc [name]           silence an NPC's tells (remove to undo)")
     print("  /combat [level]           /combatstat       /urls, /url <n>")
-    print("  /spellinfo <nick|name>    /spellcheck <n>   /tm <method>, /spells")
+    print("  /hextactics safe|aggro    /hexwimpy <n>     /hexkill <t> /hexloot /hexbandage")
+    print("  /spellinfo <nick|name>    /spellcheck <n> [live]   /tm <method>, /spells")
     print("  /stats [refresh]          read your stats into the bonus math")
     print("  /hexoptions [key] [value] /hexsound test     /hexsay <text>")
     print("  /blorp add|goto|list|all  /bookmark add|find|goto|list")

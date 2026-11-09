@@ -1,5 +1,15 @@
 # Hex patchnotes
 
+## v0.21.0 (2026-11-09)
+
+Phase 4's offline remainder plus the safety kit the combat-doc mining earned: every line shape in this release is pinned verbatim in the doc mirror, so it all works today, and every send stays behind a user alias.
+
+- `/spellcheck <nick> live`: the documented sendable probe. Resolves the nick through the local spelldata store, sends `spellcheck fully <spell>` (25 magic guild points plus 25 per stage, per the pinned help page), and each stage verdict prints annotated as it lands. The local model keeps its old name; `live` is the MUD's answer.
+- `/shields`: sends the documented status probe; the impact-shield line and the divine-protection lines (god plus duration) print annotated as they arrive. The item-condition rows of the block are deliberately unparsed: "It is in excellent condition" also shows up in every examine, and a parser that fires on examine output is noise.
+- The safety kit, straight from the documented mechanics: `/hextactics safe|neutral|aggro` (attitude and response presets; safe = defensive + dodge), `/hexwimpy <0-100>` (the flee threshold; the help page's own caveats ride along: even with wimpy you can still die, and higher wimpy means less xp per kill), `/hexkill <target>` (the documented `kill living` adjective trick, so a rat pile never eats your swings), `/hexloot` (the dying page's recovery pair: `get all from corpse` then `equip`), and `/hexbandage` (`bandage me`, out of combat only).
+- Still wire-gated and honest about it: `remember` and the known-spells store need the known-spells listing; the TPA glow colour and the wimpy confirmation lines need a capture.
+- Tests grow to 212 (218 with the opt-in route goldens): the stage and header parsers (the stage number is a word on the wire, per the doc's own example), the shields block parser with the item-condition collision pinned as unparsed, and the empty-report hint.
+
 ## v0.20.0 (2026-11-09)
 
 The Phase 1 and Phase 2 finishers: the last unticked box of the 1.x lane and two of Phase 2's leftovers, all offline work the pinned docs and the existing graph already supported.

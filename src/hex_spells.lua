@@ -237,6 +237,104 @@ function M.setup(deps)
   M.deps = deps
 end
 
+-- --- live probes (v0.21.0): the sendable spellcheck and the shields read ---
+-- Both are user-alias sends; the parsers run on distinctive personal-status
+-- lines pinned verbatim in the doc mirror (known_command/spellcheck and
+-- helpdir/shields), so they work offline. The item-condition rows of the
+-- shields block are deliberately NOT parsed: "It is in <x> condition" also
+-- appears in every examine.
+
+-- "For stage two using the evoking skill, you would almost certainly succeed."
+-- The stage number is a word on the wire (the doc's own example), so it
+-- stays a string; the trigger literal mirrors that with %a+.
+function M.parse_stage_line(line)
+  local n, skill, verdict = tostring(line):match("^For stage (%a+) using the (.+) skill, you would (.+)%.$")
+  if n then
+    return { n = n, skill = skill, verdict = verdict }
+  end
+  return nil
+end
+
+-- "The spell, Kamikaze Oryctolagus Flammula, is an offensive spell requiring a carrot and a torch."
+function M.parse_spell_header(line)
+  local name, kind = tostring(line):match("^The spell, (.+), is an? (.+) spell")
+  if name then
+    return { name = name, kind = kind }
+  end
+  return nil
+end
+
+function M.parse_shield_line(line)
+  line = tostring(line)
+  local names = line:match("^  (.+) are floating around you%.$")
+  if names then
+    return { kind = "items", detail = names }
+  end
+  if line == "  You are surrounded by a magical impact shield." then
+    return { kind = "impact" }
+  end
+  local god, dur = line:match("^  You are protected by the power of (.+)%.  You will be protected for (.+)%.$")
+  if god then
+    return { kind = "god", detail = god .. ", " .. dur }
+  end
+  return nil
+end
+
+function M.shields_report(rows)
+  local lines = {}
+  for _, r in ipairs(rows or {}) do
+    if r.kind == "items" then
+      lines[#lines + 1] = "floating: " .. r.detail
+    elseif r.kind == "impact" then
+      lines[#lines + 1] = "impact shield: UP"
+    elseif r.kind == "god" then
+      lines[#lines + 1] = "divine: " .. r.detail
+    end
+  end
+  if #lines == 0 then
+    lines[#lines + 1] = "no shields seen in the listing"
+  end
+  return lines
+end
+
+-- The live-print triggers (spellcheck stage verdicts, impact and divine
+-- shields); registered through the registry from main.lua.
+function M.register(trigger_add, regex)
+  trigger_add("^For stage (\\a+) using the (.+) skill, you would (.+)\\.$", {}, function(matches)
+    local r = M.parse_stage_line(matches[1])
+    if r then
+      print(util.ansi.gray .. ("[spellcheck] stage %d %s: %s"):format(r.n, r.skill, r.verdict) .. util.ansi.reset)
+    end
+  end)
+  trigger_add("^The spell, (.+), is an? (.+) spell requiring", {}, function(matches)
+    local r = M.parse_spell_header(matches[1])
+    if r then
+      print(util.ansi.gray .. ("[spellcheck] %s (%s spell)"):format(r.name, r.kind) .. util.ansi.reset)
+    end
+  end)
+  trigger_add("^  You are surrounded by a magical impact shield\\.$", {}, function()
+    print(util.ansi.cyan .. "[shields] impact shield: UP" .. util.ansi.reset)
+  end)
+  trigger_add("^  You are protected by the power of (.+)\\.  You will be protected for (.+)\\.$", {}, function(matches)
+    local r = M.parse_shield_line(matches[1])
+    if r then
+      print(util.ansi.cyan .. "[shields] divine: " .. r.detail .. util.ansi.reset)
+    end
+  end)
+end
+
+-- /spellcheck <nick> live: resolve the nick and send the documented probe
+-- (25 magic gp + 25 per stage for the full form, per the pinned help page).
+function M.cmd_spellcheck_live(nick)
+  local spell, nick_or_err = M.resolve(nick)
+  if not spell then
+    print(a("gray", "[hex] " .. tostring(nick_or_err)))
+    return
+  end
+  mud.send("spellcheck fully " .. spell.name)
+  print(a("gray", "[hex] sent: spellcheck fully " .. spell.name .. "  (stage verdicts print as they land)"))
+end
+
 local TYPE_COLOR = { Offensive = "red", Defensive = "green", Miscellaneous = "cyan" }
 
 local function a(name, text)

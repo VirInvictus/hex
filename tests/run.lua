@@ -1781,7 +1781,7 @@ t("spec invariant: registration literals carry no Lua classes or bad escapes", f
   -- alias/trigger/Regex literals go to the RUST engine: %s matches literal
   -- "%s" there (found live: 22 commands passed through to the MUD), and a
   -- single backslash + letter is an invalid Lua escape that stops parsing
-  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture_removed", "hex_doctor", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp", "hex_stats", "hex_scry" }) do
+  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture_removed", "hex_doctor", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp", "hex_stats", "hex_scry", "hex_spells" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -2950,6 +2950,46 @@ t("walk: the status chip tracks progress and drift", function()
   eq(walk.chip(st), "!drift2/3/38")
   st.complete = true
   eq(walk.chip(st), nil)
+end)
+
+-- v0.21.0 live-probe parsers (doc-pinned shapes; sends stay in aliases) ------
+
+t("spells: the sendable spellcheck lines parse", function()
+  local s = spells.parse_stage_line("For stage two using the evoking skill, you would almost certainly succeed.")
+  eq(s.n, "two")
+  eq(s.skill, "evoking")
+  eq(s.verdict, "almost certainly succeed")
+  local h = spells.parse_spell_header("The spell, Kamikaze Oryctolagus Flammula, is an offensive spell requiring a carrot and a torch.")
+  eq(h.name, "Kamikaze Oryctolagus Flammula")
+  eq(h.kind, "offensive")
+  eq(spells.parse_stage_line("You prepare to cast Kamikaze Oryctolagus Flammula."), nil)
+end)
+
+t("spells: the shields block parses (item-condition rows deliberately ignored)", function()
+  local rows = {
+    "Shield status:",
+    "  A knife and a Tsortean metal shield are floating around you.",
+    "    Carving knife: It is in excellent condition.",
+    "  You are surrounded by a magical impact shield.",
+    "  You are protected by the power of Fish.  You will be protected for at least half an hour.",
+    "  You are protected by the power of Sandelfon.  You will be protected for about ten minutes.",
+  }
+  -- sentinel, not nil: assigning nil to a sequence hole compacts the array
+  local kinds = {}
+  for _, l in ipairs(rows) do
+    local r = spells.parse_shield_line(l)
+    kinds[#kinds + 1] = r and r.kind or "-"
+  end
+  eq(kinds[1], "-")
+  eq(kinds[2], "items")
+  eq(kinds[3], "-") -- the examine-shaped condition row stays unparsed
+  eq(kinds[4], "impact")
+  eq(kinds[5], "god")
+  eq(kinds[6], "god")
+  local out = table.concat(spells.shields_report({ { kind = "impact" }, { kind = "god", detail = "Fish" } }), "\n")
+  assert(out:find("impact shield: UP", 1, true), "impact line")
+  assert(out:find("divine: Fish", 1, true), "divine line")
+  assert(table.concat(spells.shields_report({})):find("no shields", 1, true), "empty report hint")
 end)
 
 -- Phase 8 shim slice: main.lua loads against a stub blightmud ------------

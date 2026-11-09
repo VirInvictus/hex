@@ -186,8 +186,10 @@ doctor.setup({
   guild = guild,
 })
 
--- spells: spelldata queries + TM suggestions feed off the skills store
+-- spells: spelldata queries + TM suggestions feed off the skills store;
+-- the live-probe triggers (spellcheck verdicts, shields) print from main
 spells.setup({ config = config, skills = skills })
+spells.register(trigger_add, regex)
 
 -- debug capture lane REMOVED in v0.6.0 (transcripts consumed; wire facts
 -- folded into spec.md and the parsers)

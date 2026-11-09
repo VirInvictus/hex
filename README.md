@@ -46,8 +46,15 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/chat [family] [n]` | Chat recall (tells, clubs, group, talkers, shouts) from session ring buffers; stays in the main feed (mirror mode) unless your blightmud has tabs |
 | `/chatset <family> on|off`, `/chattab on|off` | Chat family toggles and the tab gate |
 | `/combat [level]`, `/combatstat` | Combat spam ladder (verbatim/verbose/default/brief, per-alt) and attacks-per-round |
+| `/hextactics safe\|neutral\|aggro` | The documented combat-tactics presets (attitude + response) as one send |
+| `/hexwimpy <0-100>` | The documented flee threshold (flee at that hp percent; 0 = brave mode) |
+| `/hexkill <target>` | `kill living <target>`: the documented living-adjective trick, so you hit the rat and not the corpse |
+| `/hexloot` | The documented corpse-recovery pair: `get all from corpse` then `equip` |
+| `/hexbandage` | `bandage me` (out of combat only; documented) |
 | `/urls [pattern]`, `/url <n>` | URL catch and recall; `open` shells out behind an opt-in flag |
 | `/spellinfo <nick\|name>`, `/spellcheck` | The full spell card with your per-stage spellcheck chances and level hints |
+| `/spellcheck <nick> live` | The documented sendable probe: sends `spellcheck fully <spell>` (25 gp + 25/stage) and prints each stage verdict as it lands |
+| `/shields` | Send the documented `shields` status probe; impact and divine shield lines print annotated |
 | `/tm <method>`, `/spells [list\|long\|<text>]` | TM suggestions per method (blacklist and thresholds configurable) and spell search |
 | `/chatnpc [name]` | Silence an NPC's tells (persisted; `remove <name>` undoes) |
 | `/blorp add|delete|rename|list|all|goto` | Named places, per-alt, distance-sorted; `goto` shows the route |
