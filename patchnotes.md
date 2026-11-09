@@ -2,7 +2,7 @@
 
 ## v0.17.2 (2026-11-08)
 
-The night-walk fix, for real this time: dark rooms push room.info WITHOUT the identifier field (you cannot identify a room you cannot see), and the walker was ignoring exactly those pushes — so a 38-step walk through dark countryside counted "step 0/38" the entire way while successfully moving Brandon every step. The walk then reported "ended early" at his actual destination.
+The night-walk fix, for real this time: dark rooms push room.info WITHOUT the identifier field (you cannot identify a room you cannot see), and the walker was ignoring exactly those pushes, so a 38-step walk through dark countryside counted "step 0/38" the entire way while successfully moving Brandon every step. The walk then reported "ended early" at his actual destination.
 
 - Unidentifiable room pushes now advance the walk optimistically, marked unverified: the movement happened, the room just could not be confirmed. Milestones fire normally on the unverified count, and the walk completes when the movement count reaches the route length.
 - The finish line reports the honesty: "arrived: <label> (N steps) (some steps unverified — dark rooms)".
