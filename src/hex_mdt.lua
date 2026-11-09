@@ -375,9 +375,12 @@ function M.normalize(line)
   line = tostring(line)
   -- "{X}, driver of the {Y} carriage" -> "{Y} carriage driver"
   line = line:gsub("(%u%a+), driver of the ([%w ]+) carriage", "%2 carriage driver")
-  -- "{dwarfish|trollish|human} {Y} carriage driver" (no alternation in Lua)
+  -- "{dwarfish|trollish|human} {Y} carriage driver" (no alternation in Lua;
+  -- the nationality is a literal here, so the single capture is %1: the %2
+  -- from tt_dw's two-group regex raised "invalid capture index" on every
+  -- writtenmap that named a nationality'd carriage driver, live 2026-11-08)
   for _, nat in ipairs({ "dwarfish", "trollish", "human" }) do
-    line = line:gsub(nat .. " ([%w ]+) carriage driver", "%2 carriage driver")
+    line = line:gsub(nat .. " ([%w ]+) carriage driver", "%1 carriage driver")
   end
   -- "a black and white cat" -> "a black-white cat" (mdt colour pairs)
   line = line:gsub(" (%a+) and (%a+) ", function(a, b)

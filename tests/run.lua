@@ -1799,6 +1799,75 @@ t("spec invariant: registration literals carry no Lua classes or bad escapes", f
   end
 end)
 
+t("spec invariant: gsub replacements never out-run the pattern's captures", function()
+  -- live crash 2026-11-08 (hex_mdt.lua:380): tt_dw's %2 replacement ported
+  -- verbatim onto a one-capture Lua pattern raised "invalid capture index"
+  -- on every writtenmap naming a nationality'd carriage driver. Single-line
+  -- :gsub() calls only; anything multi-line stays a hand-reviewed site.
+  for _, f in ipairs({ "hex_blorps", "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_doctor", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_guild", "hex_guild_data", "hex_mdt", "hex_mdtdata", "hex_minimap", "hex_missiondata", "hex_missions", "hex_notify", "hex_options", "hex_options_def", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_scry", "hex_setup", "hex_skilldata", "hex_skills", "hex_sound", "hex_sound_events", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_theme", "hex_tts", "hex_urls", "hex_util", "hex_vitals", "hex_walk" }) do
+    local path = root .. "src/" .. f .. ".lua"
+    local fh = io.open(path, "r")
+    if fh then
+      for line in fh:lines() do
+        if line:find(":gsub(", 1, true) then
+          local args = line:match(":gsub%((.*)%)%s*$") or line:match(":gsub%((.*)%)")
+          if args then
+            -- split args at top-level commas, quote-aware
+            local parts, cur, depth, inq, q = {}, "", 0, false, nil
+            for i = 1, #args do
+              local c = args:sub(i, i)
+              if inq then
+                cur = cur .. c
+                if c == q then
+                  inq = false
+                end
+              elseif c == '"' or c == "'" then
+                inq, q = true, c
+                cur = cur .. c
+              elseif c == "(" then
+                depth = depth + 1
+                cur = cur .. c
+              elseif c == ")" then
+                depth = depth - 1
+                cur = cur .. c
+              elseif c == "," and depth == 0 then
+                parts[#parts + 1] = cur
+                cur = ""
+              else
+                cur = cur .. c
+              end
+            end
+            parts[#parts + 1] = cur
+            if #parts >= 2 then
+              local pat, rep = parts[1], parts[2]
+              local caps, i = 0, 1
+              while i <= #pat do
+                local c = pat:sub(i, i)
+                if c == "%" then
+                  i = i + 2 -- the escaped char (including a literal paren) is not a capture
+                elseif c == "(" then
+                  caps = caps + 1
+                  i = i + 1
+                else
+                  i = i + 1
+                end
+              end
+              local maxn = 0
+              for n in rep:gmatch("%%(%d)") do
+                maxn = math.max(maxn, tonumber(n))
+              end
+              if maxn > caps then
+                error(f .. ".lua gsub replacement uses %" .. maxn .. " but the pattern has " .. caps .. " capture(s): " .. line)
+              end
+            end
+          end
+        end
+      end
+      fh:close()
+    end
+  end
+end)
+
 -- hex_stats (wire shapes from the 2026-11-05 capture) ----------------------
 
 t("stats: parses both dot-padded lines from the live shapes", function()
@@ -2111,6 +2180,17 @@ t("mdt: normalize merges colour pairs and rewrites vision/prose", function()
   assert(not n:find("vision is", 1, true), "prose 'is' rewritten: " .. n)
   local n2 = mdt.normalize("Agnes, driver of the Genua carriage is here")
   assert(n2:find("Genua carriage driver", 1, true), "carriage driver: " .. n2)
+end)
+
+t("mdt: nationality'd carriage drivers normalize without crashing (v0.18.1)", function()
+  -- live crash 2026-11-08: "invalid capture index %2" fired on every
+  -- writtenmap naming a dwarfish/trollish/human carriage driver; tt_dw's
+  -- two-group regex becomes one capture in Lua, so the replacement is %1
+  for _, nat in ipairs({ "dwarfish", "trollish", "human" }) do
+    local ok, n = pcall(mdt.normalize, "a " .. nat .. " mail carriage driver is one east")
+    assert(ok, "normalize crashed for " .. nat)
+    assert(n:find("mail carriage driver", 1, true), "nationality dropped: " .. tostring(n))
+  end
 end)
 
 t("mdt: parse groups entities before their direction clause", function()

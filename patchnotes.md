@@ -1,5 +1,15 @@
 # Hex patchnotes
 
+## v0.18.1 (2026-11-09)
+
+A one-line crash fix, found in Brandon's own session logs by the utilization sweep: the MDT people tracker crashed mid-walk on a writtenmap naming a nationality'd carriage driver.
+
+- The crash: `src/hex_mdt.lua:380: invalid capture index %2`, fired through the writtenmap handler during the Broadway carriage walk on 0.17.0 (the walk itself survived; the tracker died for the rest of the session). tt_dw's original regex has two groups (the dwarfish/trollish/human nationality is capture 1, the carriage name capture 2); the Lua port has no alternation, so the nationality became a literal and the only capture is %1. The ported replacement still said %2, and Lua raises "invalid capture index" the moment the pattern matches.
+- The fix is the one-character class: %2 becomes %1, and the nationality drops exactly as tt_dw intended ("a dwarfish mail carriage driver" normalizes to "mail carriage driver").
+- A suite invariant now scans every single-line gsub in src/ for replacements that reference more captures than the pattern has, so this whole class dies in CI instead of on the wire (a Python scan of the same shape found exactly one instance in the codebase: this one).
+- Found by the four-agent utilization sweep of the week's captures and session logs; no screenshot needed, the log carried the whole error.
+- Tests grow to 201 (207 with the opt-in route goldens).
+
 ## v0.18.0 (2026-11-09)
 
 The situational-awareness release: a new family of read-only investigation commands (`hex_scry`) built from the week's actual failure modes: night walks, locked gates, dark rooms, disconnected parcel destinations, and the corpse walk. Nothing here sends anything to the MUD: the triggers only record signals from the wire, and the commands only query Hex's own databases and print.
