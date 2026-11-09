@@ -2791,22 +2791,124 @@ t("scry: fmt_secs buckets", function()
   eq(scry.fmt_secs(-5), "0s")
 end)
 
+t("scry: consider_classify walks the whole 13-rung ladder", function()
+  local cases = {
+    { "The rat is too weak to bother attacking.", 1, "rat" },
+    { "The goblin is someone you look down on.", 2, "goblin" },
+    { "The rat would be an easy target.", 3, "rat" }, -- wire-verified 2026-11-08
+    { "The troll is a lot weaker than you are.", 4, "troll" },
+    { "The feral pigeon is weaker than you.", 5, "feral pigeon" }, -- wire-verified 2026-11-08
+    { "The thug is slightly weaker than you are.", 6, "thug" },
+    { "The guard is about equal with you.", 7, "guard" },
+    { "The mercenary is slightly tougher than you are.", 8, "mercenary" },
+    { "The brigand is tougher than you.", 9, "brigand" },
+    { "The bandit is a lot tougher than you.", 10, "bandit" },
+    { "The veteran looks pretty nasty.", 11, "veteran" },
+    { "The assassin is into the don't think about it region.", 12, "assassin" },
+    { "You would have to be utterly insane to attack the dragon!", 13, "the dragon" },
+    { "The merchant, considered covertly, is a lot tougher than you.", 10, "merchant" },
+  }
+  for _, c in ipairs(cases) do
+    local hit = scry.consider_classify(c[1])
+    assert(hit, "no classification: " .. c[1])
+    eq(hit.rung, c[2])
+    eq(hit.target, c[3])
+  end
+  local co = scry.consider_classify("The merchant, considered covertly, is a lot tougher than you.")
+  assert(co.covert, "covert flag set")
+  eq(scry.consider_classify("The ceiling is painted with stars."), nil, "description lines do not classify")
+  eq(scry.consider_band(1), "prey")
+  eq(scry.consider_band(5), "prey")
+  eq(scry.consider_band(7), "even")
+  eq(scry.consider_band(8), "danger")
+  eq(scry.consider_band(13), "danger")
+end)
+
+t("scry: consider table dedupes per target and caps", function()
+  local st = scry.new_state()
+  scry.observe_consider(st, scry.consider_classify("The rat would be an easy target."), 1000)
+  scry.observe_consider(st, scry.consider_classify("The feral pigeon is weaker than you."), 1001)
+  eq(#st.consider, 2)
+  eq(st.consider[1].target, "feral pigeon")
+  scry.observe_consider(st, scry.consider_classify("The rat is too weak to bother attacking."), 1002)
+  eq(#st.consider, 2)
+  eq(st.consider[1].target, "rat")
+  eq(st.consider[1].rung, 1)
+  for i = 3, 15 do
+    scry.observe_consider(st, { target = "mob" .. i, rung = 3 }, 1000 + i)
+  end
+  assert(#st.consider <= 12, "capped at 12")
+end)
+
+t("scry: corpse floor lines parse counts and creatures", function()
+  local one = scry.corpses_from_line("The corpse of a large evil looking rat is on the floor.")
+  eq(#one, 1)
+  eq(one[1].name, "a large evil looking rat")
+  eq(one[1].n, 1)
+  local mixed = scry.corpses_from_line("A wheat filled sack and the corpse of a rat are on the floor.")
+  eq(#mixed, 1)
+  eq(mixed[1].name, "a rat")
+  local multi = scry.corpses_from_line("Two corpses of large evil looking rats and two corpses of pigeons are on the floor.")
+  eq(#multi, 2)
+  eq(multi[1].name, "large evil looking rats")
+  eq(multi[1].n, 2)
+  eq(multi[2].name, "pigeons")
+  eq(multi[2].n, 2)
+  local four = scry.corpses_from_line("Four corpses of rats are on the floor.")
+  eq(#four, 1)
+  eq(four[1].n, 4)
+  eq(#scry.corpses_from_line("You are standing in a field."), 0)
+end)
+
+t("scry: lit-night line confirms night and carries the moon", function()
+  local st = scry.new_state()
+  scry.observe_lit_night(st, "last quarter", 5000)
+  local v = scry.verdict(st, 5000)
+  eq(v.state, "night")
+  eq(st.moon, "last quarter")
+end)
+
+t("scry: corpses clear on an identified room push", function()
+  local st = scry.new_state()
+  st.corpses = { { name = "rat", n = 1 } }
+  st.corpse_eaten_at = 1000
+  scry.observe_room(st, "abc")
+  eq(#st.corpses, 0)
+  eq(st.corpse_eaten_at, nil)
+end)
+
 t("scry: death anchors are end-anchored and conservative", function()
-  -- the death family is wire-pending; pin the anchor shape so a change
-  -- here is a conscious decision, and none can match the concord line
-  -- ("You have died 0 times and can die 7 times...") via a lazy prefix
+  -- the primary anchors are WIRE-VERIFIED (2026-11-08 20:25, the forest
+  -- clearing death in his own log: Death appears, quotes, leaves on Binky);
+  -- the early conservative guesses stay registered as harmless extras
   local fh = io.open(root .. "src/hex_scry.lua", "r")
   local body = fh:read("*a")
   fh:close()
+  assert(body:find('trigger_add%(%"^You turn and see Death standing behind you', 1, false), "primary anchor: Death appears")
+  assert(body:find('trigger_add%(%"^Death gets back onto Binky and rides away', 1, false), "primary anchor: Binky")
   local anchors = {}
   for cap in body:gmatch('trigger_add%(%"^You [^)]+record_death%)') do
     anchors[#anchors + 1] = cap
   end
-  eq(#anchors, 3)
+  eq(#anchors, 4)
   for _, a in ipairs(anchors) do
-    -- the raw file text carries the Rust escape "\." before the "$" anchor
+    -- the raw file text carries the Rust escape "\\." before the "$" anchor
     assert(a:find("\\.$", 1, true), "end-anchored with an escaped period: " .. a)
   end
+end)
+
+t("missions: board_market lookup exists (the /apply crash class)", function()
+  -- shipped v0.4.0 with two call sites and no function: the first live
+  -- /apply would have raised "attempt to call a nil value" (found by the
+  -- 2026-11-09 doc-mining sweep before it was ever hit in play)
+  assert(type(missions.board_market) == "function", "board_market defined")
+  local saved = missions.session
+  missions.session = { board = { market = { MB = "market_dogwalker" } } }
+  eq(missions.board_market("MB"), "market_dogwalker")
+  eq(missions.board_market("ZZ"), nil)
+  missions.session = {}
+  eq(missions.board_market("MB"), nil)
+  missions.session = saved
 end)
 
 -- Phase 8 shim slice: main.lua loads against a stub blightmud ------------

@@ -23,11 +23,21 @@
 --   dark room: the description collapses to "Something.  It's dark here,
 --     isn't it?"; the map payload becomes "It is too dark to see anything.";
 --     a moon line ("...the eerie light of the last quarter moon.") can light
---     the room; dark room.info pushes carry NO identifier (v0.17.2's fact).
---   death: WIRE-PENDING. No death sequence was ever captured (tt_dw has no
---     death triggers to port), so the death-room triggers below are
---     conservative anchors that may never fire; /hexcorpse mark is the
---     reliable path until a capture fixes them.
+--     the room; dark room.info pushes carry NO identifier (v0.17.2's fact);
+--     LIT outdoor rooms carry their own night line ("It is night and the
+--     last quarter moon is hidden by the clouds.", 678 samples).
+--   death: WIRE-VERIFIED 2026-11-08 20:25 (his own log, the forest clearing
+--     death): unseen creatures render as "Something" in the dark; Death
+--     appears mid-fight ("Someone says: DARK IN HERE, ISN'T IT?" then "You
+--     turn and see Death standing behind you."), quotes random small-caps
+--     lines, and leaves ("Death gets back onto Binky and rides away."); the
+--     newbie dwarfs hand out the book and a free ride. Anchors below use
+--     the two invariant lines.
+--   consider: the 13-rung ladder is pinned in the doc mirror (helpdir/
+--     consider); live shapes "The rat would be an easy target." and "The
+--     feral pigeon is weaker than you." (2026-11-08 log).
+--   corpses: floor lines, kill lines and the rats-eating-corpses family all
+--     captured in the 2026-11-08/09 logs.
 --
 -- Pure cores (new_state/observe_*/verdict/night_warning/report/render_*/
 -- component_line/death_*/fmt_secs) take no blightmud globals; runtime glue
@@ -56,7 +66,10 @@ M.LANDMARKS = {
 }
 
 function M.new_state()
-  return { daypart = nil, daypart_at = nil, moon = nil, moon_at = nil, dark_at = nil }
+  return {
+    daypart = nil, daypart_at = nil, moon = nil, moon_at = nil, dark_at = nil,
+    kills = {}, corpses = {}, corpse_eaten_at = nil, consider = {},
+  }
 end
 
 function M.observe_weather(st, daypart, now)
@@ -75,10 +88,13 @@ function M.observe_dark(st, now)
 end
 
 -- An IDENTIFIED room push means the room is lit (dark rooms push without
--- the identifier, v0.17.2's wire fact), so it clears the dark signal.
+-- the identifier, v0.17.2's wire fact), so it clears the dark signal and
+-- the floor: corpses seen belong to the room you saw them in.
 function M.observe_room(st, id)
   if st and id then
     st.dark_at = nil
+    st.corpses = {}
+    st.corpse_eaten_at = nil
   end
 end
 
@@ -304,6 +320,159 @@ function M.death_report(site, now)
   return lines
 end
 
+-- --- consider (the safe-prey finder; helpdir/consider, pinned) --------------
+
+-- The 13-rung ladder as {phrase, rung} pairs in SCAN order: longer phrases
+-- must be checked before their substrings ("a lot weaker" before "weaker").
+-- Rung numbers follow the doc's danger order, 1 = too weak, 13 = insane.
+-- Wire-verified surface forms (2026-11-08 log): "The rat would be an easy
+-- target." (rung 3) and "The feral pigeon is weaker than you." (rung 5);
+-- the doc's ladder wording carries a trailing "are", so the phrases below
+-- are the shared substring of both forms.
+M.CONSIDER_RUNGS = {
+  { "too weak to bother attacking", 1 },
+  { "someone you look down on", 2 },
+  { "would be an easy target", 3 },
+  { "a lot weaker than you", 4 },
+  { "slightly weaker than you", 6 },
+  { "weaker than you", 5 },
+  { "about equal with you", 7 },
+  { "slightly tougher than you", 8 },
+  { "a lot tougher than you", 10 },
+  { "tougher than you", 9 },
+  { "pretty nasty", 11 },
+  { "into the don't think about it region", 12 },
+}
+
+function M.consider_rung(text)
+  for _, pair in ipairs(M.CONSIDER_RUNGS) do
+    if tostring(text):find(pair[1], 1, true) then
+      return pair[2]
+    end
+  end
+  if tostring(text):find("utterly insane to attack", 1, true) then
+    return 13
+  end
+  return nil
+end
+
+-- One consider output line -> {target, rung, covert} or nil. Handles the
+-- normal form, the covert form ("X, considered covertly, is <rung>.") and
+-- the inverted rung 13 ("You would have to be utterly insane to attack X!").
+function M.consider_classify(line)
+  line = tostring(line)
+  local name, tail = line:match("^(.+), considered covertly, is (.+)%.$")
+  if name then
+    local rung = M.consider_rung(tail)
+    if rung then
+      return { target = (util.trim(name):gsub("^The ", "")), rung = rung, covert = true }
+    end
+  end
+  for _, pair in ipairs(M.CONSIDER_RUNGS) do
+    local at = line:find(pair[1], 1, true)
+    if at then
+      local target = util.trim(line:sub(1, at - 1))
+      -- the verb is not part of the stored phrase, so it rides in the prefix
+      target = target:gsub("%s+is$", ""):gsub("%s+are$", ""):gsub("%s+would be$", ""):gsub("%s+looks$", "")
+      target = target:gsub("^The ", ""):gsub("^A ", ""):gsub("^An ", "")
+      if target ~= "" and not target:find("considered covertly", 1, true) then
+        return { target = target, rung = pair[2] }
+      end
+      return nil
+    end
+  end
+  local insane = line:match("^You would have to be utterly insane to attack (.+)!$")
+  if insane then
+    return { target = insane, rung = 13 }
+  end
+  return nil
+end
+
+-- The verdict colour band for a rung: prey / even / danger.
+function M.consider_band(rung)
+  if rung <= 5 then
+    return "prey"
+  elseif rung <= 7 then
+    return "even"
+  end
+  return "danger"
+end
+
+-- --- corpses on the floor ----------------------------------------------------
+
+-- Number words seen on the wire ("Four corpses of rats", "Two corpses of
+-- large evil looking rats and two corpses of pigeons").
+M.NUMBER_WORDS = { one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8, nine = 9, ten = 10 }
+
+-- One floor line -> list of {name, n}. Wire shapes: "The corpse of a large
+-- evil looking rat is on the floor.", "A wheat filled sack and the corpse
+-- of a rat are on the floor.", "Two corpses of large evil looking rats and
+-- two corpses of pigeons are on the floor.", "Four corpses of rats are on
+-- the floor."
+function M.corpses_from_line(line)
+  line = tostring(line)
+  local anchors = {}
+  local pos = 1
+  while true do
+    local s, e, count_word = line:find("(%a+) corpses? of", pos)
+    if not s then
+      break
+    end
+    anchors[#anchors + 1] = { s = s, e = e, word = count_word }
+    pos = e + 1
+  end
+  local out = {}
+  for i, a in ipairs(anchors) do
+    -- each body stops at the next corpse segment, the floor clause, or
+    -- sentence punctuation, whichever comes first
+    local stop = #line + 1
+    if anchors[i + 1] then
+      stop = anchors[i + 1].s
+    end
+    for _, term in ipairs({ " are on the floor", " is on the floor", ",", "." }) do
+      local t = line:find(term, a.e + 1, true)
+      if t and t < stop then
+        stop = t
+      end
+    end
+    local body = util.trim(line:sub(a.e + 1, stop - 1)):gsub(" and$", "")
+    local n = M.NUMBER_WORDS[a.word:lower()] or tonumber(a.word) or 1
+    if body ~= "" then
+      out[#out + 1] = { name = body, n = n }
+    end
+  end
+  return out
+end
+
+-- The lit-outdoor night line ("It is night and the last quarter moon is
+-- hidden by the clouds.", 678 samples): night confirmation even without a
+-- weather line, plus the moon phase.
+function M.observe_lit_night(st, phase, now)
+  if not st then
+    return
+  end
+  M.observe_weather(st, "night", now)
+  M.observe_moon(st, phase, now)
+end
+
+-- One classified consider line into the session table (latest per target
+-- wins, newest first, capped).
+function M.observe_consider(st, hit, now)
+  if not st or not hit then
+    return
+  end
+  for i, e in ipairs(st.consider) do
+    if e.target == hit.target then
+      table.remove(st.consider, i)
+      break
+    end
+  end
+  table.insert(st.consider, 1, { target = hit.target, rung = hit.rung, covert = hit.covert or false, at = now })
+  if #st.consider > 12 then
+    table.remove(st.consider)
+  end
+end
+
 -- --- runtime glue (blightmud globals below this line) -----------------------
 
 M.deps = { config = nil, room = nil, get_graph = nil }
@@ -315,6 +484,18 @@ end
 
 local function bold(t)
   return util.ansi.bold .. t .. util.ansi.reset
+end
+
+local function green(t)
+  return util.ansi.green .. t .. util.ansi.reset
+end
+
+local function yellow(t)
+  return util.ansi.yellow .. t .. util.ansi.reset
+end
+
+local function red(t)
+  return util.ansi.red .. t .. util.ansi.reset
 end
 
 local function sql(db, query)
@@ -447,6 +628,50 @@ function M.cmd_night()
   end
 end
 
+-- /hexscan: the safe-prey finder, cut in v0.18.0 because consider output
+-- had never been captured; revived in v0.19.0 once the rung ladder was
+-- pinned in the doc mirror and the first two wire shapes landed in the
+-- session logs.
+function M.cmd_scan()
+  local st = M.state or {}
+  local now = os.time()
+  local room = M.deps.room
+  print(bold("scan: ") .. (room and room.name or "?"))
+  local corpses = st.corpses or {}
+  if #corpses == 0 then
+    print(gray("floor: no corpses seen here"))
+  else
+    print(bold("floor:"))
+    for _, c in ipairs(corpses) do
+      local noun = c.n > 1 and ("corpses of " .. c.name .. " (" .. c.n .. ")") or ("corpse of " .. c.name)
+      print("  " .. noun)
+    end
+    print(gray("  loot: get all from corpse; bury corpse pays xp and guild points"))
+  end
+  if st.corpse_eaten_at and (now - st.corpse_eaten_at) <= 120 then
+    print(red("a corpse here is being EATEN: get your loot NOW"))
+  end
+  if st.kills and #st.kills > 0 then
+    local names = {}
+    for _, k in ipairs(st.kills) do
+      names[#names + 1] = k.name
+    end
+    print(gray("your kills: " .. table.concat(names, ", ")))
+  end
+  local cons = st.consider or {}
+  if #cons == 0 then
+    print(gray("consider: nothing yet; consider <target> feeds this table (consider covert <t> stays quiet)"))
+  else
+    print(bold("consider:"))
+    for _, e in ipairs(cons) do
+      local band = M.consider_band(e.rung)
+      local paint = band == "prey" and green or (band == "even" and yellow or red)
+      print(("  %-26s %s"):format(e.target, paint(("rung %2d %s%s"):format(e.rung, band, e.covert and " (covert)" or ""))))
+    end
+  end
+  print(gray("people nearby: /mdt; exits and their markers: /hexexits"))
+end
+
 function M.cmd_corpse(sub)
   sub = util.trim(sub or "")
   local config = M.deps.config
@@ -499,8 +724,45 @@ function M.register(trigger_add, regex)
   trigger_add("^The land is lit up by the eerie light of the (.+) moon\\.$", {}, function(matches)
     M.observe_moon(M.state, util.trim(matches[2]), os.time())
   end)
-  -- death-room recorder, WIRE-PENDING (see the header): conservative
-  -- anchors that may never fire; /hexcorpse mark is the reliable path.
+  -- night confirmation from LIT outdoor rooms (678 wire samples, distinct
+  -- from the dark-room eerie-light line) + the moon phase
+  trigger_add("^It is night and the (.+) moon", {}, function(matches)
+    M.observe_lit_night(M.state, util.trim(matches[2]), os.time())
+  end)
+  -- consider: one phrase-tail trigger classifies in Lua (matches[1] is the
+  -- whole line), plus the inverted rung 13. Wire-verified 2026-11-08.
+  trigger_add(" (is too weak to bother attacking|is someone you look down on|would be an easy target|is a lot weaker than you|is slightly weaker than you|is weaker than you|is about equal with you|is slightly tougher than you|is a lot tougher than you|is tougher than you|looks pretty nasty|don't think about it region|considered covertly, is)", {}, function(matches)
+    M.observe_consider(M.state, M.consider_classify(matches[1]), os.time())
+  end)
+  trigger_add("^You would have to be utterly insane to attack .+!$", {}, function(matches)
+    M.observe_consider(M.state, M.consider_classify(matches[1]), os.time())
+  end)
+  -- kills and the floor
+  trigger_add("^You kill the (.+)\\.$", {}, function(matches)
+    if M.state then
+      M.state.kills[#M.state.kills + 1] = { name = matches[2], at = os.time() }
+      if #M.state.kills > 5 then
+        table.remove(M.state.kills, 1)
+      end
+    end
+  end)
+  trigger_add("corpses? of [^.]+ (are|is) on the floor\\.$", {}, function(matches)
+    if M.state then
+      for _, c in ipairs(M.corpses_from_line(matches[1])) do
+        M.state.corpses[#M.state.corpses + 1] = c
+      end
+    end
+  end)
+  trigger_add(" rips apart the corpse of ", {}, function()
+    if M.state then
+      M.state.corpse_eaten_at = os.time()
+    end
+  end)
+  -- death-room recorder. Wire-VERIFIED 2026-11-08 20:25 (the forest
+  -- clearing death, his own log): Death appears mid-fight quoting random
+  -- small-caps lines and leaves on Binky; the attacker renders as
+  -- "Something" in the dark. Primary anchors are the two invariant lines;
+  -- the early conservative guesses stay as harmless extras.
   local record_death = function()
     local room = M.deps.room
     if M.state and room and room.id then
@@ -508,6 +770,8 @@ function M.register(trigger_add, regex)
       core.exec({ "sqlite3", M.db(), M.death_save_sql((M.deps.config.alt and M.deps.config.alt()) or "", site) })
     end
   end
+  trigger_add("^You turn and see Death standing behind you\\.$", {}, record_death)
+  trigger_add("^Death gets back onto Binky and rides away\\.$", {}, record_death)
   trigger_add("^You die\\.$", {}, record_death)
   trigger_add("^You have died\\.$", {}, record_death)
   trigger_add("^You are dead\\.$", {}, record_death)

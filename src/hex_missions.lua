@@ -316,6 +316,15 @@ function M.check_timers_runtime()
   end
 end
 
+-- The job-market board lookup behind /apply and "/missions pending <id>".
+-- Both call sites shipped in v0.4.0 before this helper existed, so the
+-- first live /apply would have raised "attempt to call a nil value"
+-- (found by the 2026-11-09 doc-mining sweep, never yet hit in play).
+function M.board_market(id)
+  local board = M.session and M.session.board
+  return (board and board.market and board.market[id]) or nil
+end
+
 function M.register(trigger_add, Regex)
   local T = function(re, opts, cb)
     return trigger_add(Regex.new(re), opts, cb)

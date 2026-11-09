@@ -142,8 +142,9 @@ Born directly from the week's live failures (night walks, locked gates, dark roo
 
 - [x] `hex_scry`: `/hexexits` (verbose exits with gate/swim/climb/journey/hidden/unsafe markers), `/hexzone` (area + Quow zone + landmark reachability: BP/Genua/Bad Ass/Lancre), `/hexnight` (day-part from the weather line + dark signals; implications; pre-queue warning in `/goto`), `/hexcorpse` (per-alt death site in hex.db; the walk back is one command). Permanent keeper-quality commands, NOT a -dbg lane.
 - [x] Folded backlog QoL: `/dl` refusal carries the `/goto dead letter office` hint; `/item` teaches `/items sold` in a footer.
-- [x] Cut consciously, stated in the entry: `/hexdoors` (no door-state data source exists in rooms.db, GMCP, or tt_dw) and `/hexscan` (Quow's npc_info has no combat stats; consider output never captured; `/mdt` already lists nearby people).
-- [ ] Wire-pending follow-ups: the death-line anchors (fix from the first captured death), the unobserved day-parts (dawn/dusk word choice), consider-output parsing (the safe-prey finder), and the advertised-but-unimplemented `/goto` id-prefix resolution.
+- [x] Cut consciously, stated in the entry: `/hexdoors` (no door-state data source exists in rooms.db, GMCP, or tt_dw) and `/hexscan` as then-designed (consider output had never been captured; Quow's npc_info has no combat stats).
+- [x] v0.19.0: the wire backlog LANDED. The death-line anchors are wire-verified from the 2026-11-08 forest-clearing death in his own logs (Death appears, quotes random small-caps lines, leaves on Binky; attackers render as "Something" in the dark). `/hexscan` ships for real: the 13-rung consider ladder (pinned in the doc mirror, two live shapes) colour-banded prey/even/danger, plus corpse-floor lines, kill history, the rats-eating-corpses alarm, and the lit-outdoor night/moon line feeding `/hexnight`. Also fixed the latent `/apply` crash (`board_market` was called but never defined, shipped v0.4.0, never hit live).
+- [ ] Still wire-pending: the unobserved day-parts (dawn/dusk word choice), and the advertised-but-unimplemented `/goto` id-prefix resolution.
 
 ## Deliberately out of scope
 
