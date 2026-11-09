@@ -214,8 +214,11 @@ function M.build_item_sources_query(input, flag)
 end
 
 -- Room detail lookup in Hex's own rooms.db (built by tools/convert_map.py).
+-- Columns are pipe-separated like every other query here: the '~'-joined
+-- variant returned ONE column, so /where printed the whole lump as the name
+-- and area/terrain/note were silently dead (found by the v0.18.0 review).
 function M.build_where_query(room_id)
-  return "SELECT name || '~' || area || '~' || terrain || '~' || note FROM rooms WHERE room_id = '"
+  return "SELECT name || '|' || area || '|' || terrain || '|' || note FROM rooms WHERE room_id = '"
     .. util.sql_escape(room_id)
     .. "' LIMIT 1;"
 end
