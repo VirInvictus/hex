@@ -1720,6 +1720,18 @@ t("spec invariant: no look-around constructs anywhere in src/", function()
   end
 end)
 
+t("spec invariant: /item sold redirect resolves (cmd_item_sources defined before cmd_item)", function()
+  -- /item sold <thing> redirects to the sources command; if
+  -- cmd_item_sources were defined after cmd_item, the upvalue would be a
+  -- nil global and the natural typo would crash mid-search
+  local fh = io.open(root .. "src/hex_commands.lua", "r")
+  local body = fh:read("*a")
+  fh:close()
+  local item_at = assert(body:find("local function cmd_item%("), "cmd_item missing")
+  local sources_at = assert(body:find("local function cmd_item_sources"), "cmd_item_sources missing")
+  assert(sources_at < item_at, "cmd_item_sources must be defined before cmd_item")
+end)
+
 t("spec invariant: hex_commands module-level functions use M.deps (cmd_goto live crash)", function()
   -- found live 2026-11-08: /goto #1 crashed on a global deps at line 424;
   -- bare `deps` only exists as M.setup's parameter, so every module-level

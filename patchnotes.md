@@ -1,5 +1,12 @@
 # Hex patchnotes
 
+## v0.17.1 (2026-11-08)
+
+Two small fixes from live use of the item commands:
+
+- `/item sold <thing>` is the natural typo of `/items sold <thing>` (the sources query). Instead of searching Quow for an item literally named "sold", it now redirects to the sources query. The redirect also flushed out a latent ordering bug: `cmd_item_sources` was defined after `cmd_item`, so the redirect would have crashed on a nil global (the same class as the `/goto #n` deps crash). The function moved above its caller and a suite invariant now pins the ordering.
+- `/path` and the `/goto` candidate lists note: no changes to climbing behavior this release; the `exclude_climb` default and `allow_climb` option from v0.17.0 stand.
+
 ## v0.17.0 (2026-11-08)
 
 Found live, twice in one night: `/goto` happily routes through climb-window shortcuts (the guild dorm wings connect to the ground floor over the rooftops), and an untrained level-4 student who follows one at spindlewinter night ends up stranded on a ledge with `[none]` exits, a burnt torch, and a full queue of "What?".

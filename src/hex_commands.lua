@@ -57,27 +57,6 @@ local function show_item_line(fields)
   end
 end
 
-local function cmd_item(args)
-  local exact = false
-  local search = args
-  local head, rest = args:match("^(%S+)%s+(.+)$")
-  if head == "exact" then
-    exact = true
-    search = rest
-  end
-  local result = rows(M.deps.config.get("quow_db"), queries.build_item_query(search, exact))
-  if not result then
-    return
-  end
-  if #result == 0 then
-    print(a("gray", "[hex] no items match: " .. search))
-    return
-  end
-  for _, fields in ipairs(result) do
-    show_item_line(fields)
-  end
-end
-
 local function cmd_item_sources(args)
   local flag = nil
   local search = args
@@ -106,6 +85,33 @@ local function cmd_item_sources(args)
     print(line)
   end
 end
+
+local function cmd_item(args)
+  local exact = false
+  local search = args
+  local head, rest = args:match("^(%S+)%s+(.+)$")
+  -- "/item sold <thing>" is the natural typo of "/items sold <thing>";
+  -- redirect instead of searching for an item literally named "sold"
+  if head == "sold" and rest and rest ~= "" then
+    return cmd_item_sources(rest)
+  end
+  if head == "exact" then
+    exact = true
+    search = rest
+  end
+  local result = rows(M.deps.config.get("quow_db"), queries.build_item_query(search, exact))
+  if not result then
+    return
+  end
+  if #result == 0 then
+    print(a("gray", "[hex] no items match: " .. search))
+    return
+  end
+  for _, fields in ipairs(result) do
+    show_item_line(fields)
+  end
+end
+
 
 local function cmd_npc(args)
   local result = rows(M.deps.config.get("quow_db"), queries.build_npc_query(args))
