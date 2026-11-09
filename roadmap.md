@@ -136,6 +136,15 @@ Aggressive, honest, gated: every LIVE item needs a capture session from Brandon 
 - [ ] **Wed 12**: Phase 4 core — TPA state machine + prediction, charm chips, broom, stat-items. Ship v0.5.0 "premiere core". **Brandon: capture session #2** (maze rooms, journey, TPA expiry).
 - [ ] **Week 2**: Phase 4 TM + spelldata converter; Phase 5 minimap/MDT/maze/guess (wire-gated) + blorps/hex.db; Phase 7 sound/theme/options; Phase 8 CI + shim + goldens + announcement. v1.0.0 when the definition-of-done is true, not when the calendar says so.
 
+## Situational awareness lane (shipped v0.18.0, 2026-11-09)
+
+Born directly from the week's live failures (night walks, locked gates, dark rooms, the corpse walk):
+
+- [x] `hex_scry`: `/hexexits` (verbose exits with gate/swim/climb/journey/hidden/unsafe markers), `/hexzone` (area + Quow zone + landmark reachability: BP/Genua/Bad Ass/Lancre), `/hexnight` (day-part from the weather line + dark signals; implications; pre-queue warning in `/goto`), `/hexcorpse` (per-alt death site in hex.db; the walk back is one command). Permanent keeper-quality commands, NOT a -dbg lane.
+- [x] Folded backlog QoL: `/dl` refusal carries the `/goto dead letter office` hint; `/item` teaches `/items sold` in a footer.
+- [x] Cut consciously, stated in the entry: `/hexdoors` (no door-state data source exists in rooms.db, GMCP, or tt_dw) and `/hexscan` (Quow's npc_info has no combat stats; consider output never captured; `/mdt` already lists nearby people).
+- [ ] Wire-pending follow-ups: the death-line anchors (fix from the first captured death), the unobserved day-parts (dawn/dusk word choice), consider-output parsing (the safe-prey finder), and the advertised-but-unimplemented `/goto` id-prefix resolution.
+
 ## Deliberately out of scope
 
 A spatial automapper that draws its own rooms (the MUD's `room.map` and the tt_dw-derived graph cover the need), any kind of botting or idle-keeping (the rules and the spec both forbid it), and any dependency outside the two standard libraries.

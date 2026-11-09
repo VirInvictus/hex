@@ -29,6 +29,7 @@ local minimap = require("src.hex_minimap")
 local mdt = require("src.hex_mdt")
 local doctor = require("src.hex_doctor")
 local guild = require("src.hex_guild")
+local scry = require("src.hex_scry")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -148,8 +149,14 @@ local prev_hp = nil
 blorps.setup({ config = config, room = room })
 minimap.setup({ config = config })
 -- the people tracker shares hex.db (mdt_match/mdt_category) and recomputes
--- per accepted writtenmap push; hunt alerts print + emit on the bus
+-- per accepted writtenmap push; hunt alerts print + emit on the notify bus
 mdt.setup({ config = config, notify = notify })
+
+-- situational awareness (v0.18.0): /hexexits /hexzone /hexnight /hexcorpse.
+-- Read-only: triggers record signals, commands query and print; the route
+-- graph is injected later by commands.setup (deps.scry.get_graph)
+scry.setup({ config = config, room = room })
+scry.register(trigger_add, regex)
 
 -- v0.12.x debug lane REMOVED in v0.15.0 (transcripts consumed: combat
 -- monitor verdict, guild clause, the first real writtenmap corpus);
@@ -234,11 +241,13 @@ gmcp_wire.setup({
   on_room = function(data)
     rooms_mod.update(room, data)
     walk.on_room(type(data) == "table" and data.identifier or nil)
+    scry.on_room(type(data) == "table" and data.identifier or nil)
     refresh_status()
   end,
   on_map = function(data)
     maps.ascii = map_text(data)
     minimap.on_map(maps.ascii, room.id) -- deduped; renders per the ladder
+    scry.on_map(maps.ascii) -- the dark-map payload is a night signal
   end,
   on_writtenmap = function(data)
     maps.written = map_text(data)
@@ -316,6 +325,7 @@ commands.setup({
   mdt = mdt,
   doctor = doctor,
   guild = guild,
+  scry = scry,
   paths_cache = paths_cache,
 })
 

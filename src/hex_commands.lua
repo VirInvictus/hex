@@ -110,6 +110,8 @@ local function cmd_item(args)
   for _, fields in ipairs(result) do
     show_item_line(fields)
   end
+  -- the sibling query answers the question this output always raises
+  print(a("gray", "/items sold <thing> shows who sells it and where"))
 end
 
 
@@ -442,6 +444,14 @@ local function cmd_goto(args)
   for _, l in ipairs(paths.render(route, g, false)) do
     print(l)
   end
+  -- the night facts before the queue, not after (the Hubwards Gate incident:
+  -- a night walk queued fine and drained at the locked gate with "What?" spam)
+  if M.deps.scry then
+    local night_note = M.deps.scry.night_warning(M.deps.scry.state, os.time())
+    if night_note then
+      print(a("yellow", "[hex] warning: " .. night_note))
+    end
+  end
   print(a("gray", "sending as one batch (" .. route.steps .. " commands); `stop` or /stopwalk aborts once queued"))
   if M.deps.walk.should_warn(route) then
     print(a("yellow", "[hex] warning: this route is long; the MUD aborts queues that run past 5 minutes"))
@@ -606,7 +616,7 @@ local function cmd_dl(args)
     return
   end
   if M.deps.room.id ~= missiondata.DEAD_LETTER_ID then
-    print(a("gray", "[hex] not at the dead letter office"))
+    print(a("gray", "[hex] not at the dead letter office (/goto dead letter office)"))
     return
   end
   if not ms.session.board.letters[letter] then
@@ -1044,6 +1054,18 @@ function M.setup(deps)
   alias_add("^/mdt\\s*(.*)$", function(matches)
     deps.mdt.cmd_mdt(matches[2])
   end)
+  alias_add("^/hexexits$", function()
+    deps.scry.cmd_exits()
+  end)
+  alias_add("^/hexzone$", function()
+    deps.scry.cmd_zone()
+  end)
+  alias_add("^/hexnight$", function()
+    deps.scry.cmd_night()
+  end)
+  alias_add("^/hexcorpse\\s*(.*)$", function(matches)
+    deps.scry.cmd_corpse(matches[2] or "")
+  end)
   alias_add("^/hunt\\s*(.*)$", function(matches)
     deps.mdt.cmd_hunt(matches[2])
   end)
@@ -1095,9 +1117,11 @@ function M.setup(deps)
     print(a("gray", "[hex] reloaded"))
   end)
   deps.setup.register(alias_add)
-  -- blorps/bookmarks need the graph builder, the identifier->vnum lookup,
-  -- and the module deps; all live here (see hex_blorps deps)
+  -- blorps/bookmarks and the scry commands need the graph builder, the
+  -- identifier->vnum lookup, and the module deps; all live here (see
+  -- hex_blorps / hex_scry deps)
   deps.blorps.get_graph = get_graph
+  deps.scry.get_graph = get_graph
   deps.blorps.vnum_of = function(id)
     local r = rows(M.deps.config.get("rooms_db"), "SELECT vnum FROM rooms WHERE room_id = '" .. util.sql_escape(id) .. "';")
     return r and r[1] and tonumber(r[1][1]) or nil
@@ -1141,6 +1165,8 @@ function M.setup(deps)
     print("  /stats [refresh]          read your stats into the bonus math")
     print("  /hexoptions [key] [value] /hexsound test     /hexsay <text>")
     print("  /blorp add|goto|list|all  /bookmark add|find|goto|list")
+    print("  /hexexits /hexzone        verbose exits; zone + component facts")
+    print("  /hexnight /hexcorpse      day/night facts; death-site mark/clear")
     print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
     print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
     print("  /hexgag, /gaglog         user gags as data; /hexungag <n|text> removes")

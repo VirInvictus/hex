@@ -47,6 +47,7 @@ local mdtdata = require("hex_mdtdata")
 local doctor = require("hex_doctor")
 local guild_mod = require("hex_guild")
 local guild_data = require("hex_guild_data")
+local scry = require("hex_scry")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -1721,7 +1722,7 @@ t("spec invariant: every wired module defines setup", function()
   -- main.lua calls M.setup on each of these (found live: v0.8.0 shipped
   -- sound.setup/tts_mod.setup calls with no function behind them, and the
   -- load died at the call site)
-  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_mdt", "hex_options", "hex_quota", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls", "hex_doctor", "hex_guild" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_mdt", "hex_options", "hex_quota", "hex_scry", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls", "hex_doctor", "hex_guild" }) do
     local m = require(f)
     assert(type(m.setup) == "function", f .. ".lua is wired in main.lua but defines no setup")
   end
@@ -1732,7 +1733,7 @@ t("spec invariant: no look-around constructs anywhere in src/", function()
   -- a pattern that fails there kills the whole plugin load (found live in
   -- v0.5.2-dbg's first run); Lua patterns never contain these either
   local bad = { "%(%?!", "%(%?=", "%(%?<" }
-  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_doctor", "hex_guild", "hex_guild_data", "hex_mdt", "hex_mdtdata", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_commands", "hex_config", "hex_data", "hex_gagfile", "hex_gags", "hex_gmcp", "hex_doctor", "hex_guild", "hex_guild_data", "hex_mdt", "hex_mdtdata", "hex_missiondata", "hex_missions", "hex_notify", "hex_paths", "hex_quota", "hex_registry", "hex_rooms", "hex_scry", "hex_skilldata", "hex_skills", "hex_spelldata", "hex_spells", "hex_stats", "hex_status", "hex_targets", "hex_util", "hex_version", "hex_vitals", "hex_walk", "hex_setup" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -1780,7 +1781,7 @@ t("spec invariant: registration literals carry no Lua classes or bad escapes", f
   -- alias/trigger/Regex literals go to the RUST engine: %s matches literal
   -- "%s" there (found live: 22 commands passed through to the MUD), and a
   -- single backslash + letter is an invalid Lua escape that stops parsing
-  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture_removed", "hex_doctor", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp", "hex_stats" }) do
+  for _, f in ipairs({ "hex_commands", "hex_skills", "hex_missions", "hex_quota", "hex_combat", "hex_chat", "hex_urls", "hex_capture_removed", "hex_doctor", "hex_walk", "hex_setup", "hex_gags", "hex_gmcp", "hex_stats", "hex_scry" }) do
     local path = root .. "src/" .. f .. ".lua"
     local fh = io.open(path, "r")
     if fh then
@@ -2570,6 +2571,162 @@ t("mdt: the first real multi-entity writtenmap parses (corpus v1, 2026-11-08)", 
   eq(groups[1].entities[1], "1 dark-haired young woman")
   eq(groups[2].direction, "1 s")
   eq(groups[2].entities[1], "1 secretary")
+end)
+
+-- hex_scry (v0.18.0 situational awareness: /hexexits /hexzone /hexnight
+-- /hexcorpse) ---------------------------------------------------------------
+-- Wire shapes in the triggers are from Brandon's session logs
+-- (2026-11-06..09): the weather line, the dark-room collapse, the moon
+-- line, and the dark map payload. The death triggers stay wire-pending.
+
+t("scry: weather observation drives the day-part verdict", function()
+  local st = scry.new_state()
+  eq(scry.verdict(st, 1000).state, "unknown")
+  scry.observe_weather(st, "night", 1000)
+  eq(scry.verdict(st, 1000).state, "night")
+  scry.observe_weather(st, "afternoon", 2000)
+  eq(scry.verdict(st, 2000).state, "day")
+  -- a stale day-part reads as unknown, not as a stale claim
+  eq(scry.verdict(st, 2000 + scry.DAYPART_STALE + 1).state, "unknown")
+end)
+
+t("scry: dark clears on an identified push and decays", function()
+  local st = scry.new_state()
+  scry.observe_dark(st, 1000)
+  assert(scry.verdict(st, 1000).dark, "dark fresh")
+  scry.observe_room(st, "abc123")
+  assert(not scry.verdict(st, 1000).dark, "identified push clears dark")
+  scry.observe_dark(st, 1000)
+  assert(not scry.verdict(st, 1000 + scry.DARK_FRESH + 1).dark, "dark decays")
+  -- the map payload's dark line is a dark signal too (wire-verified text)
+  scry.observe_room(st, "abc123")
+  scry.observe_map(st, "It is too dark to see anything.", 5000)
+  assert(scry.verdict(st, 5000).dark, "map dark line registers")
+  scry.observe_map(st, "map with a church and a road", 5000)
+  assert(scry.verdict(st, 5000).dark, "plain map leaves dark alone")
+end)
+
+t("scry: night warning for the pre-queue note", function()
+  local st = scry.new_state()
+  eq(scry.night_warning(st, 1000), nil)
+  scry.observe_weather(st, "night", 1000)
+  assert(scry.night_warning(st, 1000):find("NIGHT", 1, true), "night warns")
+  scry.observe_weather(st, "morning", 1000)
+  eq(scry.night_warning(st, 1000), nil, "day does not warn")
+  scry.observe_dark(st, 1000)
+  assert(scry.night_warning(st, 1000):find("DARK", 1, true), "dark room warns")
+end)
+
+t("scry: report lines carry the honest state", function()
+  local st = scry.new_state()
+  local unknown = table.concat(scry.report(st, 1000), "\n")
+  assert(unknown:find("unknown", 1, true), "unknown state says so")
+  assert(unknown:find("weather", 1, true), "unknown points at the weather line")
+  scry.observe_weather(st, "night", 900)
+  scry.observe_dark(st, 900)
+  local night = table.concat(scry.report(st, 1000), "\n")
+  assert(night:find("LOCKED", 1, true), "night names the locked gates")
+  assert(night:find("DARK", 1, true), "night carries the dark fact")
+  scry.observe_weather(st, "dawn", 900)
+  assert(table.concat(scry.report(st, 1000), "\n"):find("dawn", 1, true), "dawn named")
+end)
+
+t("scry: moon signals show in the report within their window", function()
+  local st = scry.new_state()
+  scry.observe_moon(st, "last quarter", 900)
+  assert(table.concat(scry.report(st, 1000), "\n"):find("last quarter", 1, true), "moon named while fresh")
+  assert(
+    not table.concat(scry.report(st, 1000 + scry.DAYPART_STALE + 1), "\n"):find("last quarter", 1, true),
+    "moon decays with the day-part window"
+  )
+end)
+
+t("scry: exits query targets the room and orders deterministically", function()
+  local q = scry.exits_query(740)
+  assert(q:find("FROM exits", 1, true), "exits table")
+  assert(q:find("WHERE e.from_vnum = 740", 1, true), "room pinned")
+  assert(q:find("ORDER BY e.dir, e.command", 1, true), "stable order")
+  assert(scry.gates_query(740):find("FROM gates WHERE vnum = 740", 1, true), "gates query")
+end)
+
+t("scry: exit markers render gate/swim/climb/journey/hidden/unsafe", function()
+  local rows = {
+    { "w", "4", "0", "Hubwards Gate", "Ankh-Morpork" },
+    { "swim ne", "2", "0", "the river", "" },
+    { "climb window", "5", "1", "rooftop", "Ankh-Morpork" },
+    { "journey e", "6", "0", "far shore", "" },
+    { "enter sea", "1", "4", "the sea", "" },
+    { "s", "1", "2", "street", "Ankh-Morpork" },
+    { "n", "1", "0", "", "" },
+  }
+  local gates = { w = true }
+  local lines = scry.render_exits(rows, gates)
+  eq(#lines, #rows)
+  assert(lines[1]:find("Hubwards Gate", 1, true) and lines[1]:find("%[gate%]"), "gate marker")
+  assert(lines[2]:find("%[swim%]"), "swim marker")
+  assert(lines[3]:find("%[climb hidden%]"), "climb + HIDE bit")
+  assert(lines[4]:find("%[journey%]"), "journey marker")
+  assert(lines[5]:find("hidden", 1, true), "INVIS bit reads hidden")
+  assert(lines[6]:find("%[unsafe%]"), "AVOID bit reads unsafe")
+  assert(lines[6]:find("%(Ankh%-Morpork%)"), "area rendered")
+  assert(lines[7]:find("%-> %?"), "nil name guard")
+end)
+
+t("scry: landmarks are 40-hex ids with notes", function()
+  assert(#scry.LANDMARKS >= 4, "the known set: BP, Genua, Bad Ass, Lancre")
+  for _, lm in ipairs(scry.LANDMARKS) do
+    assert(lm.label and lm.label ~= "", "label")
+    assert(lm.id:match("^[0-9a-f]+$") and #lm.id == 40, "40-hex id for " .. lm.label)
+    assert(lm.note and lm.note ~= "", "disconnection note for " .. lm.label)
+  end
+end)
+
+t("scry: component lines render reachable/unreachable/unmapped", function()
+  local lm = scry.LANDMARKS[3] -- Bad Ass
+  assert(scry.component_line(lm, 42):find("routable from here %(42 steps%)"), "reachable")
+  assert(scry.component_line(lm, "unreachable"):find("NOT routable", 1, true), "unreachable")
+  assert(scry.component_line(lm, nil):find("unmapped", 1, true), "unmapped")
+end)
+
+t("scry: death site SQL builders and report", function()
+  local site = { room_id = string.rep("a", 40), name = "the Hubwards Gate", area = "Ankh-Morpork", at = 5000 }
+  local save = scry.death_save_sql("Censant", site)
+  assert(save:find("INSERT OR REPLACE INTO deathsite", 1, true), "save")
+  assert(scry.death_load_sql("it's"):find("it''s", 1, true), "load escapes")
+  assert(scry.death_clear_sql("Censant"):find("DELETE FROM deathsite", 1, true), "clear")
+  eq(scry.death_from_row({}), nil)
+  local parsed = scry.death_from_row({ site.room_id, "the gate", "AM", "5999" })
+  eq(parsed.room_id, site.room_id)
+  eq(parsed.at, 5999)
+  local lines = table.concat(scry.death_report(parsed, 6000), "\n")
+  assert(lines:find("/goto " .. site.room_id, 1, true), "the hint carries the FULL id (no prefix resolution today)")
+  assert(lines:find("recorded 1s ago", 1, true), "age rendered")
+  assert(table.concat(scry.death_report(nil, 6000), "\n"):find("mark", 1, true), "no-site hint names mark")
+end)
+
+t("scry: fmt_secs buckets", function()
+  eq(scry.fmt_secs(42), "42s")
+  eq(scry.fmt_secs(120), "2m")
+  eq(scry.fmt_secs(3900), "1h5m")
+  eq(scry.fmt_secs(-5), "0s")
+end)
+
+t("scry: death anchors are end-anchored and conservative", function()
+  -- the death family is wire-pending; pin the anchor shape so a change
+  -- here is a conscious decision, and none can match the concord line
+  -- ("You have died 0 times and can die 7 times...") via a lazy prefix
+  local fh = io.open(root .. "src/hex_scry.lua", "r")
+  local body = fh:read("*a")
+  fh:close()
+  local anchors = {}
+  for cap in body:gmatch('trigger_add%(%"^You [^)]+record_death%)') do
+    anchors[#anchors + 1] = cap
+  end
+  eq(#anchors, 3)
+  for _, a in ipairs(anchors) do
+    -- the raw file text carries the Rust escape "\." before the "$" anchor
+    assert(a:find("\\.$", 1, true), "end-anchored with an escaped period: " .. a)
+  end
 end)
 
 -- Phase 8 shim slice: main.lua loads against a stub blightmud ------------

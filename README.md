@@ -54,6 +54,10 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/bookmark add <label>: comment`, `/bookmark find|goto|list` | Shared bookmarks with comments, attributed per alt |
 | `/mdt`, `/mdt list` | People in the rooms around you, parsed from the written map: arrows, score, highlights; `add`/`remove`/`category` manage your own match rows |
 | `/hunt <target>`, `/hunt list`, `/unhunt <target>` | Watch for a target in nearby rooms: alert line on sight, deduped per 10 minutes |
+| `/hexexits` | Every exit of your room: command, destination, and markers (`[gate]`, `[swim]`, `[climb]`, `[journey]`, `[hidden]`, `[unsafe]`) |
+| `/hexzone` | Current area, Quow zone, and graph-component facts: whether BP, Genua, Bad Ass, or Lancre Town are routable from here at all |
+| `/hexnight` | In-game day-part from the weather line plus dark-room signals, with the night implications (gates lock, climbs fail, room pushes go unverified). `/goto` repeats the warning before queueing |
+| `/hexcorpse [mark\|clear]` | Death-site tracker: mark where you died, get the `/goto` back; stored per-alt and survives restarts |
 | `/stats [refresh]` | Read your stats into the bonus math (from `score verbose stats`) |
 | `/hexoptions [key] [value]` | Validated options with alt/session layers; `brief`, `defaults`, `clear <key>` |
 | `/hexsay <text>` | Speak text when a TTS-enabled blightmud build is available |
