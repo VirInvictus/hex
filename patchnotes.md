@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.20.0 (2026-11-09)
+
+The Phase 1 and Phase 2 finishers: the last unticked box of the 1.x lane and two of Phase 2's leftovers, all offline work the pinned docs and the existing graph already supported.
+
+- `/hexcheck` (the 1.x Tier-2 parser, shape confirmed by the 2026-11-05 capture): `/hexcheck refresh` arms a three-second window, sends `options output`, and a wide trigger records every `name = value <choices>` and `name <more options>` row while the window is open; `/hexcheck` renders the stored listing. The window timer is announce-only and never sends, and both registrations go through the registry so `/hexreload` reaps them.
+- `/npc` and `/items sold` now order by walk distance: one multi-target Dijkstra annotates each result row with steps from your current room, nearest sources first, unreachable last (the phase-2 "nearest source" ordering box). The plain `/item` card has no room to measure and stays as-is, still teaching `/items sold` in its footer. The sources query grew the room-id column it needed, and the SQL goldens were re-authored (the diff is exactly the appended field).
+- The drift chip: an active walk now occupies the status row as `»N/M`, flipping to `!driftN/M` on the first mismatch (the milestone and mismatch prints from v0.3.0 are unchanged). Post-hoc display only; the queue is still never touched.
+- Tests grow to 210 (216 with the opt-in route goldens): the listing parser's shapes and refusals, the renderer, the distance comparator's nearest-first/unreachable-last rules, and the chip's progress/drift/complete states.
+
 ## v0.19.0 (2026-11-09)
 
 The hunt-and-death awareness release, built straight out of Brandon's own logs: the sweep that mined his session transcripts found the death we thought was uncapturable, the first two consider shapes, the whole corpse family, and one crash that had never been hit yet.

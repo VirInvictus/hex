@@ -72,9 +72,13 @@ end
 
 local function refresh_status()
   vitals.rate = vitals_mod.xp_rate(vitals)
-  -- chips: quota first (priority over missions), then minutes to the next
-  -- mission reset; both nil-able
+  -- chips: the active walk first, then quota (priority over missions), then
+  -- minutes to the next mission reset; all nil-able
   local chips = {}
+  local wchip = walk.chip(walk.state)
+  if wchip then
+    chips[#chips + 1] = wchip
+  end
   local qchip = quota.chip(quota.state, os.time())
   if qchip then
     chips[#chips + 1] = qchip
@@ -208,6 +212,9 @@ end, config.get("gags_file", data.hex_dir() .. "/gags.lua"))
 -- Hex-owned data paths (quow_db ladder, /hexupdate, staleness)
 data.setup(config)
 
+-- /hexcheck's listing window timer (announce-only, never sends)
+setup_cmd.setup({ timer_add = timer_add, timer_remove = timer_remove })
+
 -- the /goto walker: registry-wrapped triggers + raw remover + config
 walk.init(trigger_add, function(id)
   trigger.remove(id)
@@ -328,5 +335,12 @@ commands.setup({
   scry = scry,
   paths_cache = paths_cache,
 })
+
+-- /hexcheck registers through the registry too (alias + the listing-window
+-- trigger, both reaped on /hexreload); the alias wrapper mirrors the one
+-- hex_commands.setup builds
+setup_cmd.register_check(function(re, cb)
+  return registry.record("alias", alias.add(re, cb))
+end, trigger_add)
 
 print(util.ansi.gray .. "[hex] loaded: /hexhelp for commands" .. util.ansi.reset)

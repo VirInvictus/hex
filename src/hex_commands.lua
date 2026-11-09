@@ -16,6 +16,38 @@ local function a(name, text)
   return util.ansi[name] .. text .. util.ansi.reset
 end
 
+-- forward declarations: both are assigned later in the file (get_graph in
+-- the pathfinding section; the phase-2 walk-distance annotation needs the
+-- graph from inside the query commands defined above it)
+local get_graph
+
+-- Phase 2 tail: annotate Quow result rows that carry a room_id with walk
+-- steps from the current room and sort nearest-first (unreachable last).
+-- Silent no-op when the graph or the start room is unavailable.
+local function annotate_steps(cands)
+  local g = get_graph and get_graph()
+  local start = M.deps.room and M.deps.room.id
+  if not g or not start then
+    return
+  end
+  local vnums = {}
+  for _, c in ipairs(cands) do
+    local dense = c.room_id and g.by_id[c.room_id]
+    if dense then
+      vnums[#vnums + 1] = g.vnum[dense]
+    end
+  end
+  if #vnums == 0 then
+    return
+  end
+  local dists = paths.distances(g, start, vnums)
+  for _, c in ipairs(cands) do
+    local dense = c.room_id and g.by_id[c.room_id]
+    c.steps = (dense and dists[g.vnum[dense]]) or nil
+  end
+  table.sort(cands, paths.compare_steps)
+end
+
 local function sql(db, query)
   local r = core.exec({ "sqlite3", db, query })
   if r:code() ~= 0 then
@@ -73,14 +105,24 @@ local function cmd_item_sources(args)
     print(a("gray", "[hex] no sources found" .. (flag and (" (" .. flag .. ")") or "") .. ": " .. search))
     return
   end
+  local cands = {}
   for _, fields in ipairs(result) do
-    local kind = fields[1] or "?"
-    local seller = fields[2] or ""
-    local price = fields[3] or ""
-    local room_short = fields[4] or ""
-    local line = a("cyan", string.format("%-5s", kind)) .. a("bold", util.trim(seller ~= "" and seller or room_short))
-    if price and price ~= "" then
-      line = line .. a("gray", "  " .. price)
+    cands[#cands + 1] = {
+      kind = fields[1] or "?",
+      seller = fields[2] or "",
+      price = fields[3] or "",
+      room_short = fields[4] or "",
+      room_id = fields[5] or "",
+    }
+  end
+  annotate_steps(cands)
+  for _, c in ipairs(cands) do
+    local line = a("cyan", string.format("%-5s", c.kind)) .. a("bold", util.trim(c.seller ~= "" and c.seller or c.room_short))
+    if c.price and c.price ~= "" then
+      line = line .. a("gray", "  " .. c.price)
+    end
+    if c.steps then
+      line = line .. a("gray", "  " .. c.steps .. " steps")
     end
     print(line)
   end
@@ -124,11 +166,21 @@ local function cmd_npc(args)
     print(a("gray", "[hex] no npcs match: " .. args))
     return
   end
+  local cands = {}
   for _, fields in ipairs(result) do
-    local name = fields[1] or "?"
-    local room_id = fields[2] or ""
-    local room_short = fields[3] or ""
-    print(a("bold", util.trim(name)) .. a("gray", "  " .. (room_short ~= "" and room_short or room_id)))
+    cands[#cands + 1] = {
+      name = util.trim(fields[1] or "?"),
+      room_id = fields[2] or "",
+      room_short = fields[3] or "",
+    }
+  end
+  annotate_steps(cands)
+  for _, c in ipairs(cands) do
+    local line = a("bold", c.name) .. a("gray", "  " .. (c.room_short ~= "" and c.room_short or c.room_id))
+    if c.steps then
+      line = line .. a("gray", "  " .. c.steps .. " steps")
+    end
+    print(line)
   end
 end
 
@@ -204,7 +256,7 @@ local function row_to_cand(f)
   return { vnum = tonumber(f[1]), name = f[2] or "?", area = f[3] or "", room_id = f[4] or "" }
 end
 
-local function get_graph()
+get_graph = function() -- assignment to the forward-declared local above
   local cache = M.deps.paths_cache
   if cache.graph then
     return cache.graph
@@ -1172,6 +1224,7 @@ function M.setup(deps)
     print("  /hexnight /hexcorpse      day/night facts; death-site mark/clear")
     print("  /hexscan                  corpses on the floor + your consider table")
     print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
+    print("  /hexcheck [refresh]      read the MUD's options listing into a table")
     print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
     print("  /hexgag, /gaglog         user gags as data; /hexungag <n|text> removes")
     print("  /doctor                  self-test everything, writes a report file")

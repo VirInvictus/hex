@@ -101,4 +101,86 @@ function M.register(alias_add)
   end)
 end
 
+-- --- /hexcheck: the options-output reader (the 1.x Tier-2 parser) -----------
+-- The live listing shape (wire-verified 2026-11-05): "name = value <choices>"
+-- and "name <more options>" for submenus. /hexcheck refresh arms a short
+-- window, sends "options output", and a wide trigger records the rows while
+-- armed; /hexcheck bare shows the stored listing. The window timer is
+-- announce-only and never sends (spec invariant 1).
+
+M.OPTION_WINDOW = 3
+M.check = { armed_until = nil, rows = nil }
+
+-- One listing line -> row table or nil. Pure.
+function M.parse_option_line(line)
+  line = util.trim(tostring(line))
+  local name, value, choices = line:match("^([%a%d][%a%d _]-) = (.+)%s*<(.+)>$")
+  if name then
+    return { name = util.trim(name), value = util.trim(value), choices = util.trim(choices) }
+  end
+  name = line:match("^([%a%d][%a%d _]-)%s*<more options>$")
+  if name then
+    return { name = util.trim(name), submenu = true }
+  end
+  return nil
+end
+
+function M.render_options(rows)
+  local lines = {}
+  for _, r in ipairs(rows or {}) do
+    if r.submenu then
+      lines[#lines + 1] = ("  %-28s <more options>"):format(r.name)
+    else
+      lines[#lines + 1] = ("  %-28s = %s %s"):format(r.name, r.value or "?", r.choices and ("[" .. r.choices .. "]") or "")
+    end
+  end
+  return lines
+end
+
+-- --- runtime glue (blightmud globals below this line) ------------------------
+
+M.deps = {}
+
+function M.setup(deps)
+  M.deps = deps or {}
+end
+
+local function check_armed()
+  return M.check.armed_until and os.time() <= M.check.armed_until
+end
+
+-- The listing-window trigger: broad on purpose, gated by the armed window
+-- in the callback (a two-line guard when disarmed).
+function M.register_check(alias_add, trigger_add)
+  alias_add("^/hexcheck\\s*(.*)$", function(matches)
+    local arg = util.trim(matches[2] or "")
+    if arg == "" and M.check.rows and #M.check.rows > 0 then
+      print(a("bold", "options listing") .. a("gray", "  " .. #M.check.rows .. " rows; /hexcheck refresh re-reads"))
+      for _, l in ipairs(M.render_options(M.check.rows)) do
+        print(l)
+      end
+      return
+    end
+    M.check.armed_until = os.time() + M.OPTION_WINDOW
+    M.check.rows = {}
+    mud.send("options output")
+    print(a("gray", "[hex] sent: options output (listing lands within " .. M.OPTION_WINDOW .. "s; /hexcheck views it)"))
+    if M.deps.timer_add then
+      M.deps.timer_add(M.OPTION_WINDOW, 1, function()
+        M.check.armed_until = nil
+        print(a("gray", "[hex] options listing closed: " .. (#M.check.rows or 0) .. " rows"))
+      end)
+    end
+  end)
+  trigger_add("^\\w.*$", {}, function(matches)
+    if not check_armed() then
+      return
+    end
+    local row = M.parse_option_line(matches[1])
+    if row then
+      M.check.rows[#M.check.rows + 1] = row
+    end
+  end)
+end
+
 return M

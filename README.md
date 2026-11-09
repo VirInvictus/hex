@@ -28,8 +28,8 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | Command | What it does |
 |---|---|
 | `/item [exact] <search>` | Search Quow's item database (comma-separated terms, `*`/`?` wildcards, `^`/`$` anchors, `desc:`/`app:`/`mat:`/`sheat:` prefixes) |
-| `/items [sold|free|loot] <search>` | Where to get an item: shops, NPC vendors, or found-in-world notes |
-| `/npc <search>` | Find NPCs (`room:<identifier>` narrows to one room) |
+| `/items [sold|free|loot] <search>` | Where to get an item: shops, NPC vendors, or found-in-world notes, nearest sources first with walk-step counts |
+| `/npc <search>` | Find NPCs (`room:<identifier>` narrows to one room), nearest first with walk-step counts |
 | `/shop [room id]` | List what a room sells (defaults to your current room) |
 | `/where` | Current room identifier plus map-database details |
 | `/path [--full] [any] <target>` | Route from your room through the identified map graph. Targets: room name (with `*`/`?`/`^`/`$`), `@<area>`, a room id, `#<n>` from the last candidate list, a bare vnum. Multiple matches give a numbered list with step counts; `any` allows avoid-flagged/water rooms |
@@ -65,6 +65,7 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/wmap`, `/dwmap` | Show the GMCP written map / ASCII room map (`/dwmap` strips the MUD's colour codes by default; `/hexset map_ansi ansi` keeps them) |
 | `/doctor` | Self-test everything: GMCP liveness, databases, data modules, parser fixtures, wiring, feature detection; writes a report file |
 | `/hexsetup [what]` | Send the game-side options tt_dw requires (prompt, aliases, options; `preview` shows without sending) |
+| `/hexcheck [refresh]` | Read the MUD's `options output` listing into a stored table and render it (`refresh` sends and catches the listing in a short window) |
 | `/hexupdate` | Download Quow's database + CC0 sounds into Hex's data directory |
 | `/hexgag`, `/gaglog` | List and add your own gags as data (`/hexgag [-i] <pattern> [-> <substitution>]`) |
 | `/hexungag <n\|text>` | Remove user gag entries |

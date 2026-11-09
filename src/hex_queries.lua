@@ -198,8 +198,9 @@ function M.build_item_sources_query(input, flag)
   end
   -- the union gets an explicit alias: a bare room_id here was ambiguous
   -- against r.room_id after the join and broke every /items sold query
-  -- (found by the synthetic goldens)
-  return "SELECT kind || '~' || COALESCE(seller, '') || '~' || COALESCE(price, '') || '~' || COALESCE(r.room_short, '') AS result "
+  -- (found by the synthetic goldens); the trailing u.room_id field feeds
+  -- the walk-distance ordering (phase 2 tail)
+  return "SELECT kind || '~' || COALESCE(seller, '') || '~' || COALESCE(price, '') || '~' || COALESCE(r.room_short, '') || '~' || COALESCE(u.room_id, '') AS result "
     .. "FROM ( "
     .. "SELECT 'shop' AS kind, si.room_id AS room_id, si.sale_price AS price, si.item_name AS iname, '' AS seller FROM shop_items si "
     .. "UNION ALL "

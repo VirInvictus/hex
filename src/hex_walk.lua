@@ -54,6 +54,15 @@ function M.should_warn(route)
   return route.steps > M.WARN_STEPS
 end
 
+-- The status chip for an active walk: progress, or the drift mark. Pure.
+function M.chip(state)
+  if not state or state.complete then
+    return nil
+  end
+  local mark = state.drifted_at and "!drift" .. state.drifted_at .. "/" or "»"
+  return mark .. state.index .. "/" .. state.total
+end
+
 -- The walk's completion line: the frimble echo arriving means the queue is
 -- drained.
 function M.is_done_marker(line)

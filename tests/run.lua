@@ -1722,7 +1722,7 @@ t("spec invariant: every wired module defines setup", function()
   -- main.lua calls M.setup on each of these (found live: v0.8.0 shipped
   -- sound.setup/tts_mod.setup calls with no function behind them, and the
   -- load died at the call site)
-  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_mdt", "hex_options", "hex_quota", "hex_scry", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls", "hex_doctor", "hex_guild" }) do
+  for _, f in ipairs({ "hex_chat", "hex_combat", "hex_data", "hex_missions", "hex_minimap", "hex_blorps", "hex_mdt", "hex_options", "hex_quota", "hex_scry", "hex_setup", "hex_skills", "hex_sound", "hex_stats", "hex_tts", "hex_urls", "hex_doctor", "hex_guild" }) do
     local m = require(f)
     assert(type(m.setup) == "function", f .. ".lua is wired in main.lua but defines no setup")
   end
@@ -2909,6 +2909,47 @@ t("missions: board_market lookup exists (the /apply crash class)", function()
   missions.session = {}
   eq(missions.board_market("MB"), nil)
   missions.session = saved
+end)
+
+-- Phase 1+2 tail (v0.20.0): the /hexcheck listing parser, the walk-distance
+-- comparator, and the drift status chip --------------------------------------
+
+t("setup: options listing lines parse", function()
+  local r = setup_mod.parse_option_line("map all = off <inside, outside, all>")
+  eq(r.name, "map all")
+  eq(r.value, "off")
+  eq(r.choices, "inside, outside, all")
+  local s = setup_mod.parse_option_line("output <more options>")
+  assert(s.submenu, "submenu shape")
+  eq(s.name, "output")
+  eq(setup_mod.parse_option_line("The clerk is standing here."), nil)
+  eq(setup_mod.parse_option_line(""), nil)
+  local lines = setup_mod.render_options({
+    { name = "map all", value = "off", choices = "inside, all" },
+    { name = "output", submenu = true },
+  })
+  assert(lines[1]:find("map all", 1, true) and lines[1]:find("%[inside, all%]"), "render value row")
+  assert(lines[2]:find("<more options>", 1, true), "render submenu")
+end)
+
+t("paths: compare_steps orders nearest-first, unreachable last", function()
+  local list = { { steps = 5 }, { steps = nil }, { steps = 2 }, { steps = 9 }, { steps = nil } }
+  table.sort(list, paths.compare_steps)
+  eq(list[1].steps, 2)
+  eq(list[2].steps, 5)
+  eq(list[3].steps, 9)
+  eq(list[4].steps, nil)
+  eq(list[5].steps, nil)
+end)
+
+t("walk: the status chip tracks progress and drift", function()
+  eq(walk.chip(nil), nil)
+  local st = { index = 3, total = 38 }
+  eq(walk.chip(st), "»3/38")
+  st.drifted_at = 2
+  eq(walk.chip(st), "!drift2/3/38")
+  st.complete = true
+  eq(walk.chip(st), nil)
 end)
 
 -- Phase 8 shim slice: main.lua loads against a stub blightmud ------------

@@ -375,6 +375,21 @@ function M.distances(graph, start_vnum, target_vnums, opts)
   return out
 end
 
+-- Strict comparator for distance-annotated result rows (x.steps/y.steps,
+-- nil = unreachable sorts last). Pure so the suite pins the ordering rules:
+-- both known -> ascending; exactly one known -> known first; both nil ->
+-- equal (unstable order among unreachable rows is fine).
+function M.compare_steps(x, y)
+  local xs, ys = x.steps, y.steps
+  if xs and ys then
+    return xs < ys
+  end
+  if xs then
+    return true
+  end
+  return false
+end
+
 -- Render a route into display lines. Compact mode groups consecutive
 -- same-command steps ("[3 north]", "[enter crate]"), wrapped at ~78
 -- columns; full mode lists every room on the way.
