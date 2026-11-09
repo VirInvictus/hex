@@ -67,11 +67,28 @@ end
 -- so one wrong turn does not spam the whole tail of the route. Every event
 -- carries total: the mismatch print concatenates it, and the field's absence
 -- crashed the first live walk (found 2026-11-08, night rooftop walk).
+--
+-- id == nil = an UNVERIFIABLE room: dark rooms push room.info without the
+-- identifier (you can't identify a room you can't see — found live the same
+-- night, when a 38-step walk through dark countryside counted 0/38 while
+-- successfully moving Brandon the whole way). Unverified pushes advance the
+-- counter optimistically and mark the walk so the finish line reports it.
 function M.transition(state, id)
   if state.complete then
     return { kind = "idle" }
   end
   state.index = state.index + 1
+  if id == nil then
+    state.unverified = (state.unverified or 0) + 1
+    if state.index >= state.total then
+      state.complete = true
+      return { kind = "complete", index = state.index, total = state.total, drifted_at = state.drifted_at, unverified = true }
+    end
+    if state.index % 25 == 0 then
+      return { kind = "milestone", index = state.index, total = state.total, unverified = true }
+    end
+    return { kind = "advance", index = state.index, total = state.total, unverified = true }
+  end
   local expected = state.ids[state.index]
   if state.index >= state.total and (expected == id or state.drifted_at) then
     state.complete = true
@@ -145,7 +162,8 @@ local function finish(event)
       print(red("[hex] walk ended early at step " .. (event.index or "?") .. "/" .. (event.total or "?") .. ": " .. state.label))
       print(gray("[hex] the queue drained before the route finished (failed commands drain fast); /where shows where you are"))
     else
-      print(gray("[hex] arrived: " .. state.label .. " (" .. event.index .. " steps)"))
+      local tag = event.unverified and " (some steps unverified — dark rooms)" or ""
+      print(gray("[hex] arrived: " .. state.label .. " (" .. event.index .. " steps)" .. tag))
     end
   end
 end

@@ -915,6 +915,31 @@ t("walk: mismatch reports once then counts silently", function()
   eq(done.drifted_at, 2)
 end)
 
+t("walk: nil-id pushes advance optimistically (dark rooms)", function()
+  -- found live 2026-11-08 night: dark countryside rooms push room.info
+  -- without identifiers; the walk ignored them and reported 0/38 while
+  -- successfully moving Brandon the whole 38-step route
+  local route = chain_route(4)
+  local state = walk.new_state(route, "target")
+  eq(walk.transition(state, nil).kind, "advance")
+  eq(state.unverified, 1)
+  eq(walk.transition(state, nil).kind, "advance")
+  eq(walk.transition(state, route.path[3].room_id).kind, "complete") -- known id lands the walk
+  eq(state.complete, true)
+end)
+
+t("walk: all-dark walk completes unverified at the last push", function()
+  local route = chain_route(5) -- 1->5 is 4 steps
+  local state = walk.new_state(route, "target")
+  for _ = 1, 3 do
+    eq(walk.transition(state, nil).kind, "advance")
+  end
+  local done = walk.transition(state, nil)
+  eq(done.kind, "complete")
+  eq(done.unverified, true)
+  eq(done.index, 4)
+end)
+
 t("walk: mismatch and drifted events carry total (the live crash)", function()
   -- found 2026-11-08: the mismatch print concatenates event.total, but the
   -- event never carried it -- the first live drift crashed the walk script

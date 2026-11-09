@@ -1,5 +1,15 @@
 # Hex patchnotes
 
+## v0.17.2 (2026-11-08)
+
+The night-walk fix, for real this time: dark rooms push room.info WITHOUT the identifier field (you cannot identify a room you cannot see), and the walker was ignoring exactly those pushes — so a 38-step walk through dark countryside counted "step 0/38" the entire way while successfully moving Brandon every step. The walk then reported "ended early" at his actual destination.
+
+- Unidentifiable room pushes now advance the walk optimistically, marked unverified: the movement happened, the room just could not be confirmed. Milestones fire normally on the unverified count, and the walk completes when the movement count reaches the route length.
+- The finish line reports the honesty: "arrived: <label> (N steps) (some steps unverified — dark rooms)".
+- Known-id pushes still verify against the plan exactly as before, and a genuine mismatch still reports drift. Dark stretches simply count.
+- Found by the same night walk that produced v0.14.0's caveats: this bug made that walk's "ended early at step 0/38" a lie — the walk had in fact worked.
+- Tests grow to 187 (193 with the opt-in route goldens).
+
 ## v0.17.1 (2026-11-08)
 
 Two small fixes from live use of the item commands:
