@@ -30,6 +30,7 @@ local mdt = require("src.hex_mdt")
 local doctor = require("src.hex_doctor")
 local guild = require("src.hex_guild")
 local scry = require("src.hex_scry")
+local moneydata = require("src.hex_moneydata")
 local gmcp_wire = require("src.hex_gmcp")
 local status = require("src.hex_status")
 local config = require("src.hex_config")
@@ -161,6 +162,10 @@ mdt.setup({ config = config, notify = notify })
 -- graph is injected later by commands.setup (deps.scry.get_graph)
 scry.setup({ config = config, room = room })
 scry.register(trigger_add, regex)
+
+-- the money kit (v0.23.0): pure currency data + the purse parser; the
+-- bank/pawn/trade aliases are thin documented sends registered in commands
+moneydata.setup({ config = config })
 
 -- v0.12.x debug lane REMOVED in v0.15.0 (transcripts consumed: combat
 -- monitor verdict, guild clause, the first real writtenmap corpus);
@@ -335,6 +340,7 @@ commands.setup({
   doctor = doctor,
   guild = guild,
   scry = scry,
+  moneydata = moneydata,
   paths_cache = paths_cache,
 })
 

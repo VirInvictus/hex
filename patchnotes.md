@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.23.0 (2026-11-09)
+
+The money kit, from the economy-doc mining: the currency tables pinned verbatim, the purse line parsed, and the documented money commands one alias away.
+
+- `hex_moneydata`: the full brass-value table for Ankh-Morpork, the Agatean Empire, Genua, Lancre and Djelibeybi straight from the pinned concepts/currency page, plus a parser for the wire purse line. `/hexmoney <purse line>` totals it exactly (the 2026-11-09 session purse "3 Ankh-Morpork half-dollars, 34 Ankh-Morpork ten-pence and 90 Ankh-Morpork pence" parses to A$5.80, pinned by a test), `/hexmoney A$3.07` converts the notation both ways.
+- `/hexbank` and `/hexpawn` print the documented money cards: the bank commands with the 5-10% administration-fee note and the balance-book price, and the pawn mechanics with the ~20% reclaim premium, the receipt-expiry warning, and the shopping page's "general stores buy for much less than they sell".
+- `/hexdeposit <money>` sends the documented deposit; `/hexoffer <obj> to <player> for <money>`, `/hexaccept <player>` and `/hexwdrop <player>` wrap the documented secure trade. All thin user-alias sends.
+- Tests grow to 217 (223 with the opt-in route goldens): the purse line to exact brass, unknown coins refused, the notation both ways, and the cards' warning lines. Also caught the Lua 5.5 interpreter drift once more on the way in: a for-loop variable assignment that 5.4 allows and 5.5 forbids died locally before it could ship.
+
 ## v0.22.0 (2026-11-09)
 
 Phase 5's offline remainder: the travel annotations, in the shape the data actually supports.

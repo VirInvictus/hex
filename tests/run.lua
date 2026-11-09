@@ -48,6 +48,7 @@ local doctor = require("hex_doctor")
 local guild_mod = require("hex_guild")
 local guild_data = require("hex_guild_data")
 local scry = require("hex_scry")
+local moneydata = require("hex_moneydata")
 
 local count, failed = 0, 0
 local function t(name, fn)
@@ -3014,6 +3015,35 @@ t("spells: the shields block parses (item-condition rows deliberately ignored)",
   assert(out:find("impact shield: UP", 1, true), "impact line")
   assert(out:find("divine: Fish", 1, true), "divine line")
   assert(table.concat(spells.shields_report({})):find("no shields", 1, true), "empty report hint")
+end)
+
+-- v0.23.0 money kit (currency data pinned from concepts/currency) ------------
+
+t("money: the wire purse line parses to exact brass", function()
+  -- verbatim from the 2026-11-09 09:16 session log
+  local total, parts = moneydata.parse_am_purse("3 Ankh-Morpork half-dollars, 34 Ankh-Morpork ten-pence and 90 Ankh-Morpork pence")
+  eq(total, 3 * 200 + 34 * 40 + 90 * 4)
+  eq(#parts, 3)
+  eq(parts[1].coin, "half-dollars")
+  eq(moneydata.parse_am_purse("a bag of holding and a torch"), nil)
+end)
+
+t("money: A$ notation both ways", function()
+  eq(moneydata.parse_am_notation("A$3.07"), 3 * 400 + 7 * 4)
+  eq(moneydata.parse_am_notation("A$12"), 12 * 400)
+  eq(moneydata.parse_am_notation("3 gold"), nil)
+  eq(moneydata.format_am(3 * 400 + 7 * 4), "A$3.07")
+  eq(moneydata.format_am(1600), "A$4.00")
+  assert(moneydata.parse_am_purse("2 unidentified thingies") == nil, "unknown coins are not silently totaled")
+end)
+
+t("money: the documented cards carry the fee and pawn warnings", function()
+  local bank = table.concat(moneydata.bank_card(), "\n")
+  assert(bank:find("5-10%", 1, true), "deposit fee note")
+  assert(bank:find("balance book", 1, true), "balance book")
+  local pawn = table.concat(moneydata.pawn_card(), "\n")
+  assert(pawn:find("20%", 1, true), "reclaim premium")
+  assert(pawn:find("expire", 1, true), "receipt expiry")
 end)
 
 -- Phase 8 shim slice: main.lua loads against a stub blightmud ------------

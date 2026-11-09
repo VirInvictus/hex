@@ -67,6 +67,10 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/hexscan` | The safe-prey finder: corpses on the floor (with the loot hint), your kills, and your `consider` table colour-banded into prey/even/danger |
 | `/hexcarriage` | What the last carriage on the wire is doing (arrived / leaving for X / next stop) and how to board it; carriage exits carry a `[carriage]` marker in `/hexexits` |
 | `/hextransport list\|<dest>\|cancel` | The documented arcane transport NPC verbs (A$20 international, A$10 local, language-gated) |
+| `/hexmoney <purse line\|A$x.yy>` | Total an Ankh-Morpork purse string into A$ and brass (paste the purse line straight from the MUD), or convert `A$x.yy` notation |
+| `/hexbank`, `/hexpawn` | The documented money cards: bank commands with the 5-10% deposit fee, pawn mechanics with the ~20% reclaim premium and receipt expiry |
+| `/hexdeposit <money>` | Send the documented bank deposit |
+| `/hexoffer <obj> to <player> for <money>`, `/hexaccept <player>`, `/hexwdrop <player>` | The documented secure player-to-player trade verbs |
 | `/hexcorpse [mark\|clear]` | Death-site tracker: mark where you died, get the `/goto` back; stored per-alt and survives restarts. Death itself is auto-recorded (Death's appearance is wire-verified) |
 | `/stats [refresh]` | Read your stats into the bonus math (from `score verbose stats`) |
 | `/hexoptions [key] [value]` | Validated options with alt/session layers; `brief`, `defaults`, `clear <key>` |
