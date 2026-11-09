@@ -65,6 +65,8 @@ Paths are overridable with `/hexset quow_db <path>`, `/hexset rooms_db <path>`, 
 | `/hexzone` | Current area, Quow zone, and graph-component facts: whether BP, Genua, Bad Ass, or Lancre Town are routable from here at all |
 | `/hexnight` | In-game day-part from the weather line plus dark-room signals, with the night implications (gates lock, climbs fail, room pushes go unverified). `/goto` repeats the warning before queueing |
 | `/hexscan` | The safe-prey finder: corpses on the floor (with the loot hint), your kills, and your `consider` table colour-banded into prey/even/danger |
+| `/hexcarriage` | What the last carriage on the wire is doing (arrived / leaving for X / next stop) and how to board it; carriage exits carry a `[carriage]` marker in `/hexexits` |
+| `/hextransport list\|<dest>\|cancel` | The documented arcane transport NPC verbs (A$20 international, A$10 local, language-gated) |
 | `/hexcorpse [mark\|clear]` | Death-site tracker: mark where you died, get the `/goto` back; stored per-alt and survives restarts. Death itself is auto-recorded (Death's appearance is wire-verified) |
 | `/stats [refresh]` | Read your stats into the bonus math (from `score verbose stats`) |
 | `/hexoptions [key] [value]` | Validated options with alt/session layers; `brief`, `defaults`, `clear <key>` |

@@ -1,5 +1,14 @@
 # Hex patchnotes
 
+## v0.22.0 (2026-11-09)
+
+Phase 5's offline remainder: the travel annotations, in the shape the data actually supports.
+
+- Carriage exits get their `[carriage]` marker in `/hexexits` (the wire shows them plainly in the exits line: "[n,se,d,enter broadway carriage]"), and the documented carriage arrival set becomes a tracker: "arrives and pulls to a stop", "will soon be leaving for X", "comes to a grinding halt", "has arrived at X" and "next stop is X" all feed one state that `/hexcarriage` renders with the boarding verb and an age. The stop and leave forms are wire-verified from the 2026-11-08 carriage-stop log; the rest are pinned in the doc mirror and stay flagged as such.
+- `/hextransport list|<dest>|cancel`: the documented arcane transport NPC verbs as thin sends (A$20 international, A$10 local, language-gated, per the pinned object page). Fast-travel for long delivery hops once you find a wizard selling rides.
+- Honest scope note: `/path` annotations proper (routing THROUGH a carriage leg) stay open until a capture shows how carriage journeys enter the room graph; today the markers and the tracker tell you where the horses are.
+- Tests grow to 216 (222 with the opt-in route goldens): the carriage marker's positive and negative cases, and the tracker's documented arrival set.
+
 ## v0.21.0 (2026-11-09)
 
 Phase 4's offline remainder plus the safety kit the combat-doc mining earned: every line shape in this release is pinned verbatim in the doc mirror, so it all works today, and every send stays behind a user alias.

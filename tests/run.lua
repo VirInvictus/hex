@@ -2877,6 +2877,30 @@ t("scry: corpses clear on an identified room push", function()
   eq(st.corpse_eaten_at, nil)
 end)
 
+t("scry: carriage exits get their marker", function()
+  local rows = {
+    { "enter broadway carriage", "0", "0", "a carriage stop", "Ankh-Morpork" },
+    { "enter sea", "1", "0", "the sea", "" },
+    { "n", "1", "0", "street", "" },
+  }
+  local lines = scry.render_exits(rows, {})
+  assert(lines[1]:find("%[carriage%]"), "carriage marker: " .. lines[1])
+  assert(not lines[2]:find("carriage"), "enter sea is not a carriage")
+  assert(not lines[3]:find("carriage"), "plain exits stay clean")
+end)
+
+t("scry: the carriage state tracks the documented arrival set", function()
+  local st = scry.new_state()
+  scry.observe_carriage(st, "arrived", "Broadway", nil, 1000)
+  eq(st.carriage.kind, "arrived")
+  scry.observe_carriage(st, "leaving", "Intercontinental Express", "Djelibeybi", 2000)
+  eq(st.carriage.kind, "leaving")
+  eq(st.carriage.place, "Djelibeybi")
+  scry.observe_carriage(st, "nextstop", "Broadway", "the Palace", 3000)
+  eq(st.carriage.place, "the Palace")
+  scry.observe_carriage(nil, "arrived", "X", nil, 1)
+end)
+
 t("scry: death anchors are end-anchored and conservative", function()
   -- the primary anchors are WIRE-VERIFIED (2026-11-08 20:25, the forest
   -- clearing death in his own log: Death appears, quotes, leaves on Binky);

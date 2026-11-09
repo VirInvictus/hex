@@ -69,6 +69,7 @@ function M.new_state()
   return {
     daypart = nil, daypart_at = nil, moon = nil, moon_at = nil, dark_at = nil,
     kills = {}, corpses = {}, corpse_eaten_at = nil, consider = {},
+    carriage = nil,
   }
 end
 
@@ -242,6 +243,9 @@ function M.render_exits(rows, gates)
     end
     if flag % 4 >= 2 then
       marks[#marks + 1] = "unsafe"
+    end
+    if cmd:find("^enter ") and cmd:find("carriage") then
+      marks[#marks + 1] = "carriage"
     end
     local mark = ""
     if #marks > 0 then
@@ -473,6 +477,18 @@ function M.observe_consider(st, hit, now)
   end
 end
 
+-- --- carriages (the phase-5 travel annotations) ------------------------------
+
+-- Carriage state from the documented arrival set; the two stop/leave lines
+-- are also wire-verified (2026-11-08 19:04 log, the Intercontinental Express
+-- at the AM carriage stop). Pure observer.
+function M.observe_carriage(st, kind, name, place, now)
+  if not st then
+    return
+  end
+  st.carriage = { kind = kind, name = name, place = place, at = now }
+end
+
 -- --- runtime glue (blightmud globals below this line) -----------------------
 
 M.deps = { config = nil, room = nil, get_graph = nil }
@@ -672,6 +688,27 @@ function M.cmd_scan()
   print(gray("people nearby: /mdt; exits and their markers: /hexexits"))
 end
 
+-- /hexcarriage: what the last carriage on the wire is doing, and how to
+-- board it (the exit verb comes from /hexexits's [carriage] marker).
+function M.cmd_carriage()
+  local st = M.state or {}
+  local c = st.carriage
+  if not c then
+    print(gray("no carriage seen yet; carriage stops carry an [carriage] exit in /hexexits"))
+    return
+  end
+  local now = os.time()
+  local what = {
+    arrived = "pulled to a stop here",
+    leaving = "leaving soon for " .. tostring(c.place or "?"),
+    halt = "come to a grinding halt",
+    nextstop = "next stop: " .. tostring(c.place or "?"),
+  }
+  local line = (c.name or "?") .. " carriage " .. (what[c.kind] or c.kind)
+  print(bold("carriage: ") .. line .. gray("  (seen " .. M.fmt_secs(now - (c.at or now)) .. " ago)"))
+  print(gray("board with: enter " .. (c.name or "?") .. " carriage  (check the verb in /hexexits)"))
+end
+
 function M.cmd_corpse(sub)
   sub = util.trim(sub or "")
   local config = M.deps.config
@@ -757,6 +794,22 @@ function M.register(trigger_add, regex)
     if M.state then
       M.state.corpse_eaten_at = os.time()
     end
+  end)
+  -- carriages: the documented arrival set; stop/leave are also wire-verified
+  trigger_add("^The (.+) carriage arrives and pulls to a stop\\.$", {}, function(matches)
+    M.observe_carriage(M.state, "arrived", matches[2], nil, os.time())
+  end)
+  trigger_add("^The (.+) carriage will soon be leaving for (.+)\\.$", {}, function(matches)
+    M.observe_carriage(M.state, "leaving", matches[2], matches[3], os.time())
+  end)
+  trigger_add("^The (.+) carriage comes to a grinding halt\\.$", {}, function(matches)
+    M.observe_carriage(M.state, "halt", matches[2], nil, os.time())
+  end)
+  trigger_add("^The (.+) carriage has arrived at (.+)\\.$", {}, function(matches)
+    M.observe_carriage(M.state, "nextstop", matches[2], matches[3], os.time())
+  end)
+  trigger_add("^The (.+)'s next stop is (.+)\\.$", {}, function(matches)
+    M.observe_carriage(M.state, "nextstop", matches[2], matches[3], os.time())
   end)
   -- death-room recorder. Wire-VERIFIED 2026-11-08 20:25 (the forest
   -- clearing death, his own log): Death appears mid-fight quoting random

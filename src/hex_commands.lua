@@ -1172,6 +1172,20 @@ function M.setup(deps)
   alias_add("^/hexcorpse\\s*(.*)$", function(matches)
     deps.scry.cmd_corpse(matches[2] or "")
   end)
+  alias_add("^/hexcarriage$", function()
+    deps.scry.cmd_carriage()
+  end)
+  alias_add("^/hextransport\\s+(.+)$", function(matches)
+    -- the documented arcane transport NPC verbs (A$20 international,
+    -- A$10 local, language-gated); `list` shows destinations
+    local arg = matches[2]
+    if arg == "list" or arg == "cancel" then
+      mud.send(arg == "cancel" and "cancel travel plans" or "list")
+    else
+      mud.send("travel to " .. arg)
+    end
+    print(a("gray", "[hex] sent: " .. arg))
+  end)
   alias_add("^/hunt\\s*(.*)$", function(matches)
     deps.mdt.cmd_hunt(matches[2])
   end)
@@ -1275,6 +1289,7 @@ function M.setup(deps)
     print("  /hexexits /hexzone        verbose exits; zone + component facts")
     print("  /hexnight /hexcorpse      day/night facts; death-site mark/clear")
     print("  /hexscan                  corpses on the floor + your consider table")
+    print("  /hexcarriage /hextransport  last carriage seen; arcane transport verbs")
     print("  /hexsetup [what]         game-side options (prompt, aliases, options)")
     print("  /hexcheck [refresh]      read the MUD's options listing into a table")
     print("  /hexupdate               Quow db + CC0 sounds into Hex's data dir")
