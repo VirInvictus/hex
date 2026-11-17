@@ -52,7 +52,7 @@ Run all commands from the repo root.
 
 ## Editor support
 
-LuaLS: point `.luarc.json` `workspace.library` at `~/.gitrepos/blightmud/resources/lua/types/` (the `blightmud.d.lua` class definitions). The committed `.luarc.json` holds the absolute path; it is machine-local by design while the repo stays local-only.
+LuaLS: point `.luarc.json` `workspace.library` at `~/.gitrepos/blightmud/resources/lua/types/` (the `blightmud.d.lua` class definitions). The committed `.luarc.json` holds the absolute path; it is machine-local by design, so point it at your own blightmud checkout after cloning.
 
 ## Porting sources
 

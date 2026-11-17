@@ -6,10 +6,10 @@ Hex gives Blightmud what the Discworld MUD community's tooling gives other clien
 
 ## Install
 
-From inside Blightmud, with the repo cloned to `~/.gitrepos/hex`:
+From inside Blightmud, with the repo cloned wherever you like:
 
 ```
-/add_plugin /home/bdkl/.gitrepos/hex
+/add_plugin /path/to/hex
 /enable_plugin hex
 ```
 
